@@ -4,12 +4,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.splitify.domain.model.Trip
+import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -18,7 +21,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CreateTripViewModel @Inject constructor(
-    private val tripRepository: TripRepository
+    private val tripRepository: TripRepository,
+    private val authRepository: AuthRepository
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateTripUiState(
@@ -26,6 +30,15 @@ class CreateTripViewModel @Inject constructor(
     ))
 
     val uiState: StateFlow<CreateTripUiState> = _uiState.asStateFlow()
+
+    private var currentUserId: String? = null
+    init {
+        viewModelScope.launch {
+            authRepository.getCurrentUser().collect{user ->
+                currentUserId = user?.id
+            }
+        }
+    }
 
     //Update Name
     fun onNameChange(name: String){
@@ -95,6 +108,14 @@ class CreateTripViewModel @Inject constructor(
         //Create Trip
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
+
+            if(currentUserId==null){
+                _uiState.update { it.copy(
+                    isLoading = false,
+                    nameError = "You must be logged in to create a trip"
+                ) }
+                return@launch
+            }
             val trip = Trip(
                 id = UUID.randomUUID().toString(),
                 name = state.name,
@@ -102,7 +123,7 @@ class CreateTripViewModel @Inject constructor(
                 startDate = state.startDate,
                 endDate = state.endDate,
                 inviteCode = state.inviteCode,
-                createdBy = "test-user-1",
+                createdBy = currentUserId!!,
                 isLocal = true
             )
             when( val result = tripRepository.createTrip(trip)){

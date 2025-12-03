@@ -1,28 +1,28 @@
-//package com.example.splitify.domain.repository
-//
-//import com.example.splitify.domain.model.User
-//import kotlinx.coroutines.flow.Flow
-//import com.example.splitify.util.Result
-//
-//interface AuthRepository {
-//
-//    fun getCurrentUser(): Flow<User?>
-//
-//    suspend fun isLoggedIn(): Boolean
-//
-//    suspend fun signUp(
-//        email: String,
-//        password: String,
-//        userName: String,
-//        fullName: String,
-//    ): Result<User>
-//
-//    suspend fun signIn(
-//        email: String,
-//        password: String
-//    ): Result<User>
-//
-//    suspend fun getUserById(userId: String): Result<User?>
-//
-//    suspend fun signOut(): Result<Unit>
-//}
+package com.example.splitify.domain.repository
+
+import com.example.splitify.domain.model.User
+import kotlinx.coroutines.flow.Flow
+import com.example.splitify.util.Result
+
+interface AuthRepository {
+
+    fun getCurrentUser(): Flow<User?>
+
+    suspend fun isLoggedIn(): Boolean
+
+    suspend fun signUp(
+        email: String,
+        password: String,
+        userName: String,
+        fullName: String,
+    ): Result<User>
+
+    suspend fun signIn(
+        email: String,
+        password: String
+    ): Result<User>
+
+    suspend fun getUserById(userId: String): Result<User?>
+
+    suspend fun signOut(): Result<Unit>
+}

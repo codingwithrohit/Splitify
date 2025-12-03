@@ -3,6 +3,7 @@ package com.example.splitify.presentation.trips
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.domain.model.Trip
+import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,14 +32,44 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class TripsViewModel @Inject constructor(
-    private val tripRepository: TripRepository
+    private val tripRepository: TripRepository,
+    private val authRepository: AuthRepository
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow<TripsUiState>(TripsUiState.Loading)
     val uiState: StateFlow<TripsUiState> = _uiState.asStateFlow()
-
+    private var currentUserId: String? = null
     init {
-        loadTrips()
+        loadCurrentUser()
+    }
+
+    private fun loadCurrentUser(){
+        viewModelScope.launch {
+            authRepository.getCurrentUser().collect {user ->
+                currentUserId = user?.id
+            }
+            if(currentUserId != null){
+                loadTripsForUser(currentUserId!!)
+            }
+            else{
+                _uiState.value = TripsUiState.Error("Not logged in")
+            }
+        }
+    }
+
+    private fun loadTripsForUser(userId: String){
+        viewModelScope.launch {
+            tripRepository.getTripsByUser(userId)
+                .map<List<Trip>, TripsUiState> {trips ->
+                    TripsUiState.Success(trips = trips)
+                }
+                .catch { exception ->
+                    emit(TripsUiState.Error(exception.message ?: "Failed to load trips"))
+                }
+                .collect { state ->
+                    _uiState.value = state
+                }
+        }
     }
 
     private fun loadTrips(){
@@ -56,29 +87,7 @@ class TripsViewModel @Inject constructor(
         }
     }
 
-     fun createTestTrip(){
-        viewModelScope.launch {
-            val trip = Trip(
-                id = UUID.randomUUID().toString(),
-                name = "Test Trip",
-                description = null,
-                startDate = LocalDate.now(),
-                endDate = LocalDate.now().plusDays(3),
-                inviteCode = generateInviteCode(),
-                createdBy = "test-user-1",
-                isLocal = true
-            )
-            val result = tripRepository.createTrip(trip)
-            when(result){
-                is Result.Success -> {
-                    println("✅ Trip created: ${trip.name}")
-                }
-                is Result.Error -> {
-                    _uiState.value = TripsUiState.Error(result.message)
-                }
-            }
-        }
-    }
+
 
      fun deleteTrip(tripId: String){
         viewModelScope.launch {
@@ -92,7 +101,18 @@ class TripsViewModel @Inject constructor(
                 }
             }
         }
+
     }
+
+    fun logout(){
+        viewModelScope.launch {
+            // Clear local trips before logout
+            tripRepository.clearLocalTrips()
+            authRepository.signOut()
+        }
+    }
+
+
 
     fun refresh() {
         loadTrips()

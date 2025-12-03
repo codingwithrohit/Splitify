@@ -8,6 +8,8 @@ interface TripRepository {
 
     fun getAllTrips(): Flow<List<Trip>>
 
+    fun getTripsByUser(userId: String): Flow<List<Trip>>
+
     suspend fun getTripById(tripId: String): Trip?
 
     suspend fun createTrip(trip: Trip): Result<Trip>
@@ -17,6 +19,8 @@ interface TripRepository {
     suspend fun updateTrip(trip: Trip): Result<Unit>
 
     suspend fun syncTrips(): Result<Unit>
+
+    suspend fun clearLocalTrips(): Result<Unit>
 
 
 }

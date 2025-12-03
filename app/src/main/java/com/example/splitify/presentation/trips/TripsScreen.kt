@@ -1,5 +1,6 @@
 package com.example.splitify.presentation.trips
 
+import android.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,12 +25,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -41,6 +44,7 @@ import com.example.splitify.domain.model.Trip
 @Composable
 fun TripsScreen(
     onCreateTripClick: () -> Unit,
+    onLogOut: () -> Unit,
     viewModel: TripsViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -49,9 +53,13 @@ fun TripsScreen(
         topBar = {
             TopAppBar(
                 title = { Text("My Trips") },
+                actions = {
+                    TextButton(onClick = onLogOut)  {
+                    Text("Logout", color = MaterialTheme.colorScheme.onPrimary)
+                } },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
                 )
             )
         },
