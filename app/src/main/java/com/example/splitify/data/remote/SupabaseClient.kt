@@ -1,6 +1,7 @@
 package com.example.splitify.data.remote
 
 
+import android.content.Context
 import android.util.Log
 import com.example.splitify.BuildConfig
 import io.github.jan.supabase.SupabaseClient
@@ -11,7 +12,7 @@ import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.supabaseJson
 
 //Single instance will be used throughout the project
-object SupabaseClientProvider {
+class SupabaseClientProvider(private val context: Context) {
 
     val client: SupabaseClient by lazy {
         createSupabaseClient(
@@ -20,7 +21,11 @@ object SupabaseClientProvider {
 
         ){
 
-            install(Auth)
+            install(Auth){
+                autoLoadFromStorage = true
+                autoSaveToStorage = true
+                alwaysAutoRefresh = true
+            }
             install(Postgrest)
             install(Realtime)
         }

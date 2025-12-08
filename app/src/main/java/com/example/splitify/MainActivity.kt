@@ -27,9 +27,14 @@ import com.example.splitify.presentation.trips.CreateTripViewModel
 import com.example.splitify.presentation.trips.ErrorScreen
 import com.example.splitify.presentation.trips.TripsScreen
 import dagger.hilt.android.AndroidEntryPoint
+import io.github.jan.supabase.SupabaseClient
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var supabase: SupabaseClient
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -40,7 +45,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
 
-                    SplitifyNavGraph()
+                    SplitifyNavGraph(supabase = supabase)
                 }
             }
         }
