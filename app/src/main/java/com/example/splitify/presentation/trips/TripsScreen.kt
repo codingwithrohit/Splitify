@@ -1,6 +1,6 @@
 package com.example.splitify.presentation.trips
 
-import android.R
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +32,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -44,6 +43,7 @@ import com.example.splitify.domain.model.Trip
 @Composable
 fun TripsScreen(
     onCreateTripClick: () -> Unit,
+    onTripClick: (String) -> Unit,
     onLogOut: () -> Unit,
     viewModel: TripsViewModel = hiltViewModel()
 ){
@@ -84,6 +84,7 @@ fun TripsScreen(
                 else{
                     TripsList(
                         trips = trips,
+                        onTripClick = onTripClick,
                         onDeleteTrip = { tripId -> viewModel.deleteTrip(tripId) },
                         modifier = Modifier.padding(paddingValues)
                     )
@@ -104,6 +105,7 @@ fun TripsScreen(
 @Composable
 fun TripsList(
     trips: List<Trip>,
+    onTripClick: (String) -> Unit,
     onDeleteTrip: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -118,6 +120,7 @@ fun TripsList(
         ){ trip ->
             TripCard(
                 trip =  trip,
+                onClick = {onTripClick(trip.id)},
                 onDelete = { onDeleteTrip(trip.id) }
             )
         }
@@ -128,11 +131,12 @@ fun TripsList(
 @Composable
 fun TripCard(
     trip: Trip,
+    onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(

@@ -3,6 +3,7 @@ package com.example.splitify.di
 import android.content.Context
 import androidx.room.Room
 import com.example.splitify.data.local.AppDatabase
+import com.example.splitify.data.local.dao.ExpenseDao
 import com.example.splitify.data.local.dao.TripDao
 import dagger.Module
 import dagger.Provides
@@ -32,6 +33,12 @@ object DatabaseModule {
     @Singleton
     fun provideTripDao(database: AppDatabase): TripDao{
         return database.tripDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideExpenseDao(database: AppDatabase): ExpenseDao{
+        return database.expenseDao()
     }
 
 }

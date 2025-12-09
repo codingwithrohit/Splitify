@@ -7,11 +7,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.splitify.presentation.auth.LoginScreen
 import com.example.splitify.presentation.auth.SignUpScreen
+import com.example.splitify.presentation.expense.AddExpenseScreen
+import com.example.splitify.presentation.tripdetail.TripDetailScreen
 import com.example.splitify.presentation.trips.CreateTripScreen
 import com.example.splitify.presentation.trips.TripsScreen
 import io.github.jan.supabase.SupabaseClient
@@ -64,6 +68,9 @@ fun SplitifyNavGraph(
                     onCreateTripClick = {
                         navController.navigate(Screen.CreateTrip.route)
                     },
+                    onTripClick = { tripId ->
+                        navController.navigate(Screen.TripDetail.createRoute(tripId))
+                    },
                     onLogOut = {
                         navController.navigate(Screen.Login.route){
                             popUpTo(0){inclusive=true}
@@ -85,8 +92,41 @@ fun SplitifyNavGraph(
                 )
             }
 
+            // Trip Detail Screen
+            composable(
+                route = Screen.TripDetail.route,
+                arguments = listOf(
+                    navArgument(Screen.TripDetail.ARG_TRIP_ID){
+                        type = NavType.StringType
+                    }
+                )
+            ){
+                TripDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onAddExpense = {
+                        val tripId = it.arguments?.getString(Screen.TripDetail.ARG_TRIP_ID)
+                        if(tripId!=null){
+                            navController.navigate(Screen.AddExpense.createRoute(tripId))
+                        }
+                    }
+                )
+            }
+
+            composable(
+                route = Screen.AddExpense.route,
+                arguments = listOf(
+                    navArgument(Screen.AddExpense.ARG_TRIP_ID){
+                        type = NavType.StringType
+                    }
+                )
+            ){
+                AddExpenseScreen(
+                    onNavigationBack = {navController.popBackStack()},
+                    onExpenseSaved = {navController.popBackStack()}
+                )
+            }
+
             // TODO: Add more screens here later
-            // - Trip Detail
             // - Add Expense
             // - Add Members
             // - etc.
