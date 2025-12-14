@@ -4,9 +4,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.repository.ExpenseRepository
 import com.example.splitify.domain.repository.TripRepository
+import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
 import com.example.splitify.presentation.navigation.Screen
+import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +22,7 @@ import javax.inject.Inject
 class TripDetailViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
+    private val getTripMemberUseCase: GetTripMemberUseCase,
     savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
@@ -33,7 +37,38 @@ class TripDetailViewModel @Inject constructor(
     init {
         loadTripDetails()
         loadExpenses()
+        loadMembers()
     }
+
+    private fun loadMembers() {
+        viewModelScope.launch {
+            getTripMemberUseCase(tripId).collect { result ->
+                _uiState.update { currentState ->
+                    if (currentState is TripDetailUiState.Success) {
+                        when (result) {
+                            is Result.Success -> {
+                                currentState.copy(
+                                    members = result.data,
+                                    memberCount = result.data.size
+                                )
+                            }
+
+                            is Result.Error -> {
+                                TripDetailUiState.Error(result.message)
+                            }
+
+                            is Result.Loading -> {
+                                TripDetailUiState.Loading
+                            }
+                        }
+                    } else {
+                        currentState
+                    }
+                }
+            }
+        }
+    }
+
 
     private fun loadExpenses() {
         viewModelScope.launch {
@@ -60,7 +95,8 @@ class TripDetailViewModel @Inject constructor(
                     _uiState.value = TripDetailUiState.Success(
                         trip = trip,
                         totalExpenses = 0.0,
-                        memberCount = 1
+                        memberCount = 1,
+                        members = emptyList()
                     )
                 }
                 else{

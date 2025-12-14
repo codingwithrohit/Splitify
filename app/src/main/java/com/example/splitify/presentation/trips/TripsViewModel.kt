@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
+import com.example.splitify.presentation.trips.TripsUiState.*
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,7 +53,7 @@ class TripsViewModel @Inject constructor(
                 loadTripsForUser(currentUserId!!)
             }
             else{
-                _uiState.value = TripsUiState.Error("Not logged in")
+                _uiState.value = Error("Not logged in")
             }
         }
     }
@@ -97,8 +98,10 @@ class TripsViewModel @Inject constructor(
                     println("✅ Trip deleted: $tripId")
                 }
                 is Result.Error -> {
-                    _uiState.value = TripsUiState.Error(result.message)
+                    _uiState.value = Error(result.message)
                 }
+
+                Result.Loading -> TODO()
             }
         }
 

@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.example.splitify.data.local.AppDatabase
 import com.example.splitify.data.local.dao.ExpenseDao
 import com.example.splitify.data.local.dao.TripDao
+import com.example.splitify.data.local.dao.TripMemberDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -39,6 +40,12 @@ object DatabaseModule {
     @Singleton
     fun provideExpenseDao(database: AppDatabase): ExpenseDao{
         return database.expenseDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideTripMemberDao(database: AppDatabase): TripMemberDao{
+        return database.tripMemberDao()
     }
 
 }

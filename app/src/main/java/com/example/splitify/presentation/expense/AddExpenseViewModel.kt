@@ -150,6 +150,8 @@ class AddExpenseViewModel @Inject constructor(
                         )
                     }
                 }
+
+                Result.Loading -> TODO()
             }
 
         }

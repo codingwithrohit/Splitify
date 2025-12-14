@@ -1,5 +1,6 @@
 package com.example.splitify.presentation.tripdetail
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,12 +9,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,14 +39,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.Trip
+import com.example.splitify.domain.model.TripMember
+import com.example.splitify.presentation.addmembers.EmptyState
 import io.github.jan.supabase.realtime.Column
 import java.time.format.DateTimeFormatter
 import javax.annotation.meta.When
@@ -51,9 +63,12 @@ import javax.annotation.meta.When
 fun TripDetailScreen(
     onNavigateBack: () -> Unit,
     onAddExpense: () -> Unit,
+    onAddMember: () -> Unit,
     viewModel: TripDetailViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    //var selectedTab by remember { mutableStateOf(0) }
+    //val tabs = listOf("Overview", "Expenses", "Members", "Balances")
 
     Scaffold(
         topBar = {
@@ -80,9 +95,20 @@ fun TripDetailScreen(
             )
         },
         floatingActionButton = {
-            if(uiState is TripDetailUiState.Success){
-                FloatingActionButton(onClick = onAddExpense) {
-                    Icon(Icons.Default.Add, "Add Expense")
+            val state = uiState
+            if(state is TripDetailUiState.Success){
+                when(state.currentTab){
+                    TripDetailTab.EXPENSES -> {
+                        FloatingActionButton(onClick = onAddExpense) {
+                            Icon(Icons.Default.Add, contentDescription = "Add Expense")
+                        }
+                    }
+                    TripDetailTab.MEMBERS -> {
+                        FloatingActionButton(onClick = onAddMember) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = "Add Member")
+                        }
+                    }
+                    else -> Unit
                 }
             }
         }
@@ -103,8 +129,8 @@ fun TripDetailScreen(
                 TripDetailContent(
                     trip = state.trip,
                     expenses = state.expenses,
+                    members = state.members,
                     totalExpense = state.totalExpenses,
-                    memberCount = state.memberCount,
                     currentTab = state.currentTab,
                     onTabSelected = viewModel::selectTab,
                     modifier = Modifier.padding(paddingValues)
@@ -118,8 +144,8 @@ fun TripDetailScreen(
 fun TripDetailContent(
     trip: Trip,
     expenses: List<Expense>,
+    members: List<TripMember>,
     totalExpense: Double,
-    memberCount: Int,
     currentTab: TripDetailTab,
     onTabSelected: (TripDetailTab) -> Unit,
     modifier: Modifier = Modifier
@@ -129,7 +155,7 @@ fun TripDetailContent(
         TripSummaryCard(
             trip = trip,
             totalExpense = totalExpense,
-            memberCount = memberCount,
+            memberCount = members.size,
             modifier = Modifier.padding(16.dp)
         )
 
@@ -138,7 +164,13 @@ fun TripDetailContent(
                 Tab(
                     selected = currentTab == tab,
                     onClick = { onTabSelected(tab) },
-                    text = {Text(tab.name.lowercase().capitalize())}
+                    text = {
+                        Text(
+                            text = tab.name.lowercase().replaceFirstChar { it.uppercase() },
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 )
             }
         }
@@ -146,7 +178,7 @@ fun TripDetailContent(
         when(currentTab){
             TripDetailTab.OVERVIEW -> OverviewTab(trip)
             TripDetailTab.EXPENSES -> ExpensesTab(expenses = expenses)
-            TripDetailTab.MEMBERS -> MembersTab()
+            TripDetailTab.MEMBERS -> MembersTab(members = members)
             TripDetailTab.BALANCES -> BalancesTab()
         }
     }
@@ -233,7 +265,10 @@ fun StatItem(
     label: String,
     value: String
 ){
-    Column{
+    Column(
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ){
         Text(
             text = value,
             style = MaterialTheme.typography.titleLarge,
@@ -385,16 +420,121 @@ private fun ExpenseCard(
 }
 
 @Composable
-private fun MembersTab() {
+private fun MembersTab(
+    members: List<TripMember>
+) {
     Box(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+
     ) {
-        Text(
-            text = "Members feature coming soon",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        if(members.isEmpty()){
+            EmptyState(
+                message = "No members yet.\n Tap + to add your first member",
+                icon = Icons.Default.Add
+            )
+        }
+        else{
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            )
+            {
+                item {
+                    Text(
+                        text = "${members.size} member${if(members.size > 1) "s" else ""} ",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                items(members,{it.id}){ member ->
+                    MemberCard(member)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemberCard(member: TripMember) {
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (member.isAdmin)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.secondaryContainer
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = member.displayName.firstOrNull()?.uppercase() ?: "?",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = if (member.isAdmin)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = member.displayName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (member.isAdmin) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Admin",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (member.isAdmin) "Admin" else "Member",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (member.isGuest) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                        Text(
+                            text = "Guest",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

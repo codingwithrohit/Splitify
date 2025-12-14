@@ -15,6 +15,8 @@ import com.example.splitify.util.Result.Error
  */
 
 sealed class Result<out T>{
+    data object Loading: Result<Nothing>()
+
     // Successful operation with data
     data class Success<T>(val data: T): Result<T>()
 
@@ -30,16 +32,16 @@ sealed class Result<out T>{
         get() = this is Error
 
     // Get data if success, null otherwise
-    fun getOrNull(): T? = when(this){
-        is Success -> data
-        is Error -> null
-    }
-
-    // Get data if success, throw exception if error
-    fun getOrThrow(): T? = when(this){
-        is Success -> data
-        is Error -> throw exception
-    }
+//    fun getOrNull(): T? = when(this){
+//        is Success -> data
+//        is Error -> null
+//    }
+//
+//    // Get data if success, throw exception if error
+//    fun getOrThrow(): T? = when(this){
+//        is Success -> data
+//        is Error -> throw exception
+//    }
 
 }
 // Extension function to create success result

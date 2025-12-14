@@ -76,6 +76,8 @@ class LoginViewModel @Inject constructor(
                         errorMessage = result.message
                     ) }
                 }
+
+                Result.Loading -> TODO()
             }
         }
     }

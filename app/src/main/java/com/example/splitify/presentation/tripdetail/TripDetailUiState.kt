@@ -3,6 +3,7 @@ package com.example.splitify.presentation.tripdetail
 import co.touchlab.kermit.Message
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.Trip
+import com.example.splitify.domain.model.TripMember
 
 sealed interface TripDetailUiState {
 
@@ -11,6 +12,7 @@ sealed interface TripDetailUiState {
     data class Success(
         val trip: Trip,
         val expenses: List<Expense> = emptyList(),
+        val members: List<TripMember>,
         val totalExpenses: Double = 0.0,
         val memberCount: Int = 1,
         val currentTab: TripDetailTab = TripDetailTab.OVERVIEW

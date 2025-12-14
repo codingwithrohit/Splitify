@@ -3,8 +3,11 @@ package com.example.splitify.presentation.trips
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.splitify.domain.model.MemberRole
 import com.example.splitify.domain.model.Trip
+import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.repository.AuthRepository
+import com.example.splitify.domain.repository.TripMemberRepository
 import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,7 +25,8 @@ import javax.inject.Inject
 @HiltViewModel
 class CreateTripViewModel @Inject constructor(
     private val tripRepository: TripRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val tripMemberRepository: TripMemberRepository
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateTripUiState(
@@ -128,10 +132,40 @@ class CreateTripViewModel @Inject constructor(
             )
             when( val result = tripRepository.createTrip(trip)){
                 is Result.Success ->{
-                    _uiState.update { it.copy(
-                        isLoading = false,
-                        isSaved = true
-                    ) }
+//                    _uiState.update {
+//                        it.copy(
+//                            isLoading = false,
+//                            isSaved = true
+//                        )
+//                    }
+                    //Add creator as admin
+                    val creatorMember = TripMember(
+                        id = UUID.randomUUID().toString(),
+                        tripId = trip.id,
+                        role = MemberRole.ADMIN,
+                        userId = currentUserId!!,
+                        joinedAt = System.currentTimeMillis(),
+                        displayName = authRepository.getCurrentUser().first()!!.userName,
+                    )
+                    when(tripMemberRepository.addMember(creatorMember)){
+                        is Result.Success -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    isSaved = true
+                                )
+                            }
+                        }
+                        is Result.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    nameError = "Trip created but failed to assign admin"
+                                )
+                            }
+                        }
+                        is Result.Loading -> Unit
+                    }
                 }
                 is Result.Error ->{
                     _uiState.update { it.copy(
@@ -139,6 +173,8 @@ class CreateTripViewModel @Inject constructor(
                         nameError = "Failed to create trip: ${result.message}"
                     ) }
                 }
+
+                Result.Loading -> TODO()
             }
         }
 

@@ -20,31 +20,24 @@ class AuthRepositoryImpl @Inject constructor(
     private val supabase: SupabaseClient
 ): AuthRepository {
 
-    override fun getCurrentUser(): Flow<User?> = flow{
-        try{
-            val session = supabase.auth.currentSessionOrNull()
-            if (session != null) {
-                val userId = session.user?.id ?: return@flow emit(null)
+    override fun getCurrentUser(): Flow<User?> =
+        flow {
+            emit(
+                runCatching {
+                    val session = supabase.auth.currentSessionOrNull()
+                        ?: return@runCatching null
 
-                val userProfile = supabase.from("users")
-                    .select()
-                    .decodeList<UserDto>()
-                    .firstOrNull{it.id == userId}
+                    val userId = session.user?.id ?: return@runCatching null
 
-                if(userProfile!=null){
-                    emit(userProfile.toDomainModel())
-                }
-                else{
-                    emit(null)
-                }
-            }
-            else{
-                emit(null   )
-            }
-        }catch (e: Exception){
-            emit(null)
+                    supabase.from("users")
+                        .select()
+                        .decodeList<UserDto>()
+                        .firstOrNull { it.id == userId }
+                        ?.toDomainModel()
+                }.getOrNull()
+            )
         }
-    }
+
 
     override suspend fun isLoggedIn(): Boolean {
         return try {

@@ -3,9 +3,12 @@ package com.example.splitify.data.local
 import android.icu.text.SymbolTable
 import com.example.splitify.data.local.entity.ExpenseEntity
 import com.example.splitify.data.local.entity.TripEntity
+import com.example.splitify.data.local.entity.TripMemberEntity
 import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.Expense
+import com.example.splitify.domain.model.MemberRole
 import com.example.splitify.domain.model.Trip
+import com.example.splitify.domain.model.TripMember
 
 
 //Extension functions to convert between Entity and Domain models
@@ -88,4 +91,31 @@ fun Expense.toEntity(): ExpenseEntity{
 
 fun List<ExpenseEntity>.toExpenseDomainModels(): List<Expense>{
     return map { it.toDomainModel() }
+}
+
+fun TripMemberEntity.toDomain(): TripMember {
+    return TripMember(
+        id = id,
+        tripId = tripId,
+        userId = userId,
+        displayName = displayName,
+        role = when (role.lowercase()) {
+            "admin" -> MemberRole.ADMIN
+            else -> MemberRole.MEMBER
+        },
+        joinedAt = joinedAt,
+        avatarUrl = avatarUrl
+    )
+}
+
+fun TripMember.toEntity(): TripMemberEntity {
+    return TripMemberEntity(
+        id = id,
+        tripId = tripId,
+        userId = userId,
+        displayName = displayName,
+        role = role.name.lowercase(),
+        joinedAt = joinedAt,
+        avatarUrl = avatarUrl
+    )
 }

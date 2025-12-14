@@ -3,9 +3,11 @@ package com.example.splitify.di
 //import com.example.splitify.data.repository.AuthRepositoryImpl
 import com.example.splitify.data.repository.AuthRepositoryImpl
 import com.example.splitify.data.repository.ExpenseRepositoryImpl
+import com.example.splitify.data.repository.TripMemberRepositoryImpl
 import com.example.splitify.data.repository.TripRepositoryImpl
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.ExpenseRepository
+import com.example.splitify.domain.repository.TripMemberRepository
 //import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
 import dagger.Binds
@@ -37,6 +39,13 @@ abstract class RepositoryModule {
     abstract fun bindExpenseRepository(
         expenseRepositoryImpl: ExpenseRepositoryImpl
     ): ExpenseRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTripMemberRepository(
+        tripMemberRepositoryImpl: TripMemberRepositoryImpl
+    ): TripMemberRepository
+
 
 
 }

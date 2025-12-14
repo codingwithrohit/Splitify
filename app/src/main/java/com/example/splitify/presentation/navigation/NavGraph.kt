@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.splitify.presentation.addmembers.AddMemberScreen
 import com.example.splitify.presentation.auth.LoginScreen
 import com.example.splitify.presentation.auth.SignUpScreen
 import com.example.splitify.presentation.expense.AddExpenseScreen
@@ -108,6 +109,12 @@ fun SplitifyNavGraph(
                         if(tripId!=null){
                             navController.navigate(Screen.AddExpense.createRoute(tripId))
                         }
+                    },
+                    onAddMember = {
+                        val tripId = it.arguments?.getString(Screen.TripDetail.ARG_TRIP_ID)
+                        if(tripId!=null){
+                            navController.navigate(Screen.AddMember.createRoute(tripId))
+                        }
                     }
                 )
             }
@@ -126,10 +133,18 @@ fun SplitifyNavGraph(
                 )
             }
 
-            // TODO: Add more screens here later
-            // - Add Expense
-            // - Add Members
-            // - etc.
+            composable(
+                route = Screen.AddMember.route,
+                arguments = listOf(
+                    navArgument(Screen.AddMember.ARG_TRIP_ID){
+                        type = NavType.StringType
+                    }
+                )
+            ){
+                AddMemberScreen(
+                    onNavigateBack = {navController.popBackStack()}
+                )
+            }
         }
     }
 
