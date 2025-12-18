@@ -17,6 +17,7 @@ data class ExpenseEntity(
     val paidByName: String,
     val isGroupExpense: Boolean,
     val createdAt: Long,
+    val updatedAt: Long? = null,
 
     //Sync fields
     val isLocal: Boolean = false,

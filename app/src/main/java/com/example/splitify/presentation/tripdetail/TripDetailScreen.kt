@@ -1,5 +1,7 @@
 package com.example.splitify.presentation.tripdetail
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,10 +56,14 @@ import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.presentation.addmembers.EmptyState
+import com.example.splitify.presentation.balances.BalancesScreen
 import io.github.jan.supabase.realtime.Column
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.annotation.meta.When
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripDetailScreen(
@@ -140,6 +146,7 @@ fun TripDetailScreen(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun TripDetailContent(
     trip: Trip,
@@ -179,7 +186,7 @@ fun TripDetailContent(
             TripDetailTab.OVERVIEW -> OverviewTab(trip)
             TripDetailTab.EXPENSES -> ExpensesTab(expenses = expenses)
             TripDetailTab.MEMBERS -> MembersTab(members = members)
-            TripDetailTab.BALANCES -> BalancesTab()
+            TripDetailTab.BALANCES -> BalancesTab(trip.id)
         }
     }
 }
@@ -393,9 +400,7 @@ private fun ExpenseCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = expense.expenseDate.format(
-                            DateTimeFormatter.ofPattern("MMM dd, yyyy")
-                        ),
+                        text = expense.expenseDate.toString(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -538,16 +543,29 @@ private fun MemberCard(member: TripMember) {
     }
 }
 
+fun Long.toFormattedDate(
+    pattern: String = "MMM dd, yyyy"
+): String {
+    return Instant.ofEpochMilli(this)
+        .atZone(ZoneId.systemDefault())
+        .toLocalDate()
+        .format(DateTimeFormatter.ofPattern(pattern))
+}
+
+
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
-private fun BalancesTab() {
+private fun BalancesTab(
+    tripId: String
+) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "Balances feature coming soon",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        BalancesScreen(
+            onNavigateToSettlement = { fromId, toId, amount ->
+                // TODO: Navigate to settlement screen
+            }
         )
     }
 }

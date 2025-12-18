@@ -12,5 +12,6 @@ data class Expense(
     val paidBy: String,
     val paidByName: String,
     val isGroupExpense: Boolean,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long? = null
 )

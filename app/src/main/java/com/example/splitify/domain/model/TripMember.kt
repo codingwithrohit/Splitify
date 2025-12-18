@@ -1,7 +1,7 @@
 package com.example.splitify.domain.model
 
 data class TripMember(
-    val id: String,
+    var id: String,
     val tripId: String,
     val userId: String?,
     val displayName: String,

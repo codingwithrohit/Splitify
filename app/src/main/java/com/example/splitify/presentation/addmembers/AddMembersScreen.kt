@@ -4,14 +4,17 @@ import android.graphics.drawable.Icon
 import android.widget.Space
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -231,7 +234,53 @@ fun AddMemberContent(
 
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+
+        when {
+            isSearching -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            searchQuery.isNotBlank() && searchResults.isEmpty() -> {
+                Text(
+                    text = "No users found",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+
+            searchResults.isNotEmpty() -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 220.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(searchResults, key = { it.id }) { user ->
+                        MemberItem(
+                            member = user,
+                            onRemove = null, // ❗ reuse UI, disable remove
+                            onClick = {
+                                onAddMember(user.displayName)
+                                searchQuery = ""
+                                onSearch("")
+                                keyboardController?.hide()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Current Members (${members.size})",
@@ -249,6 +298,7 @@ fun AddMemberContent(
         }
         else{
             LazyColumn(
+                Modifier.fillMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(members, key = {it.id}){ member ->
@@ -287,10 +337,18 @@ fun AddMemberContent(
 @Composable
 fun MemberItem(
     member: TripMember,
-    onRemove: () -> Unit
+    onRemove: (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null
 ){
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth()
+            .let {
+            if (onClick != null) {
+                it.clickable { onClick() }
+            } else {
+                it
+            }
+        },
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
@@ -353,7 +411,7 @@ fun MemberItem(
                 }
             }
 
-            if (!member.isAdmin) {
+            if (onRemove!=null && !member.isAdmin) {
                 IconButton(onClick = onRemove) {
                     Icon(
                         Icons.Default.Delete,

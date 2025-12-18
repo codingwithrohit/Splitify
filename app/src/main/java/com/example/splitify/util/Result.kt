@@ -18,7 +18,7 @@ sealed class Result<out T>{
     data object Loading: Result<Nothing>()
 
     // Successful operation with data
-    data class Success<T>(val data: T): Result<T>()
+    data class Success<out T>(val data: T): Result<T>()
 
     // Failed operation with error details
     data class Error(val exception: Throwable,
@@ -37,11 +37,12 @@ sealed class Result<out T>{
 //        is Error -> null
 //    }
 //
-//    // Get data if success, throw exception if error
-//    fun getOrThrow(): T? = when(this){
-//        is Success -> data
-//        is Error -> throw exception
-//    }
+    // Get data if success, throw exception if error
+    fun getOrThrow(): T? = when(this){
+        is Success -> data
+        is Error -> throw exception
+        Loading -> TODO()
+    }
 
 }
 // Extension function to create success result
@@ -49,3 +50,4 @@ fun<T> T.asSuccess(): Result<T> = Result.Success(this)
 
 // Extension function to create error result
 fun Throwable.asError(): Result<Nothing> = Error(this)
+

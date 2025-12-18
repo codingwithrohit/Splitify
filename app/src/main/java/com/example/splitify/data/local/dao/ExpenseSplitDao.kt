@@ -1,0 +1,46 @@
+package com.example.splitify.data.local.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import com.example.splitify.data.local.entity.ExpenseEntity
+import com.example.splitify.data.local.entity.ExpenseSplitEntity
+import kotlinx.coroutines.flow.Flow
+@Dao
+interface ExpenseSplitDao {
+
+    @Query("Select * from expense_splits where expense_id = :expenseId")
+    fun getSplitsForExpenses(expenseId: String): Flow<List<ExpenseSplitEntity>>
+
+    @Query("Select * from expense_splits where member_id = :memberId")
+    fun getSplitsForMember(memberId: String): Flow<List<ExpenseSplitEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSplit(split: ExpenseSplitEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSplits(splits: List<ExpenseSplitEntity>)
+
+    @Query("Delete from expense_splits where expense_id = :expenseId")
+    suspend fun deleteSplitsForExpense(expenseId: String)
+
+    @Query("Delete from expense_splits where id = :splitId")
+    suspend fun deleteSplit(splitId: String)
+
+    // ADD THIS - Synchronous version for getExpensesWithSplits
+    @Query("SELECT * FROM expense_splits WHERE expense_id = :expenseId")
+    suspend fun getSplitsForExpenseSync(expenseId: String): List<ExpenseSplitEntity>
+
+    @Transaction
+    @Query("""
+        SELECT e.*, es.*
+        FROM expenses e
+        LEFT JOIN expense_splits es ON e.id = es.expense_id
+        WHERE e.tripId = :tripId
+        ORDER BY e.expenseDate DESC
+    """)
+    fun getExpensesWithSplitsForTrip(tripId: String): Flow<Map<ExpenseEntity, List<ExpenseSplitEntity>>>
+
+}

@@ -54,6 +54,7 @@ class AddMembersViewModel @Inject constructor(
 
     fun addMemberByName(name: String){
         viewModelScope.launch {
+
             when(val result = addTripMemberUseCase(
                 tripId = tripId,
                 displayName = name,

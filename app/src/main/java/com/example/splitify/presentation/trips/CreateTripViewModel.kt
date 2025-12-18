@@ -2,31 +2,22 @@ package com.example.splitify.presentation.trips
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.splitify.domain.model.MemberRole
-import com.example.splitify.domain.model.Trip
-import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.repository.AuthRepository
-import com.example.splitify.domain.repository.TripMemberRepository
-import com.example.splitify.domain.repository.TripRepository
+import com.example.splitify.domain.usecase.trip.CreateTripUseCase
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class CreateTripViewModel @Inject constructor(
-    private val tripRepository: TripRepository,
     private val authRepository: AuthRepository,
-    private val tripMemberRepository: TripMemberRepository
+    private val createTripUseCase: CreateTripUseCase
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateTripUiState(
@@ -120,61 +111,22 @@ class CreateTripViewModel @Inject constructor(
                 ) }
                 return@launch
             }
-            val trip = Trip(
-                id = UUID.randomUUID().toString(),
+            when (val result = createTripUseCase(
                 name = state.name,
                 description = state.description,
                 startDate = state.startDate,
                 endDate = state.endDate,
                 inviteCode = state.inviteCode,
-                createdBy = currentUserId!!,
-                isLocal = true
-            )
-            when( val result = tripRepository.createTrip(trip)){
-                is Result.Success ->{
-//                    _uiState.update {
-//                        it.copy(
-//                            isLoading = false,
-//                            isSaved = true
-//                        )
-//                    }
-                    //Add creator as admin
-                    val creatorMember = TripMember(
-                        id = UUID.randomUUID().toString(),
-                        tripId = trip.id,
-                        role = MemberRole.ADMIN,
-                        userId = currentUserId!!,
-                        joinedAt = System.currentTimeMillis(),
-                        displayName = authRepository.getCurrentUser().first()!!.userName,
-                    )
-                    when(tripMemberRepository.addMember(creatorMember)){
-                        is Result.Success -> {
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    isSaved = true
-                                )
-                            }
-                        }
-                        is Result.Error -> {
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    nameError = "Trip created but failed to assign admin"
-                                )
-                            }
-                        }
-                        is Result.Loading -> Unit
+            )) {
+                is Result.Success -> {
+                    _uiState.update { it.copy(isLoading = false, isSaved = true) }
+                }
+                is Result.Error -> {
+                    _uiState.update {
+                        it.copy(isLoading = false, nameError = result.message)
                     }
                 }
-                is Result.Error ->{
-                    _uiState.update { it.copy(
-                        isLoading = false,
-                        nameError = "Failed to create trip: ${result.message}"
-                    ) }
-                }
-
-                Result.Loading -> TODO()
+                else -> Unit
             }
         }
 
