@@ -9,26 +9,24 @@ import kotlinx.coroutines.flow.Flow
 
 interface ExpenseRepository {
 
-    fun getExpensesByTrip(tripId: String): Flow<List<Expense>>
+    fun getExpensesByTrip(tripId: String): Flow<Result<List<Expense>>>
 
     suspend fun addExpenseWithSplits(
         expense: Expense,
         splits: List<ExpenseSplit>
     ): Result<Unit>
 
-    suspend fun getExpenseById(expenseId: String): Expense?
+    fun getExpenseWithSplitsById(expenseId: String): Flow<Result<ExpenseWithSplits>>
 
     suspend fun addExpense(expense: Expense): Result<Expense>
 
-    suspend fun updateExpense(expense: Expense): Result<Unit>
+    suspend fun updateExpenseWithSplits(expense: Expense, splits: List<ExpenseSplit>): Result<Expense>
 
     suspend fun deleteExpense(expenseId: String): Result<Unit>
 
     suspend fun getTotalExpenses(expenseId: String): Double
 
     fun getExpensesWithSplits(tripId: String): Flow<Result<List<ExpenseWithSplits>>>
-
-
 
     suspend fun createExpenseWithSplits(expense: Expense, participatingMembers: List<TripMember>): Result<Unit>
 

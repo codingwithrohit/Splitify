@@ -3,6 +3,7 @@ package com.example.splitify.presentation.expense
 import android.annotation.SuppressLint
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -70,7 +71,6 @@ import kotlin.math.exp
 @Composable
 fun AddExpenseScreen(
     onNavigationBack: () -> Unit,
-    onExpenseSaved: () -> Unit,
     viewModel: AddExpenseViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -80,208 +80,230 @@ fun AddExpenseScreen(
 
     LaunchedEffect(uiState.isSaved) {
         if(uiState.isSaved){
-            onExpenseSaved()
+            onNavigationBack()
         }
     }
 
     Scaffold(
         topBar = { TopAppBar(
-            title = { Text("Add Expense") },
+            title = { Text(
+                when(viewModel.mode){
+                    is ExpenseFormMode.Add -> "Add Expense"
+                    is ExpenseFormMode.Edit -> "Edit Expense"
+                }
+            ) },
             navigationIcon = { IconButton(onClick = onNavigationBack) {
                 Icon(Icons.AutoMirrored.Default.ArrowBack, "Back")
             } }
         ) }
     ) { paddingValues ->
 
-        Column(
-            modifier = Modifier.fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            //Amount
-            OutlinedTextField(
-                value = uiState.amount,
-                onValueChange = viewModel::onAmountChange,
-                isError = uiState.amountError != null,
-                label = { Text("Amount *") },
-                placeholder = { Text("0.0") },
-                prefix = { Text("₹") },
-                supportingText = uiState.amountError?.let{ {Text(it)} },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                enabled = !uiState.isLoading
-            )
-
-            //Description
-            OutlinedTextField(
-                value = uiState.description,
-                onValueChange = viewModel::onDescriptionChange,
-                label = { Text("Description *") },
-                placeholder = { Text("What was this expense for?") },
-                isError = uiState.descriptionError != null,
-                supportingText = uiState.descriptionError?.let{ {Text(it)}},
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = {focusManager.clearFocus()}),
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 2,
-                maxLines = 3,
-                enabled = !uiState.isLoading
-            )
-
-            //Category
-            CategorySelector(
-                selectedCategory = uiState.category,
-                onCategorySelected = viewModel::onCategoryChange,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isLoading
-            )
-
-            //Date
-            DatePickerField(
-                label = "Date *",
-                date = uiState.expenseDate,
-                onDateChange = viewModel::onDateChange,
-                enabled = !uiState.isLoading,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            //Who Paid
-            PaidBySelector(
-                members = uiState.members,
-                selectedMemberId = uiState.paidByMemberId,
-                onMemberSelected = viewModel::onPaidByChange,
-                enabled = !uiState.isLoading,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Split Type
-            Text(
-                text = "Split Type",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+        if(uiState.isLoading && uiState.members.isEmpty()){
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
             ) {
-                FilterChip(
-                    selected = !viewModel.isGroupExpense.value,
-                    onClick = { viewModel.setIsGroupExpense(false) },
-                    label = { Text("Personal") },
-                    leadingIcon = if (!viewModel.isGroupExpense.value) {
-                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
-                    } else null,
-                    modifier = Modifier.weight(1f)
-                )
-
-                FilterChip(
-                    selected = viewModel.isGroupExpense.value,
-                    onClick = { viewModel.setIsGroupExpense(true) },
-                    label = { Text("Group") },
-                    leadingIcon = if (viewModel.isGroupExpense.value) {
-                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
-                    } else null,
-                    modifier = Modifier.weight(1f)
-                )
+                CircularProgressIndicator()
             }
+        }else{
+            Column(
+                modifier = Modifier.fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                //Amount
+                OutlinedTextField(
+                    value = uiState.amount,
+                    onValueChange = viewModel::onAmountChange,
+                    isError = uiState.amountError != null,
+                    label = { Text("Amount *") },
+                    placeholder = { Text("0.0") },
+                    prefix = { Text("₹") },
+                    supportingText = uiState.amountError?.let{ {Text(it)} },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !uiState.isLoading
+                )
 
-            // Member Selection (only for group expenses)
-            if (isGroupExpense) {
-                Spacer(modifier = Modifier.height(8.dp))
+                //Description
+                OutlinedTextField(
+                    value = uiState.description,
+                    onValueChange = viewModel::onDescriptionChange,
+                    label = { Text("Description *") },
+                    placeholder = { Text("What was this expense for?") },
+                    isError = uiState.descriptionError != null,
+                    supportingText = uiState.descriptionError?.let{ {Text(it)}},
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {focusManager.clearFocus()}),
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 3,
+                    enabled = !uiState.isLoading
+                )
 
+                //Category
+                CategorySelector(
+                    selectedCategory = uiState.category,
+                    onCategorySelected = viewModel::onCategoryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !uiState.isLoading
+                )
+
+                //Date
+                DatePickerField(
+                    label = "Date *",
+                    date = uiState.expenseDate,
+                    onDateChange = viewModel::onDateChange,
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                //Who Paid
+                PaidBySelector(
+                    members = uiState.members,
+                    selectedMemberId = uiState.paidByMemberId,
+                    onMemberSelected = viewModel::onPaidByChange,
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Split Type
                 Text(
-                    text = "Split With",
+                    text = "Split Type",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
 
-                // FIXED: No longer checking for AddExpenseUiState.Success
-                // Just check if members list is not empty
-                if (uiState.members.isNotEmpty()) {
-                    MemberSelectionList(
-                        members = uiState.members,
-                        selectedMemberIds = selectedMemberIds,
-                        onMemberToggle = viewModel::toggleMember
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = !viewModel.isGroupExpense.value,
+                        onClick = { viewModel.setIsGroupExpense(false) },
+                        label = { Text("Personal") },
+                        leadingIcon = if (!viewModel.isGroupExpense.value) {
+                            { Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
+                        } else null,
+                        modifier = Modifier.weight(1f)
                     )
 
-                    // Show split preview
-                    if (selectedMemberIds.isNotEmpty() && uiState.amount.isNotBlank()) {
-                        val amount = uiState.amount.toDoubleOrNull() ?: 0.0
-                        val splitAmount = amount / selectedMemberIds.size
+                    FilterChip(
+                        selected = viewModel.isGroupExpense.value,
+                        onClick = { viewModel.setIsGroupExpense(true) },
+                        label = { Text("Group") },
+                        leadingIcon = if (viewModel.isGroupExpense.value) {
+                            { Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }
+                        } else null,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                // Member Selection (only for group expenses)
+                if (isGroupExpense) {
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                    Text(
+                        text = "Split With",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    // FIXED: No longer checking for AddExpenseUiState.Success
+                    // Just check if members list is not empty
+                    if (uiState.members.isNotEmpty()) {
+                        MemberSelectionList(
+                            members = uiState.members,
+                            selectedMemberIds = selectedMemberIds,
+                            onMemberToggle = viewModel::toggleMember
+                        )
+
+                        // Show split preview
+                        if (selectedMemberIds.isNotEmpty() && uiState.amount.isNotBlank()) {
+                            val amount = uiState.amount.toDoubleOrNull() ?: 0.0
+                            val splitAmount = amount / selectedMemberIds.size
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                )
                             ) {
-                                Text(
-                                    text = "Each person owes:",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Text(
-                                    text = CurrencyUtils.format(splitAmount),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Each person owes:",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = CurrencyUtils.format(splitAmount),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
+                    } else if (uiState.isLoading) {
+                        // Show loading while members are being fetched
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Loading members...")
+                        }
+                    } else {
+                        // Show message if no members available
+                        Text(
+                            text = "No members found. Add members to the trip first.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(16.dp)
+                        )
                     }
-                } else if (uiState.isLoading) {
-                    // Show loading while members are being fetched
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Save Button
+                Button(
+                    onClick = viewModel::saveExpense,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !uiState.isLoading
+                ) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Loading members...")
+                        Text("Saving...")
+                    } else {
+                        Text(
+                            when (viewModel.mode) {
+                                is ExpenseFormMode.Add -> "Add Expense"
+                                is ExpenseFormMode.Edit -> "Update Expense"
+                            }
+                        )
                     }
-                } else {
-                    // Show message if no members available
-                    Text(
-                        text = "No members found. Add members to the trip first.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(16.dp)
-                    )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Save Button
-            Button(
-                onClick = viewModel::saveExpense,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isLoading
-            ) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Saving...")
-                } else {
-                    Text("Add Expense")
-                }
             }
         }
     }
@@ -357,66 +379,6 @@ fun PaidBySelector(
 
     }
 }
-
-@Composable
-private fun SplitTypeSelector(
-    isGroupExpense: Boolean,
-    onSplitTypeChange: (Boolean) -> Unit,
-    enabled: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "Split Type",
-                style = MaterialTheme.typography.titleSmall
-            )
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Personal button
-                FilterChip(
-                    selected = !isGroupExpense,
-                    onClick = { onSplitTypeChange(false) },
-                    label = { Text("Personal") },
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f)
-                )
-
-                // Group button
-                FilterChip(
-                    selected = isGroupExpense,
-                    onClick = { onSplitTypeChange(true) },
-                    label = { Text("Group") },
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // Explanation text
-            Text(
-                text = if (isGroupExpense) {
-                    "Split equally among all members"
-                } else {
-                    "Only you will be charged"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)

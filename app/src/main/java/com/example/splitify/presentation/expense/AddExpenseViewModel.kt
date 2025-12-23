@@ -8,9 +8,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.Expense
+import com.example.splitify.domain.model.ExpenseSplit
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.ExpenseRepository
 import com.example.splitify.domain.usecase.expense.AddExpenseUseCase
+import com.example.splitify.domain.usecase.expense.DeleteExpenseUseCase
+import com.example.splitify.domain.usecase.expense.GetExpenseByIdUseCase
+import com.example.splitify.domain.usecase.expense.UpdateExpenseUseCase
 import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
 import com.example.splitify.presentation.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,18 +34,30 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import java.time.Instant
+import java.time.ZoneId
 
 @HiltViewModel
 class AddExpenseViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val getTripMembersUseCase: GetTripMemberUseCase,
     private val addExpenseUseCase: AddExpenseUseCase,
+    private val updateExpenseUseCase: UpdateExpenseUseCase,
+    private val getExpenseByIdUseCase: GetExpenseByIdUseCase,
     savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
     private val tripId: String = checkNotNull(
         savedStateHandle[Screen.AddExpense.ARG_TRIP_ID]
     )
+
+    private val expenseId: String? = savedStateHandle["expenseId"]
+
+    val mode: ExpenseFormMode = if (expenseId != null) {
+        ExpenseFormMode.Edit(expenseId)
+    } else {
+        ExpenseFormMode.Add
+    }
 
     private val _uiState = MutableStateFlow(AddExpenseUiState())
     val uiState: StateFlow<AddExpenseUiState> = _uiState.asStateFlow()
@@ -52,10 +68,7 @@ class AddExpenseViewModel @Inject constructor(
     private val _selectedMemberIds = MutableStateFlow<Set<String>>(emptySet())
     val selectedMemberIds: StateFlow<Set<String>> = _selectedMemberIds.asStateFlow()
 
-
-    private var currentUserId: String? = null
-    private var currentUserMemberId: String? = null  // ADD THIS
-    private var currentUserName: String? = null
+    private var currentUserMemberId: String? = null
 
     private val currentUserFlow = authRepository.getCurrentUser()
         .stateIn(
@@ -66,6 +79,53 @@ class AddExpenseViewModel @Inject constructor(
 
     init {
         observeUserAndMembers()
+        if (mode is ExpenseFormMode.Edit) {
+            loadExpenseForEditing(mode.expenseId)
+        }
+    }
+
+    private fun loadExpenseForEditing(expenseId: String){
+        viewModelScope.launch {
+            getExpenseByIdUseCase(expenseId).collect { result ->
+                when(result){
+                    is Result.Error -> {
+                        Log.e("AddExpenseVM", "❌ Failed to load expense: ${result.message}")
+                        _uiState.update {
+                            it.copy(
+                                amountError = result.message,
+                                isLoading = false
+                            )
+                        }
+                    }
+                    Result.Loading -> {
+                        _uiState.update { it.copy(isLoading = true) }
+                    }
+                    is Result.Success -> {
+                        val (expense, splits) = result.data
+                        Log.d("AddExpenseVM", "✅ Loaded expense: ${expense.description}")
+                        Log.d("AddExpenseVM", "  Amount: ₹${expense.amount}")
+                        Log.d("AddExpenseVM", "  Paid by: ${expense.paidBy}")
+                        Log.d("AddExpenseVM", "  Is group: ${expense.isGroupExpense}")
+                        Log.d("AddExpenseVM", "  Splits: ${splits.size}")
+                        _uiState.update {
+                            it.copy(
+                                amount = expense.amount.toString(),
+                                description = expense.description,
+                                category = expense.category,
+                                expenseDate = expense.expenseDate,
+                                paidByMemberId = expense.paidBy,
+                                isLoading = false
+                            )
+                        }
+
+                        _isGroupExpense.value = expense.isGroupExpense
+                        val participantIds = splits.map { it.memberId }.toSet()
+                        _selectedMemberIds.value = participantIds
+                        Log.d("AddExpenseVM", "✅ Form pre-filled with existing data")
+                    }
+                }
+            }
+        }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -100,12 +160,15 @@ class AddExpenseViewModel @Inject constructor(
                                 )
                             }
 
-                            _selectedMemberIds.value =
-                                if (_isGroupExpense.value) {
-                                    members.map { it.id }.toSet()
-                                } else {
-                                    currentMember?.let { setOf(it.id) }.orEmpty()
-                                }
+                            if(mode is ExpenseFormMode.Add){
+                                _selectedMemberIds.value =
+                                    if (_isGroupExpense.value) {
+                                        members.map { it.id }.toSet()
+                                    } else {
+                                        currentMember?.let { setOf(it.id) }.orEmpty()
+                                    }
+                            }
+
                         }
 
                         is Result.Error -> {
@@ -124,76 +187,7 @@ class AddExpenseViewModel @Inject constructor(
         }
     }
 
-//    private fun loadCurrentUser() {
-//        viewModelScope.launch {
-//            val user = authRepository
-//                .getCurrentUser()
-//                .firstOrNull()
-//
-//            if (user != null) {
-//                currentUserId = user.id
-//                currentUserName = user.fullName ?: user.userName
-//                Log.d("AddExpenseVM", "Current user name: $currentUserName")
-//                Log.d("AddExpenseVM", "Current user id: $currentUserId")
-//            } else {
-//                _uiState.update {
-//                    it.copy(amountError = "Failed to load user info")
-//                }
-//            }
-//        }
-//    }
-//
-//    private fun loadMembers() {
-//        viewModelScope.launch {
-//            _uiState.update { it.copy(isLoading = true) }
-//
-//            getTripMembersUseCase(tripId).collect { result ->
-//                when (result) {
-//                    is Result.Success -> {
-//                        val members = result.data
-//                        Log.d("AddExpenseVM", "📦 Loaded ${members.size} members")
-//                        Log.d("AddExpenseVM", "📦 Loaded data ${result.data} ")
-//                        val currentMember = members.find { member ->
-//                            member.userId == currentUserId
-//                        }
-//                        if (currentMember != null) {
-//                            currentUserMemberId = currentMember.id  // Store member ID
-//                            Log.d("AddExpenseVM", "✅ Found current user as member: ${currentMember.displayName} (memberId: ${currentMember.id})")
-//                        } else {
-//                            Log.e("AddExpenseVM", "⚠️ Current user not found in trip members!")
-//                            Log.e("AddExpenseVM", "User ID: $currentUserId")
-//                            Log.e("AddExpenseVM", "Members userIds: ${members.map { it.userId }}")
-//                        }
-//                        _uiState.update {
-//                            it.copy(
-//                                members = members,
-//                                isLoading = false
-//                            )
-//                        }
-//                        // Auto-select all members for group expense
-//                        if (_isGroupExpense.value) {
-//                            _selectedMemberIds.value = result.data.map { it.id }.toSet()
-//                            Log.d("AddExpenseVM", "👥 Auto-selected all ${members.size} members for group")
-//                        }else if (currentUserMemberId != null) {
-//                            // For personal, select current user's MEMBER ID
-//                            _selectedMemberIds.value = setOf(currentUserMemberId!!)
-//                            Log.d("AddExpenseVM", "👤 Auto-selected current user for personal")
-//                        }
-//                    }
-//                    is Result.Error -> {
-//                        Log.e("AddExpenseVM", "❌ Error loading members: ${result.message}")
-//                        _uiState.update {
-//                            it.copy(
-//                                amountError = result.message,
-//                                isLoading = false
-//                            )
-//                        }
-//                    }
-//                    else -> {}
-//                }
-//            }
-//        }
-//    }
+
 
     fun setIsGroupExpense(isGroup: Boolean) {
         _isGroupExpense.value = isGroup
@@ -300,16 +294,6 @@ class AddExpenseViewModel @Inject constructor(
 
         Log.d("AddExpenseVM", "💾 Saving expense with ${participants.size} participants")
 
-        // Check if any members are selected for group expense
-//        if (_isGroupExpense.value && _selectedMemberIds.value.isEmpty()) {
-//            _uiState.update {
-//                it.copy(amountError = "Select at least one member for group expense")
-//            }
-//            return
-//        }
-
-        // CRITICAL: Send the CURRENT selectedMemberIds state
-//        val participatingIds = _selectedMemberIds.value.toList()
 
         Log.d("AddExpenseVM", "💾 Saving expense:")
         Log.d("AddExpenseVM", "  Amount: ₹$amountValue")
@@ -321,16 +305,51 @@ class AddExpenseViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
-            val result = addExpenseUseCase(
-                tripId = tripId,
-                amount = amountValue,
-                description = state.description.trim(),
-                category = state.category,
-                date = state.expenseDate, // Convert to millis
-                paidBy = paidByMemberId,
-                isGroupExpense = _isGroupExpense.value,
-                participatingMemberIds = participants
-            )
+
+            val result = when(mode){
+                is ExpenseFormMode.Add -> {
+                    addExpenseUseCase(
+                        tripId = tripId,
+                        amount = amountValue,
+                        description = state.description.trim(),
+                        category = state.category,
+                        date = state.expenseDate, // Convert to millis
+                        paidBy = paidByMemberId,
+                        isGroupExpense = _isGroupExpense.value,
+                        participatingMemberIds = participants
+                    )
+                }
+                is ExpenseFormMode.Edit -> {
+                    val expenseIdToUpdate = mode.expenseId
+
+                    val expense = Expense(
+                        id = expenseIdToUpdate,
+                        tripId = tripId,
+                        amount = amountValue,
+                        description = state.description.trim(),
+                        category = state.category,
+                        expenseDate = state.expenseDate,
+                        paidBy = paidByMemberId,
+                        isGroupExpense = _isGroupExpense.value,
+                        createdAt = System.currentTimeMillis(),
+                        paidByName = state.paidByMemberId
+                    )
+
+                    val splitAmount = amountValue / participants.size
+                    val splits = participants.map { participantId ->
+                        ExpenseSplit(
+                            id = UUID.randomUUID().toString(),
+                            expenseId = expenseIdToUpdate,
+                            memberId = participantId,
+                            amountOwed = splitAmount,
+                            memberName = state.paidByMemberId
+                        )
+                    }
+
+                    updateExpenseUseCase(expense, splits)
+                }
+            }
+
 
             when (result) {
                 is Result.Error -> {

@@ -8,25 +8,31 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardElevation
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -34,12 +40,15 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,11 +66,14 @@ import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.presentation.addmembers.EmptyState
 import com.example.splitify.presentation.balances.BalancesScreen
-import io.github.jan.supabase.realtime.Column
+import com.example.splitify.presentation.expense.ExpenseUiState
+import com.example.splitify.presentation.expense.ExpenseViewModel
+import com.example.splitify.util.getCategoryIcon
+import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import javax.annotation.meta.When
+import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,12 +81,14 @@ import javax.annotation.meta.When
 fun TripDetailScreen(
     onNavigateBack: () -> Unit,
     onAddExpense: () -> Unit,
+    onEditExpense: (String) -> Unit,
     onAddMember: () -> Unit,
-    viewModel: TripDetailViewModel = hiltViewModel()
+    onNavigateToSettlementHistory: () -> Unit,
+    viewModel: TripDetailViewModel = hiltViewModel(),
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    //var selectedTab by remember { mutableStateOf(0) }
-    //val tabs = listOf("Overview", "Expenses", "Members", "Balances")
+    val currentMemberId by viewModel.currentMemberId.collectAsStateWithLifecycle()
+
 
     Scaffold(
         topBar = {
@@ -134,11 +148,13 @@ fun TripDetailScreen(
             is TripDetailUiState.Success -> {
                 TripDetailContent(
                     trip = state.trip,
-                    expenses = state.expenses,
+                    onEditExpense = onEditExpense,
                     members = state.members,
                     totalExpense = state.totalExpenses,
                     currentTab = state.currentTab,
                     onTabSelected = viewModel::selectTab,
+                    currentMemberId = currentMemberId,
+                    onNavigateToHistory = onNavigateToSettlementHistory,
                     modifier = Modifier.padding(paddingValues)
                 )
             }
@@ -150,11 +166,13 @@ fun TripDetailScreen(
 @Composable
 fun TripDetailContent(
     trip: Trip,
-    expenses: List<Expense>,
+    onEditExpense: (String) -> Unit,
     members: List<TripMember>,
     totalExpense: Double,
     currentTab: TripDetailTab,
     onTabSelected: (TripDetailTab) -> Unit,
+    currentMemberId: String?,
+    onNavigateToHistory: () -> Unit,
     modifier: Modifier = Modifier
 ){
     Column(modifier = modifier.fillMaxSize()) {
@@ -184,9 +202,13 @@ fun TripDetailContent(
 
         when(currentTab){
             TripDetailTab.OVERVIEW -> OverviewTab(trip)
-            TripDetailTab.EXPENSES -> ExpensesTab(expenses = expenses)
+            TripDetailTab.EXPENSES -> ExpensesTab(
+                tripId = trip.id,
+                currentMemberId = currentMemberId,
+                onEditExpense = onEditExpense
+            )
             TripDetailTab.MEMBERS -> MembersTab(members = members)
-            TripDetailTab.BALANCES -> BalancesTab(trip.id)
+            TripDetailTab.BALANCES -> BalancesTab(trip.id, currentMemberId = currentMemberId, onNavigateToHistory = onNavigateToHistory)
         }
     }
 }
@@ -325,101 +347,178 @@ private fun OverviewTab(trip: Trip) {
 
 @Composable
 private fun ExpensesTab(
-    expenses: List<Expense>,
-    modifier: Modifier = Modifier
+    tripId: String,
+    currentMemberId: String?,
+    onEditExpense: (String) -> Unit,
+    viewModel: ExpenseViewModel = hiltViewModel()
+
 ) {
-    if (expenses.isEmpty()) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "No expenses yet",
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
-                    text = "Tap + to add your first expense",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    } else {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(
-                items = expenses,
-                key = { expense -> expense.id }
-            ) { expense ->
-                ExpenseCard(expense = expense)
-            }
-        }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
+    LaunchedEffect(tripId) {
+        viewModel.loadExpenses(tripId)
     }
-}
 
-@Composable
-private fun ExpenseCard(
-    expense: Expense,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
+    expenseToDelete?.let { expense ->
+        DeleteExpenseDialog(
+            expense = expense,
+            onConfirm = {
+                viewModel.deleteExpense(expense.id)
+                expenseToDelete = null
+            },
+            onDismiss = { expenseToDelete = null}
+        )
+    }
+
+    when(val state = uiState){
+        is ExpenseUiState.Loading -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                // Category icon
-                Text(
-                    text = expense.category.icon,
-                    style = MaterialTheme.typography.headlineMedium
+                CircularProgressIndicator()
+            }
+        }
+        is ExpenseUiState.Error -> {
+            ErrorContent(message = state.message, onRetry = {})
+        }
+        is ExpenseUiState.Success -> {
+            if(state.expenses.isEmpty()){
+                EmptyState(
+                    message = "No expenses yet.\n Tap + to add your first member",
+                    icon = Icons.Default.Add
                 )
-
-                Column {
-                    Text(
-                        text = expense.description,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Paid by ${expense.paidByName}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = expense.expenseDate.toString(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (expense.isGroupExpense) {
-                        Text(
-                            text = "Group expense",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
+            }
+            else{
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(state.expenses){ expense ->
+                        ExpenseCard(
+                            expense = expense,
+                            paidByMember = state.members.find { it.id == expense.paidBy },
+                            currentMemberId = currentMemberId,
+                            onEdit = {onEditExpense(expense.id)},
+                            onDelete = {expenseToDelete = expense}
                         )
                     }
                 }
             }
+        }
+    }
 
-            // Amount
-            Text(
-                text = "₹%.2f".format(expense.amount),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
+}
+
+
+@Composable
+private fun ExpenseCard(
+    expense: Expense,
+    paidByMember: TripMember?,
+    currentMemberId: String?,
+    onEdit: (String) -> Unit,
+    onDelete: () -> Unit,
+) {
+    val canModify = currentMemberId == expense.paidBy
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // Expense header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = expense.description,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Paid by ${paidByMember?.displayName ?: "Unknown"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Text(
+                    text = "₹${expense.amount}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Category and date
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AssistChip(
+                    onClick = { },
+                    label = { Text(expense.category.name) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = getCategoryIcon(expense.category),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+
+                Text(
+                    text = expense.expenseDate.toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // ✅ Edit/Delete buttons (only if user can modify)
+            if (canModify) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    //horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { onEdit },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Edit")
+                    }
+
+                    OutlinedButton(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Delete")
+                    }
+                }
+            }
         }
     }
 }
@@ -458,6 +557,88 @@ private fun MembersTab(
             }
         }
     }
+}
+
+@Composable
+fun DeleteExpenseDialog(
+    expense: Expense,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(48.dp)
+            )
+        },
+        title = {
+            Text("Delete Expense?")
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Are you sure you want to delete this expense?",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Show expense details
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = expense.description,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = currencyFormat.format(expense.amount),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Text(
+                            text = expense.category.name,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "This action cannot be undone. All split data will also be deleted.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
@@ -556,16 +737,18 @@ fun Long.toFormattedDate(
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 private fun BalancesTab(
-    tripId: String
+    tripId: String,
+    currentMemberId: String?,
+    onNavigateToHistory: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         BalancesScreen(
-            onNavigateToSettlement = { fromId, toId, amount ->
-                // TODO: Navigate to settlement screen
-            }
+            tripId = tripId,
+            currentMemberId = currentMemberId!!,
+            onNavigateToHistory = onNavigateToHistory
         )
     }
 }

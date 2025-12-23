@@ -1,11 +1,15 @@
 package com.example.splitify.presentation.navigation
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -16,6 +20,9 @@ import com.example.splitify.presentation.addmembers.AddMemberScreen
 import com.example.splitify.presentation.auth.LoginScreen
 import com.example.splitify.presentation.auth.SignUpScreen
 import com.example.splitify.presentation.expense.AddExpenseScreen
+import com.example.splitify.presentation.session.CurrentMemberIdProvider
+import com.example.splitify.presentation.session.SessionViewModel
+import com.example.splitify.presentation.settlement.SettlementHistoryScreen
 import com.example.splitify.presentation.tripdetail.TripDetailScreen
 import com.example.splitify.presentation.trips.CreateTripScreen
 import com.example.splitify.presentation.trips.TripsScreen
@@ -23,6 +30,7 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun SplitifyNavGraph(
     navController: NavHostController = rememberNavController(),
@@ -30,6 +38,7 @@ fun SplitifyNavGraph(
 ) {
     var isCheckingAuth by remember { mutableStateOf(true) }
     var startDestination by remember { mutableStateOf(Screen.Login.route) }
+
 
     LaunchedEffect(Unit) {
         val session = supabase.auth.currentSessionOrNull()
@@ -99,22 +108,26 @@ fun SplitifyNavGraph(
                 arguments = listOf(
                     navArgument(Screen.TripDetail.ARG_TRIP_ID){
                         type = NavType.StringType
+                    },
+                    navArgument(Screen.EditExpense.ARG_EXPENSE_ID){
+                        type = NavType.StringType
                     }
                 )
             ){
+                val tripId = it.arguments?.getString(Screen.TripDetail.ARG_TRIP_ID) ?: return@composable
                 TripDetailScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onAddExpense = {
-                        val tripId = it.arguments?.getString(Screen.TripDetail.ARG_TRIP_ID)
-                        if(tripId!=null){
-                            navController.navigate(Screen.AddExpense.createRoute(tripId))
-                        }
+                        navController.navigate(Screen.AddExpense.createRoute(tripId))
                     },
                     onAddMember = {
-                        val tripId = it.arguments?.getString(Screen.TripDetail.ARG_TRIP_ID)
-                        if(tripId!=null){
-                            navController.navigate(Screen.AddMember.createRoute(tripId))
-                        }
+                        navController.navigate(Screen.AddMember.createRoute(tripId))
+                    },
+                    onEditExpense = { expenseId ->
+                        navController.navigate(Screen.EditExpense.createRoute(tripId, expenseId))
+                    },
+                    onNavigateToSettlementHistory = {
+                       navController.navigate(Screen.SettlementHistory.createRoute(tripId))
                     }
                 )
             }
@@ -129,7 +142,6 @@ fun SplitifyNavGraph(
             ){
                 AddExpenseScreen(
                     onNavigationBack = {navController.popBackStack()},
-                    onExpenseSaved = {navController.popBackStack()}
                 )
             }
 
@@ -144,6 +156,39 @@ fun SplitifyNavGraph(
                 AddMemberScreen(
                     onNavigateBack = {navController.popBackStack()}
                 )
+            }
+
+            composable(
+                route = Screen.EditExpense.route,
+                arguments = listOf(
+                    navArgument(Screen.EditExpense.ARG_TRIP_ID){
+                        type = NavType.StringType
+                    },
+                    navArgument(Screen.EditExpense.ARG_EXPENSE_ID){
+                        type = NavType.StringType
+                    }
+                )
+            ){
+                val tripId = it.arguments?.getString(Screen.EditExpense.ARG_TRIP_ID) ?: return@composable
+                val expenseId = it.arguments?.getString(Screen.EditExpense.ARG_EXPENSE_ID) ?: return@composable
+
+                AddExpenseScreen(
+                    onNavigationBack = {navController.navigateUp()}
+                )
+            }
+
+            composable(
+                route = Screen.SettlementHistory.route,
+                arguments = listOf(navArgument("tripId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
+                CurrentMemberIdProvider(tripId)  { currentMemberId ->
+                    SettlementHistoryScreen(
+                        tripId = tripId,
+                        currentMemberId = currentMemberId, // Get from your auth
+                        onBack = { navController.navigateUp() }
+                    )
+                }
             }
         }
     }

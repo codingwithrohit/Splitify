@@ -3,10 +3,12 @@ package com.example.splitify.di
 //import com.example.splitify.data.repository.AuthRepositoryImpl
 import com.example.splitify.data.repository.AuthRepositoryImpl
 import com.example.splitify.data.repository.ExpenseRepositoryImpl
+import com.example.splitify.data.repository.SettlementRepositoryImpl
 import com.example.splitify.data.repository.TripMemberRepositoryImpl
 import com.example.splitify.data.repository.TripRepositoryImpl
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.ExpenseRepository
+import com.example.splitify.domain.repository.SettlementRepository
 import com.example.splitify.domain.repository.TripMemberRepository
 //import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
@@ -46,7 +48,11 @@ abstract class RepositoryModule {
         tripMemberRepositoryImpl: TripMemberRepositoryImpl
     ): TripMemberRepository
 
-
+    @Binds
+    @Singleton
+    abstract fun bindSettlementRepository(
+        settlementRepositoryImpl: SettlementRepositoryImpl
+    ): SettlementRepository
 
 
 }

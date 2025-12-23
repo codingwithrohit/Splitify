@@ -1,5 +1,7 @@
 package com.example.splitify.presentation.navigation
 
+import kotlin.math.exp
+
 sealed class Screen(val route: String) {
 
     //Auth Screens
@@ -25,5 +27,16 @@ sealed class Screen(val route: String) {
         fun createRoute(tripId: String) = "add_member/${tripId}"
         const val ARG_TRIP_ID = "tripId"
 
+    }
+
+    data object SettlementHistory: Screen("settlement_history/{tripId}"){
+        fun createRoute(tripId: String?) = "settlement_history/${tripId}"
+        const val ARG_TRIP_ID = "tripId"
+    }
+
+    data object EditExpense: Screen("edit_expense/{tripId}/{expenseId}"){
+        fun createRoute(tripId: String, expenseId: String) = "edit_expense/$tripId/${expenseId}"
+        const val ARG_TRIP_ID = "tripId"
+        const val ARG_EXPENSE_ID = "expenseId"
     }
 }

@@ -2,7 +2,7 @@ package com.example.splitify.data.repository
 
 import android.annotation.SuppressLint
 import com.example.splitify.data.local.dao.TripDao
-import com.example.splitify.data.local.toDomainModel
+import com.example.splitify.data.local.toDomain
 import com.example.splitify.data.local.toDomainModels
 import com.example.splitify.data.local.toEntity
 import com.example.splitify.domain.model.Trip
@@ -50,7 +50,7 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun getTripById(tripId: String): Trip? {
         return try {
-            tripDao.getTripById(tripId)?.toDomainModel()
+            tripDao.getTripById(tripId)?.toDomain()
         }
         catch (e: Exception){
             null

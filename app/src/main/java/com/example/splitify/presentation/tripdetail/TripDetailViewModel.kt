@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.domain.model.TripMember
+import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.ExpenseRepository
 import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
@@ -14,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -23,6 +25,7 @@ class TripDetailViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val expenseRepository: ExpenseRepository,
     private val getTripMemberUseCase: GetTripMemberUseCase,
+    private val authRepository: AuthRepository,
     savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
@@ -34,10 +37,36 @@ class TripDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<TripDetailUiState>(TripDetailUiState.Loading)
     val uiState: StateFlow<TripDetailUiState> = _uiState.asStateFlow()
 
+    private val _currentMemberId = MutableStateFlow<String?>(null)
+    val currentMemberId: StateFlow<String?> = _currentMemberId.asStateFlow()
+
     init {
         loadTripDetails()
+        loadCurrentMemberId()
         loadExpenses()
         loadMembers()
+    }
+
+     fun loadCurrentMemberId() {
+        viewModelScope.launch {
+            val currentUserId = authRepository.getCurrentUser().firstOrNull()?.id
+            if (currentUserId != null) {
+                // Get current user's member ID in this trip
+                getTripMemberUseCase(tripId).collect { result ->
+                    when (result) {
+                        is Result.Success -> {
+                            val currentMember = result.data.find { it.userId == currentUserId }
+                            _currentMemberId.value = currentMember?.id
+                        }
+                        is Result.Error -> {
+                            // Handle error if needed
+                        }
+
+                        Result.Loading -> TODO()
+                    }
+                }
+            }
+        }
     }
 
     private fun loadMembers() {
