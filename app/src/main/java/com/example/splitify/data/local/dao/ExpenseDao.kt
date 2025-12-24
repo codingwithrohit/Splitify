@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ExpenseDao {
 
-    @Query("Select * from expenses where tripId = :tripId")
+    @Query("Select * from expenses where trip_id = :tripId")
     fun getExpensesByTripId(tripId: String): Flow<List<ExpenseEntity>>
 
     @Query("Select * from expenses where id = :expenseId")
@@ -43,9 +43,9 @@ interface ExpenseDao {
     @Query("Delete from expenses where id = :expenseId ")
     suspend fun deleteExpenseById(expenseId: String)
 
-    @Query("Delete from expenses where tripId = :tripId ")
+    @Query("Delete from expenses where trip_id = :tripId ")
     suspend fun deleteAllExpensesByTrip(tripId: String)
 
-    @Query("Select SUM(amount) from expenses where tripId = :tripId ")
+    @Query("Select SUM(amount) from expenses where trip_id = :tripId ")
     suspend fun getTotalExpenses(tripId: String): Double?
 }

@@ -19,7 +19,7 @@ interface TripDao {
 
      /* Get all trips ordered by start date (newest first)
         Returns Flow - updates automatically when data changes */
-    @Query("Select * from trips ORDER BY startDate DESC")
+    @Query("Select * from trips ORDER BY start_date DESC")
     fun getAllTrips(): Flow<List<TripEntity>>
 
     // Select a single trip by Id, returns null if not found
@@ -27,11 +27,11 @@ interface TripDao {
     suspend fun getTripById(tripId: String): TripEntity?
 
     // Get all trips created by a specific user
-    @Query("Select * From trips WHERE createdBy = :userId ORDER BY startDate DESC")
+    @Query("Select * From trips WHERE created_by = :userId ORDER BY start_date DESC")
     fun getTripsByUser(userId: String): Flow<List<TripEntity>>
 
     // Get trips that haven't been synced to Supabase yet
-    @Query("Select * From trips WHERE isLocal = 1")
+    @Query("Select * From trips WHERE is_local = 1")
     suspend fun getUnsyncedTrips(): List<TripEntity>
 
     // Insert a new trip, If trip with same Id exists, replace it

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 interface SettlementDao {
 
 
-    @Query("Select * from settlements where tripId = :tripId order by createdAt desc")
+    @Query("Select * from settlements where trip_id = :tripId order by created_at desc")
     fun getSettlementsForTrip(tripId: String): Flow<List<SettlementEntity>>
 
     @Query("Select * from settlements where id = :settlementId")
@@ -26,15 +26,15 @@ interface SettlementDao {
 
     @Query("""
         Select * from settlements 
-        where (fromMemberId = :memberId or toMemberId = :memberId)
+        where (from_member_id = :memberId or to_member_id = :memberId)
         and status = 'PENDING' 
-        order by createdAt desc
+        order by created_at desc
         """)
     fun getPendingSettlementsForMember(memberId: String): Flow<List<SettlementEntity>>
 
-    @Query("Select * from settlements where tripId = :tripId and status = 'CONFIRMED' order by settledAt desc")
+    @Query("Select * from settlements where trip_id = :tripId and status = 'CONFIRMED' order by settled_at desc")
     fun getConfirmedSettlements(tripId: String): Flow<List<SettlementEntity>>
 
-    @Query("DELETE FROM settlements WHERE tripId = :tripId")
+    @Query("DELETE FROM settlements WHERE trip_id = :tripId")
     suspend fun deleteSettlementsForTrip(tripId: String)
 }

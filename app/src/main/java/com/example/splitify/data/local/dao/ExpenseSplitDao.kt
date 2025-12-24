@@ -38,8 +38,8 @@ interface ExpenseSplitDao {
         SELECT e.*, es.*
         FROM expenses e
         LEFT JOIN expense_splits es ON e.id = es.expense_id
-        WHERE e.tripId = :tripId
-        ORDER BY e.expenseDate DESC
+        WHERE e.trip_id = :tripId
+        ORDER BY e.expense_date DESC
     """)
     fun getExpensesWithSplitsForTrip(tripId: String): Flow<Map<ExpenseEntity, List<ExpenseSplitEntity>>>
 

@@ -14,8 +14,8 @@ class SessionViewModel @Inject constructor(
     private val supabase: SupabaseClient
 ): ViewModel() {
 
-    private val _currentMemberId = MutableStateFlow<String?>(null)
-    val currentMemberId: StateFlow<String?> = _currentMemberId
+    private val _currentUserId = MutableStateFlow<String?>(null)
+    val currentUserId: StateFlow<String?> = _currentUserId
 
     init {
         observeSession()
@@ -24,11 +24,11 @@ class SessionViewModel @Inject constructor(
     private fun observeSession(){
         viewModelScope.launch {
             val session = supabase.auth.currentSessionOrNull()
-            _currentMemberId.value = session?.user?.id
+            _currentUserId.value = session?.user?.id
         }
     }
 
     fun clearSession(){
-        _currentMemberId.value = null
+        _currentUserId.value = null
     }
 }

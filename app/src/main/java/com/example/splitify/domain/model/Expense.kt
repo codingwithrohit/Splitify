@@ -10,6 +10,7 @@ data class Expense(
     val category: Category,
     val expenseDate: LocalDate,
     val paidBy: String,
+    val createdBy: String,
     val paidByName: String,
     val isGroupExpense: Boolean,
     val createdAt: Long = System.currentTimeMillis(),

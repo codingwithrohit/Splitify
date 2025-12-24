@@ -1,6 +1,7 @@
 package com.example.splitify.presentation.navigation
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,7 +22,7 @@ import com.example.splitify.presentation.auth.LoginScreen
 import com.example.splitify.presentation.auth.SignUpScreen
 import com.example.splitify.presentation.expense.AddExpenseScreen
 import com.example.splitify.presentation.session.CurrentMemberIdProvider
-import com.example.splitify.presentation.session.SessionViewModel
+
 import com.example.splitify.presentation.settlement.SettlementHistoryScreen
 import com.example.splitify.presentation.tripdetail.TripDetailScreen
 import com.example.splitify.presentation.trips.CreateTripScreen
@@ -108,9 +109,6 @@ fun SplitifyNavGraph(
                 arguments = listOf(
                     navArgument(Screen.TripDetail.ARG_TRIP_ID){
                         type = NavType.StringType
-                    },
-                    navArgument(Screen.EditExpense.ARG_EXPENSE_ID){
-                        type = NavType.StringType
                     }
                 )
             ){
@@ -124,6 +122,8 @@ fun SplitifyNavGraph(
                         navController.navigate(Screen.AddMember.createRoute(tripId))
                     },
                     onEditExpense = { expenseId ->
+                        val route = Screen.EditExpense.createRoute(tripId, expenseId)
+                        Log.d("NAV_CALL", "Navigating to $route")
                         navController.navigate(Screen.EditExpense.createRoute(tripId, expenseId))
                     },
                     onNavigateToSettlementHistory = {
@@ -169,12 +169,18 @@ fun SplitifyNavGraph(
                     }
                 )
             ){
-                val tripId = it.arguments?.getString(Screen.EditExpense.ARG_TRIP_ID) ?: return@composable
-                val expenseId = it.arguments?.getString(Screen.EditExpense.ARG_EXPENSE_ID) ?: return@composable
+                val args = it.arguments
+                Log.d("NAV_EDIT", "args = $args")
+
+                val tripId = args?.getString(Screen.EditExpense.ARG_TRIP_ID)
+                val expenseId = args?.getString(Screen.EditExpense.ARG_EXPENSE_ID)
+
+                Log.d("NAV_EDIT", "tripId=$tripId expenseId=$expenseId")
 
                 AddExpenseScreen(
-                    onNavigationBack = {navController.navigateUp()}
+                    onNavigationBack = { navController.navigateUp() }
                 )
+
             }
 
             composable(

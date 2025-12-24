@@ -1,5 +1,6 @@
 package com.example.splitify.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -12,37 +13,42 @@ import com.example.splitify.domain.model.SettlementStatus
         ForeignKey(
             entity = TripEntity::class,
             parentColumns = ["id"],
-            childColumns = ["tripId"],
+            childColumns = ["trip_id"],
             onDelete = ForeignKey.CASCADE
         ),
         ForeignKey(
             entity = TripMemberEntity::class,
             parentColumns = ["id"],
-            childColumns = ["fromMemberId"],
+            childColumns = ["from_member_id"],
             onDelete = ForeignKey.RESTRICT
         ),
         ForeignKey(
             entity = TripMemberEntity::class,
             parentColumns = ["id"],
-            childColumns = ["toMemberId"],
+            childColumns = ["to_member_id"],
             onDelete = ForeignKey.RESTRICT
         )
     ],
     indices = [
-        Index(value = ["tripId"]),
-        Index(value = ["fromMemberId"]),
-        Index(value = ["toMemberId"]),
+        Index(value = ["trip_id"]),
+        Index(value = ["from_member_id"]),
+        Index(value = ["to_member_id"]),
         Index(value = ["status"])
     ])
 data class SettlementEntity(
     @PrimaryKey
     val id: String,
+    @ColumnInfo("trip_id")
     val tripId: String,
+    @ColumnInfo("from_member_id")
     val fromMemberId: String,
+    @ColumnInfo("to_member_id")
     val toMemberId: String,
     val amount: Double,
     val status: String,
     val notes: String? = null,
+    @ColumnInfo("created_at")
     val createdAt: Long,
+    @ColumnInfo("settled_at")
     val settledAt: Long? = null
 )

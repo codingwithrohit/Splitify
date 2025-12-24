@@ -72,7 +72,8 @@ fun ExpenseEntity.toDomain(): Expense{
         paidBy = paidBy,
         paidByName = paidByName,
         isGroupExpense = isGroupExpense,
-        createdAt = createdAt
+        createdAt = createdAt,
+        createdBy = createdBy
     )
 }
 
@@ -88,7 +89,7 @@ fun Expense.toEntity(): ExpenseEntity{
         paidByName = paidByName,
         isGroupExpense = isGroupExpense,
         createdAt = createdAt,
-
+        createdBy = createdBy,
         isLocal = false,
         isSynced = true,
         lastModified = System.currentTimeMillis()

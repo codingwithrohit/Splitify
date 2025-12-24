@@ -101,17 +101,30 @@ class TripDetailViewModel @Inject constructor(
 
     private fun loadExpenses() {
         viewModelScope.launch {
-            expenseRepository.getExpensesByTrip(tripId).collect { expenses ->
-                _uiState.update { currentState ->
-                    if (currentState is TripDetailUiState.Success) {
-                        currentState.copy(
-                            expenses = expenses,
-                            totalExpenses = expenses.sumOf { it.amount }
-                        )
-                    } else {
-                        currentState
+            expenseRepository.getExpensesByTrip(tripId).collect { result ->
+                when(result){
+                    is Result.Success -> {
+                        val expenses = result.data
+                        _uiState.update { currentState ->
+                            if (currentState is TripDetailUiState.Success) {
+                                currentState.copy(
+                                    expenses = expenses,
+                                    totalExpenses = expenses.sumOf { it.amount }
+                                )
+                            } else {
+                                currentState
+                            }
+                        }
                     }
+
+                    is Result.Error -> {
+                        _uiState.update {
+                            TripDetailUiState.Error(result.message)
+                        }
+                    }
+                    Result.Loading -> TODO()
                 }
+
             }
         }
     }

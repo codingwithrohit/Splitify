@@ -51,7 +51,9 @@ class AddExpenseViewModel @Inject constructor(
         savedStateHandle[Screen.AddExpense.ARG_TRIP_ID]
     )
 
-    private val expenseId: String? = savedStateHandle["expenseId"]
+    private val expenseId: String? =
+        savedStateHandle[Screen.EditExpense.ARG_EXPENSE_ID]
+
 
     val mode: ExpenseFormMode = if (expenseId != null) {
         ExpenseFormMode.Edit(expenseId)
@@ -305,7 +307,17 @@ class AddExpenseViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
+            val currentUserId = authRepository.getCurrentUser().firstOrNull()?.id
 
+            if (currentUserId == null) {
+                _uiState.update {
+                    it.copy(
+                        amountError = "User not authenticated",
+                        isLoading = false
+                    )
+                }
+                return@launch
+            }
             val result = when(mode){
                 is ExpenseFormMode.Add -> {
                     addExpenseUseCase(
@@ -315,6 +327,7 @@ class AddExpenseViewModel @Inject constructor(
                         category = state.category,
                         date = state.expenseDate, // Convert to millis
                         paidBy = paidByMemberId,
+                        createdBy = currentUserId,
                         isGroupExpense = _isGroupExpense.value,
                         participatingMemberIds = participants
                     )
@@ -330,9 +343,11 @@ class AddExpenseViewModel @Inject constructor(
                         category = state.category,
                         expenseDate = state.expenseDate,
                         paidBy = paidByMemberId,
+                        createdBy = currentUserId,
                         isGroupExpense = _isGroupExpense.value,
+                        paidByName = state.paidByMemberId,
                         createdAt = System.currentTimeMillis(),
-                        paidByName = state.paidByMemberId
+                        updatedAt = System.currentTimeMillis()
                     )
 
                     val splitAmount = amountValue / participants.size

@@ -35,7 +35,7 @@ sealed class Screen(val route: String) {
     }
 
     data object EditExpense: Screen("edit_expense/{tripId}/{expenseId}"){
-        fun createRoute(tripId: String, expenseId: String) = "edit_expense/$tripId/${expenseId}"
+        fun createRoute(tripId: String, expenseId: String) = "edit_expense/${tripId}/${expenseId}"
         const val ARG_TRIP_ID = "tripId"
         const val ARG_EXPENSE_ID = "expenseId"
     }

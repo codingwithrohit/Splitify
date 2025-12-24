@@ -22,6 +22,7 @@ class AddExpenseUseCase @Inject constructor(
         category: Category,
         date: LocalDate,
         paidBy: String,
+        createdBy: String,
         isGroupExpense: Boolean,
         participatingMemberIds: List<String>
     ): Result<Unit> {
@@ -98,6 +99,7 @@ class AddExpenseUseCase @Inject constructor(
                 category = category,
                 expenseDate = date,
                 paidBy = paidBy,
+                createdBy = createdBy,
                 paidByName = payer.displayName,
                 isGroupExpense = isGroupExpense,
                 createdAt = System.currentTimeMillis()

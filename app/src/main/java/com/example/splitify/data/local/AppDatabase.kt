@@ -3,6 +3,8 @@ package com.example.splitify.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.splitify.data.local.converter.DateConverter
 import com.example.splitify.data.local.dao.ExpenseDao
 import com.example.splitify.data.local.dao.ExpenseSplitDao
@@ -24,7 +26,7 @@ import dagger.Provides
         ExpenseSplitEntity::class,
         SettlementEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class)
@@ -37,5 +39,20 @@ abstract class AppDatabase: RoomDatabase() {
     abstract fun settlementDao(): SettlementDao
     companion object{
         const val DATABASE_NAME = "splitify_database"
+//        val MIGRATION_5_6 = object : Migration(5, 6) {
+//            override fun migrate(database: SupportSQLiteDatabase) {
+//                // Add created_by column (default to empty string for existing data)
+//                database.execSQL(
+//                    "ALTER TABLE expenses ADD COLUMN createdBy TEXT NOT NULL DEFAULT ''"
+//                )
+//
+//
+//
+//                // Create index on created_by
+//                database.execSQL(
+//                    "CREATE INDEX IF NOT EXISTS index_expenses_created_by ON expenses(createdBy)"
+//                )
+//            }
+//        }
     }
 }

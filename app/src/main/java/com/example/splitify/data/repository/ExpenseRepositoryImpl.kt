@@ -60,7 +60,7 @@ class ExpenseRepositoryImpl @Inject constructor(
     override fun getExpensesByTrip(tripId: String): Flow<Result<List<Expense>>> {
         return expenseDao.getExpensesByTripId(tripId)
             .map { entities ->
-                entities.toExpenseDomainModels()
+                Result.Success(entities.toExpenseDomainModels())
             }
     }
 

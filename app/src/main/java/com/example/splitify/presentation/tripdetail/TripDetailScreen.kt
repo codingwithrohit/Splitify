@@ -1,6 +1,7 @@
 package com.example.splitify.presentation.tripdetail
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -64,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.model.TripMember
+import com.example.splitify.domain.usecase.expense.CanModifyExpenseUseCase
 import com.example.splitify.presentation.addmembers.EmptyState
 import com.example.splitify.presentation.balances.BalancesScreen
 import com.example.splitify.presentation.expense.ExpenseUiState
@@ -205,7 +207,8 @@ fun TripDetailContent(
             TripDetailTab.EXPENSES -> ExpensesTab(
                 tripId = trip.id,
                 currentMemberId = currentMemberId,
-                onEditExpense = onEditExpense
+                onEditExpense = onEditExpense,
+                currentUserId = currentMemberId
             )
             TripDetailTab.MEMBERS -> MembersTab(members = members)
             TripDetailTab.BALANCES -> BalancesTab(trip.id, currentMemberId = currentMemberId, onNavigateToHistory = onNavigateToHistory)
@@ -349,6 +352,7 @@ private fun OverviewTab(trip: Trip) {
 private fun ExpensesTab(
     tripId: String,
     currentMemberId: String?,
+    currentUserId: String?,
     onEditExpense: (String) -> Unit,
     viewModel: ExpenseViewModel = hiltViewModel()
 
@@ -383,6 +387,7 @@ private fun ExpensesTab(
             ErrorContent(message = state.message, onRetry = {})
         }
         is ExpenseUiState.Success -> {
+            val currentMember = state.members.find { it.id == currentMemberId }
             if(state.expenses.isEmpty()){
                 EmptyState(
                     message = "No expenses yet.\n Tap + to add your first member",
@@ -399,7 +404,8 @@ private fun ExpensesTab(
                         ExpenseCard(
                             expense = expense,
                             paidByMember = state.members.find { it.id == expense.paidBy },
-                            currentMemberId = currentMemberId,
+                            currentUserMember = currentMember,
+                            currentUserId = currentUserId,
                             onEdit = {onEditExpense(expense.id)},
                             onDelete = {expenseToDelete = expense}
                         )
@@ -416,11 +422,17 @@ private fun ExpensesTab(
 private fun ExpenseCard(
     expense: Expense,
     paidByMember: TripMember?,
-    currentMemberId: String?,
+    currentUserMember: TripMember?,
+    currentUserId: String?,
     onEdit: (String) -> Unit,
     onDelete: () -> Unit,
+    canModifyExpenseUseCase: CanModifyExpenseUseCase = remember { CanModifyExpenseUseCase() }
 ) {
-    val canModify = currentMemberId == expense.paidBy
+    val canModify = canModifyExpenseUseCase(
+        expense = expense,
+        currentUserMember = currentUserMember,
+        currentUserId = currentUserId
+    )
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -480,17 +492,19 @@ private fun ExpenseCard(
                 )
             }
 
-            // ✅ Edit/Delete buttons (only if user can modify)
+            // ✅ Edit/Delete buttons (only if user has permission)
             if (canModify) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
-                    //horizontalArrangement = Arrangement.spacedBy(8.dp)
+
                 ) {
                     OutlinedButton(
-                        onClick = { onEdit },
+                        onClick = {
+                            Log.d("EDIT_CLICK", "Edit clicked for expenseId=${expense.id}")
+                            onEdit(expense.id) },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
