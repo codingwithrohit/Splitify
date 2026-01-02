@@ -20,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.Balance
 import com.example.splitify.domain.model.SimplifiedDebt
 import com.example.splitify.domain.model.TripMember
+import com.example.splitify.presentation.components.AllSettledState
 import com.example.splitify.presentation.settlement.SettleUpDialog
 import com.example.splitify.presentation.settlement.SettlementViewModel
 import java.text.NumberFormat
@@ -36,23 +37,10 @@ fun BalancesScreen(
     settlementViewModel: SettlementViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val settlementState by settlementViewModel.uiState.collectAsStateWithLifecycle()
 
     var selectedDebt by remember { mutableStateOf<Pair<SimplifiedDebt, Pair<TripMember, TripMember>>?>(null) }
 
-    // Load balances on first composition
-    LaunchedEffect(tripId) {
-        viewModel.loadBalances(tripId, currentMemberId)
-    }
 
-    // Handle settlement success - reload balances
-    LaunchedEffect(settlementState) {
-        if (settlementState is com.example.splitify.presentation.settlement.SettlementUiState.Success) {
-            viewModel.loadBalances(tripId, currentMemberId)
-            settlementViewModel.resetSettlementState()
-            selectedDebt = null
-        }
-    }
 
     // Show settle up dialog
     selectedDebt?.let { (debt, members) ->
@@ -96,7 +84,7 @@ fun BalancesScreen(
             )
         }
     ) {padding ->
-        Box(modifier = Modifier.padding(padding)){
+        Box(modifier = Modifier.fillMaxSize().padding(padding)){
             when (val state = uiState) {
                 is BalancesUiState.Loading -> {
                     Box(
@@ -110,7 +98,10 @@ fun BalancesScreen(
                 is BalancesUiState.Success -> {
                     if (state.simplifiedDebts.isEmpty()) {
                         // All settled!
-                        EmptyBalancesState()
+                        AllSettledState(
+                            onViewHistory = onNavigateToHistory,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     } else {
                         BalancesContent(
                             memberBalances = state.memberBalances,

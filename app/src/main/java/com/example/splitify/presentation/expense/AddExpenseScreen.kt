@@ -39,6 +39,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -48,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,7 +64,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.TripMember
+import com.example.splitify.presentation.components.InlineErrorMessage
 import com.example.splitify.util.CurrencyUtils
+import com.example.splitify.util.SnackbarController
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.exp
@@ -78,9 +85,28 @@ fun AddExpenseScreen(
     val selectedMemberIds by viewModel.selectedMemberIds.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val snackbarController = remember(snackbarHostState, scope) {
+        SnackbarController(snackbarHostState, scope)
+    }
+
     LaunchedEffect(uiState.isSaved) {
         if(uiState.isSaved){
+            val message = when(viewModel.mode){
+                is ExpenseFormMode.Add -> "Expense added Successfully"
+                is ExpenseFormMode.Edit -> "Expense updated Successfully"
+            }
+            snackbarController.showSuccess(message)
+            delay(500)
             onNavigationBack()
+        }
+    }
+    LaunchedEffect(uiState.amountError) {
+        uiState.amountError?.let { error ->
+            if (error.isNotBlank()) {
+                snackbarController.showError(error)
+            }
         }
     }
 
@@ -95,7 +121,8 @@ fun AddExpenseScreen(
             navigationIcon = { IconButton(onClick = onNavigationBack) {
                 Icon(Icons.AutoMirrored.Default.ArrowBack, "Back")
             } }
-        ) }
+        ) },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
 
         if(uiState.isLoading && uiState.members.isEmpty()){
@@ -109,7 +136,8 @@ fun AddExpenseScreen(
             }
         }else{
             Column(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
@@ -123,7 +151,7 @@ fun AddExpenseScreen(
                     label = { Text("Amount *") },
                     placeholder = { Text("0.0") },
                     prefix = { Text("₹") },
-                    supportingText = uiState.amountError?.let{ {Text(it)} },
+                    supportingText = uiState.amountError?.let{ { InlineErrorMessage(it) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -137,7 +165,18 @@ fun AddExpenseScreen(
                     label = { Text("Description *") },
                     placeholder = { Text("What was this expense for?") },
                     isError = uiState.descriptionError != null,
-                    supportingText = uiState.descriptionError?.let{ {Text(it)}},
+                    supportingText = {
+                        if (uiState.descriptionError != null) {
+                            uiState.descriptionError?.let { InlineErrorMessage(it) }
+                        } else {
+                            Text(
+                                text = "${uiState.description.length}/50 characters",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    ,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = {focusManager.clearFocus()}),
                     modifier = Modifier.fillMaxWidth(),
@@ -343,7 +382,8 @@ fun PaidBySelector(
                 trailingIcon = {
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
                     .menuAnchor(),
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
             )

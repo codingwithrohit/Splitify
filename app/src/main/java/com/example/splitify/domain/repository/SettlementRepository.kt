@@ -21,5 +21,7 @@ interface SettlementRepository {
 
     fun getPendingSettlementsForMember(memberId: String): Flow<Result<List<Settlement>>>
 
+    fun getPendingSettlementsBetweenMembers(fromMemberId: String, toMemberId: String): Flow<Result<List<Settlement>>>
+
     suspend fun updateSettlementStatus(settlementId: String, status: SettlementStatus): Result<Settlement>
 }

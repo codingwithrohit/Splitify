@@ -27,6 +27,8 @@ import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
 import com.example.splitify.util.Result
+import com.example.splitify.util.ValidationResult
+import com.example.splitify.util.ValidationUtils
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filterNotNull
@@ -226,15 +228,27 @@ class AddExpenseViewModel @Inject constructor(
                     amountError = null
                 )
             }
+            if(amount.isNotBlank()){
+                val validation = ValidationUtils.validAmount(amount)
+                if(!validation.isValid){
+                    _uiState.update {
+                        it.copy(
+                            amountError = validation.errorMessage
+                        )
+                    }
+                }
+            }
         }
     }
 
     fun onDescriptionChange(description: String) {
-        _uiState.update {
-            it.copy(
-                description = description,
-                descriptionError = null
-            )
+        if (description.length <= 100) {
+            _uiState.update {
+                it.copy(
+                    description = description,
+                    descriptionError = null
+                )
+            }
         }
     }
 
@@ -261,21 +275,23 @@ class AddExpenseViewModel @Inject constructor(
 
     fun saveExpense() {
         val state = uiState.value
-
+        var hasError = false
+        val amountValue = state.amount.toDouble()
         // Validations
-        val amountValue = state.amount.toDoubleOrNull()
-        if (amountValue == null || amountValue <= 0) {
+        val amountValidation = ValidationUtils.validAmount(state.amount)
+        if(!amountValidation.isValid){
             _uiState.update {
-                it.copy(amountError = "Enter a valid amount")
+                it.copy(amountError = amountValidation.errorMessage)
             }
-            return
+            hasError = true
         }
 
-        if (state.description.isBlank()) {
+        val descriptionValidation = ValidationUtils.validateDescription(state.description)
+        if (!descriptionValidation.isValid) {
             _uiState.update {
-                it.copy(descriptionError = "Description is required")
+                it.copy(descriptionError = descriptionValidation.errorMessage)
             }
-            return
+            hasError = true
         }
 
         val paidByMemberId = state.paidByMemberId
@@ -284,25 +300,38 @@ class AddExpenseViewModel @Inject constructor(
                 it.copy(amountError = "Select who paid for this expense")
             }
             Log.e("AddExpenseVM", "❌ Current user is not a member of this trip!")
-            return
+            hasError = true
         }
 
         val participants =
             if (_isGroupExpense.value) {
                 _selectedMemberIds.value.toList()
             } else {
-                listOf(paidByMemberId)
+                listOf(paidByMemberId ?: "")
             }
+
+        if(participants.isEmpty()){
+            _uiState.update {
+                it.copy(amountError = "Select at least one participant")
+            }
+            hasError = true
+        }
 
         Log.d("AddExpenseVM", "💾 Saving expense with ${participants.size} participants")
 
 
         Log.d("AddExpenseVM", "💾 Saving expense:")
-        Log.d("AddExpenseVM", "  Amount: ₹$amountValue")
+        Log.d("AddExpenseVM", "  Amount: ₹$amountValidation")
         Log.d("AddExpenseVM", "  Description: ${state.description}")
         Log.d("AddExpenseVM", "  Paid by (memberId): $paidByMemberId")
         Log.d("AddExpenseVM", "  Is group: ${_isGroupExpense.value}")
         Log.d("AddExpenseVM", "  Participants (${participants.size}): $participants")
+
+
+        if (hasError) {
+            Log.e("AddExpenseVM", "❌ Validation failed")
+            return
+        }
 
         _uiState.update { it.copy(isLoading = true) }
 
@@ -322,11 +351,11 @@ class AddExpenseViewModel @Inject constructor(
                 is ExpenseFormMode.Add -> {
                     addExpenseUseCase(
                         tripId = tripId,
-                        amount = amountValue,
+                        amount = state.amount.toDouble(),
                         description = state.description.trim(),
                         category = state.category,
                         date = state.expenseDate, // Convert to millis
-                        paidBy = paidByMemberId,
+                        paidBy = paidByMemberId.toString(),
                         createdBy = currentUserId,
                         isGroupExpense = _isGroupExpense.value,
                         participatingMemberIds = participants
@@ -338,14 +367,14 @@ class AddExpenseViewModel @Inject constructor(
                     val expense = Expense(
                         id = expenseIdToUpdate,
                         tripId = tripId,
-                        amount = amountValue,
+                        amount = state.amount.toDouble(),
                         description = state.description.trim(),
                         category = state.category,
                         expenseDate = state.expenseDate,
-                        paidBy = paidByMemberId,
+                        paidBy = paidByMemberId.toString(),
                         createdBy = currentUserId,
                         isGroupExpense = _isGroupExpense.value,
-                        paidByName = state.paidByMemberId,
+                        paidByName = state.paidByMemberId.toString(),
                         createdAt = System.currentTimeMillis(),
                         updatedAt = System.currentTimeMillis()
                     )
@@ -357,7 +386,7 @@ class AddExpenseViewModel @Inject constructor(
                             expenseId = expenseIdToUpdate,
                             memberId = participantId,
                             amountOwed = splitAmount,
-                            memberName = state.paidByMemberId
+                            memberName = state.paidByMemberId.toString()
                         )
                     }
 

@@ -86,6 +86,19 @@ class SettlementRepositoryImpl @Inject constructor(
             }
     }
 
+    override fun getPendingSettlementsBetweenMembers(
+        fromMemberId: String,
+        toMemberId: String
+    ): Flow<Result<List<Settlement>>> {
+        return settlementDao.getPendingSettlementsBetweenMembers(fromMemberId, toMemberId)
+            .map { entities ->
+                Result.Success(entities.toDomain())
+            }
+            .catch { e ->
+                Result.Error(Exception("Failed to load pending settlements between members"), e.message.toString())
+            }
+    }
+
     override suspend fun updateSettlementStatus(
         settlementId: String,
         status: SettlementStatus

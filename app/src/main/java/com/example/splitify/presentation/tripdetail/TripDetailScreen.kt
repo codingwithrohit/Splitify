@@ -43,6 +43,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -53,6 +55,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,12 +71,15 @@ import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.usecase.expense.CanModifyExpenseUseCase
 import com.example.splitify.presentation.addmembers.EmptyState
 import com.example.splitify.presentation.balances.BalancesScreen
+import com.example.splitify.presentation.balances.BalancesUiState
+import com.example.splitify.presentation.components.EmptyExpensesState
+import com.example.splitify.presentation.components.ErrorStateWithRetry
+import com.example.splitify.presentation.components.ExpensesLoadingSkeleton
 import com.example.splitify.presentation.expense.ExpenseUiState
 import com.example.splitify.presentation.expense.ExpenseViewModel
+import com.example.splitify.util.SnackbarController
 import com.example.splitify.util.getCategoryIcon
 import java.text.NumberFormat
-import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -348,6 +354,7 @@ private fun OverviewTab(trip: Trip) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 private fun ExpensesTab(
     tripId: String,
@@ -359,9 +366,14 @@ private fun ExpensesTab(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
-    LaunchedEffect(tripId) {
-        viewModel.loadExpenses(tripId)
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val snackbarController = remember(snackbarHostState, scope) {
+        SnackbarController(snackbarHostState, scope)
     }
+
+
 
     expenseToDelete?.let { expense ->
         DeleteExpenseDialog(
@@ -369,49 +381,59 @@ private fun ExpensesTab(
             onConfirm = {
                 viewModel.deleteExpense(expense.id)
                 expenseToDelete = null
+                snackbarController.showSuccess("Expense Deleted")
             },
             onDismiss = { expenseToDelete = null}
         )
     }
 
-    when(val state = uiState){
-        is ExpenseUiState.Loading -> {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+    Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+    ) { padding ->
+        when (val state = uiState) {
+            is ExpenseUiState.Loading -> {
+                ExpensesLoadingSkeleton()
             }
-        }
-        is ExpenseUiState.Error -> {
-            ErrorContent(message = state.message, onRetry = {})
-        }
-        is ExpenseUiState.Success -> {
-            val currentMember = state.members.find { it.id == currentMemberId }
-            if(state.expenses.isEmpty()){
-                EmptyState(
-                    message = "No expenses yet.\n Tap + to add your first member",
-                    icon = Icons.Default.Add
-                )
-            }
-            else{
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(state.expenses){ expense ->
-                        ExpenseCard(
-                            expense = expense,
-                            paidByMember = state.members.find { it.id == expense.paidBy },
-                            currentUserMember = currentMember,
-                            currentUserId = currentUserId,
-                            onEdit = {onEditExpense(expense.id)},
-                            onDelete = {expenseToDelete = expense}
-                        )
+
+            is ExpenseUiState.Success -> {
+                if (state.expenses.isEmpty()) {
+                    EmptyExpensesState(
+                        onAddExpense = null,
+                        modifier = Modifier.padding(padding)
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(
+                            items = state.expenses,
+                            key = { it.id }
+                        ) { expense ->
+                            ExpenseCard(
+                                expense = expense,
+                                paidByMember = state.members.find { it.id == expense.paidBy },
+                                currentUserMember = state.members.find { it.id == currentMemberId },
+                                currentUserId = currentUserId,
+                                onEdit = { onEditExpense(expense.id) },
+                                onDelete = { expenseToDelete = expense }
+                            )
+                        }
                     }
                 }
             }
+
+            is ExpenseUiState.Error -> {
+                ErrorStateWithRetry(
+                    message = state.message,
+                    onRetry = { /* Will auto-retry via Flow */ },
+                    modifier = Modifier.padding(padding)
+                )
+            }
+
         }
     }
 
@@ -738,14 +760,7 @@ private fun MemberCard(member: TripMember) {
     }
 }
 
-fun Long.toFormattedDate(
-    pattern: String = "MMM dd, yyyy"
-): String {
-    return Instant.ofEpochMilli(this)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
-        .format(DateTimeFormatter.ofPattern(pattern))
-}
+
 
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)

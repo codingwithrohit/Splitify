@@ -1,6 +1,7 @@
 package com.example.splitify.presentation.settlement
 
-import android.R.attr.padding
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
@@ -28,6 +27,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,21 +49,27 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.SettlementStatus
+import com.example.splitify.presentation.balances.BalancesUiState
+import com.example.splitify.presentation.balances.BalancesViewModel
+import com.example.splitify.presentation.theme.md_theme_dark_warningContainer
+import com.example.splitify.presentation.theme.md_theme_light_warningContainer
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettlementHistoryScreen(
     tripId: String,
     currentMemberId: String,
     onBack: () -> Unit,
-    viewModel: SettlementViewModel = hiltViewModel()
-){
+    viewModel: SettlementViewModel = hiltViewModel(),
+    balanceViewModel: BalancesViewModel = hiltViewModel()
+) {
     val uiState by viewModel.settlementListState.collectAsStateWithLifecycle()
-
+    val balanceState by balanceViewModel.uiState.collectAsStateWithLifecycle()
     var showConfirmDialog by remember { mutableStateOf<SettlementWithMember?>(null) }
 
     LaunchedEffect(tripId) {
@@ -97,9 +103,8 @@ fun SettlementHistoryScreen(
                 }
             )
         }
-    ){
-        paddingValues ->
-        when(val state = uiState){
+    ) { paddingValues ->
+        when (val state = uiState) {
             is SettlementListUiState.Loading -> {
                 Box(
                     modifier = Modifier
@@ -137,12 +142,12 @@ fun SettlementHistoryScreen(
             }
 
             is SettlementListUiState.Success -> {
-                if(state.settlements.isEmpty()){
+                if (state.settlements.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize()
                             .padding(paddingValues),
                         contentAlignment = Alignment.Center
-                    ){
+                    ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -167,21 +172,65 @@ fun SettlementHistoryScreen(
 
                         }
                     }
-                }
-                else{
-                    LazyColumn(
+                } else {
+                    Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(paddingValues),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ){
-                        items(state.settlements){settlement ->
-                            SettlementHistoryCard(
-                                settlement = settlement,
-                                currentMemberId = currentMemberId,
-                                onConfirm = {showConfirmDialog = settlement}
-                            )
+                            .padding(paddingValues)
+                    ) {
+                        // ✅ ADD WARNING if pending settlements exist but balances are zero
+                        val hasPendingSettlements = state.settlements.any {
+                            it.settlement.status == SettlementStatus.PENDING
+                        }
+                        val allBalancesZero = when (val bState = balanceState) {
+                            is BalancesUiState.Success -> {
+                                bState.simplifiedDebts.isEmpty()
+                            }
+
+                            else -> false
+                        }
+
+                        if (hasPendingSettlements && allBalancesZero) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = md_theme_light_warningContainer
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = md_theme_dark_warningContainer
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Note: Pending settlements exist but all balances are settled. These may be outdated.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = md_theme_dark_warningContainer
+                                    )
+                                }
+                            }
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(state.settlements) { settlement ->
+                                SettlementHistoryCard(
+                                    settlement = settlement,
+                                    currentMemberId = currentMemberId,
+                                    onConfirm = { showConfirmDialog = settlement }
+                                )
+                            }
                         }
                     }
                 }
@@ -190,123 +239,125 @@ fun SettlementHistoryScreen(
     }
 }
 
-@Composable
-private fun SettlementHistoryCard(
-    settlement: SettlementWithMember,
-    currentMemberId: String,
-    onConfirm: () -> Unit
-){
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault())
-
-    val isReceiver = settlement.toMember.id == currentMemberId
-    val isPending = settlement.settlement.status == SettlementStatus.PENDING
-
-    Card(
-        modifier = Modifier.fillMaxWidth()
+    @Composable
+    fun SettlementHistoryCard(
+        settlement: SettlementWithMember,
+        currentMemberId: String,
+        onConfirm: () -> Unit
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+        val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
+        val dateFormat = SimpleDateFormat("MMM dd, yyyy 'at' hh:mm a", Locale.getDefault())
+
+        val isReceiver = settlement.toMember.id == currentMemberId
+        val isPending = settlement.settlement.status == SettlementStatus.PENDING
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Status badge
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
             ) {
-                AssistChip(
-                    onClick = { },
-                    label = {
-                        Text(
-                            text = when (settlement.settlement.status) {
-                                SettlementStatus.PENDING -> "Pending"
-                                SettlementStatus.CONFIRMED -> "Confirmed"
-                                SettlementStatus.DISPUTED -> "Disputed"
+                // Status badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AssistChip(
+                        onClick = { },
+                        label = {
+                            Text(
+                                text = when (settlement.settlement.status) {
+                                    SettlementStatus.PENDING -> "Pending"
+                                    SettlementStatus.CONFIRMED -> "Confirmed"
+                                    SettlementStatus.DISPUTED -> "Disputed"
+                                }
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = when (settlement.settlement.status) {
+                                    SettlementStatus.PENDING -> Icons.Default.Schedule
+                                    SettlementStatus.CONFIRMED -> Icons.Default.CheckCircle
+                                    SettlementStatus.DISPUTED -> Icons.Default.Warning
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = when (settlement.settlement.status) {
+                                SettlementStatus.PENDING -> MaterialTheme.colorScheme.secondaryContainer
+                                SettlementStatus.CONFIRMED -> MaterialTheme.colorScheme.primaryContainer
+                                SettlementStatus.DISPUTED -> MaterialTheme.colorScheme.errorContainer
                             }
                         )
-                    },
-                    leadingIcon = {
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Payment details
+                Text(
+                    text = "${settlement.fromMember.displayName} → ${settlement.toMember.displayName}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+
+                Text(
+                    text = currencyFormat.format(settlement.settlement.amount),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                // Notes
+                settlement.settlement.notes?.let { notes ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = notes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Timestamp
+                Text(
+                    text = "Created: ${dateFormat.format(Date(settlement.settlement.createdAt))}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (settlement.settlement.settledAt != null) {
+                    Text(
+                        text = "Confirmed: ${dateFormat.format(Date(settlement.settlement.settledAt))}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Confirm button (only for receiver on pending settlements)
+                if (isPending && isReceiver) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Icon(
-                            imageVector = when (settlement.settlement.status) {
-                                SettlementStatus.PENDING -> Icons.Default.Schedule
-                                SettlementStatus.CONFIRMED -> Icons.Default.CheckCircle
-                                SettlementStatus.DISPUTED -> Icons.Default.Warning
-                            },
+                            imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
-                    },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = when (settlement.settlement.status) {
-                            SettlementStatus.PENDING -> MaterialTheme.colorScheme.secondaryContainer
-                            SettlementStatus.CONFIRMED -> MaterialTheme.colorScheme.primaryContainer
-                            SettlementStatus.DISPUTED -> MaterialTheme.colorScheme.errorContainer
-                        }
-                    )
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Payment details
-            Text(
-                text = "${settlement.fromMember.displayName} → ${settlement.toMember.displayName}",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-
-            Text(
-                text = currencyFormat.format(settlement.settlement.amount),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            // Notes
-            settlement.settlement.notes?.let { notes ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = notes,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Timestamp
-            Text(
-                text = "Created: ${dateFormat.format(Date(settlement.settlement.createdAt))}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            if (settlement.settlement.settledAt != null) {
-                Text(
-                    text = "Confirmed: ${dateFormat.format(Date(settlement.settlement.settledAt))}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Confirm button (only for receiver on pending settlements)
-            if (isPending && isReceiver) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Button(
-                    onClick = onConfirm,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Confirm Receipt")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Confirm Receipt")
+                    }
                 }
             }
         }
     }
-}
+
+

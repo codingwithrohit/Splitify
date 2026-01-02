@@ -29,7 +29,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +42,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.Trip
+import com.example.splitify.presentation.components.EmptyTripsState
+import com.example.splitify.presentation.components.ErrorStateWithRetry
+import com.example.splitify.presentation.components.LoadingScreen
+import com.example.splitify.util.PullToRefreshBox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +56,17 @@ fun TripsScreen(
     viewModel: TripsViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var isRefreshing by remember { mutableStateOf(false) }
+
+//    LaunchedEffect(uiState) {
+//        isRefreshing = false
+//    }
+    LaunchedEffect(uiState) {
+        if (uiState is TripsUiState.Success || uiState is TripsUiState.Error) {
+            isRefreshing = false
+        }
+    }
+
 
     Scaffold(
         topBar = {
@@ -74,27 +93,44 @@ fun TripsScreen(
 
         when(uiState){
             is TripsUiState.Loading -> {
-                LoadingScreen( modifier = Modifier.padding(paddingValues))
+                if(!isRefreshing){
+                    LoadingScreen(
+                        message = "Loading your trips...",
+                        modifier = Modifier.fillMaxSize().padding(paddingValues)
+                    )
+                }
             }
             is TripsUiState.Success -> {
                 val trips = (uiState as TripsUiState.Success).trips
                 if(trips.isEmpty()){
-                    EmptyScreen(modifier = Modifier.padding(paddingValues))
+                    EmptyTripsState(
+                        onCreateTripClick,
+                        modifier = Modifier.fillMaxSize().padding(paddingValues)
+                    )
                 }
                 else{
-                    TripsList(
-                        trips = trips,
-                        onTripClick = onTripClick,
-                        onDeleteTrip = { tripId -> viewModel.deleteTrip(tripId) },
-                        modifier = Modifier.padding(paddingValues)
-                    )
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = {
+                            isRefreshing = true
+                            viewModel.refresh()
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        TripsList(
+                            trips = trips,
+                            onTripClick = onTripClick,
+                            onDeleteTrip = { tripId -> viewModel.deleteTrip(tripId) },
+                            modifier = Modifier.fillMaxSize().padding(paddingValues)
+                        )
+                    }
                 }
             }
             is TripsUiState.Error -> {
-                ErrorScreen(
+                ErrorStateWithRetry(
                     message = (uiState as TripsUiState.Error).message,
                     onRetry = { viewModel.refresh() },
-                    modifier = Modifier.padding(paddingValues)
+                    modifier = Modifier.fillMaxSize().padding(paddingValues)
                 )
             }
         }
@@ -199,71 +235,8 @@ private fun formatDateRange(startDate: String, endDate: String?): String {
     }
 }
 
-@Composable
-fun EmptyScreen(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "No trips yet",
-                style = MaterialTheme.typography.headlineMedium
-            )
-            Text(
-                text = "Tap + to create a trip",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
 
-}
 
-@Composable
-fun ErrorScreen(
-    message: String,
-    onRetry: () -> Unit,
-    modifier: Modifier
-) {
-    Box( modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text(
-                text = "Error",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.error
-            )
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Button(onClick = onRetry) {
-                Text("Retry")
-            }
-        }
-    }
-}
 
-@Composable
-fun LoadingScreen(modifier: Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ){
-        CircularProgressIndicator()
-    }
-}
 
-@Preview(showBackground = true)
-@Composable
-fun LoadingScreenPreview(){
-    ErrorScreen(modifier = Modifier, message = "msg", onRetry = {})
-}
+

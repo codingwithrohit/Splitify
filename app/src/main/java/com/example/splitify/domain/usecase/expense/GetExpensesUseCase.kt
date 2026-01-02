@@ -9,7 +9,7 @@ import javax.inject.Inject
 class GetExpensesUseCase @Inject constructor(
     private val expenseRepository: ExpenseRepository
 ) {
-    suspend operator fun invoke(tripId: String): Flow<Result<List<Expense>>>{
+    operator fun invoke(tripId: String): Flow<Result<List<Expense>>>{
         return expenseRepository.getExpensesByTrip(tripId)
     }
 }

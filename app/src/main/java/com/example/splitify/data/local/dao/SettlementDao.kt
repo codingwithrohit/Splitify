@@ -37,4 +37,7 @@ interface SettlementDao {
 
     @Query("DELETE FROM settlements WHERE trip_id = :tripId")
     suspend fun deleteSettlementsForTrip(tripId: String)
+
+    @Query("Select * from settlements where from_member_id = :fromMemberId and to_member_id = :toMemberId and status = 'PENDING' ")
+    fun getPendingSettlementsBetweenMembers(fromMemberId: String, toMemberId: String): Flow<List<SettlementEntity>>
 }
