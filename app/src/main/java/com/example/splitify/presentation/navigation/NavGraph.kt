@@ -30,7 +30,6 @@ import com.example.splitify.presentation.trips.TripsScreen
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 
-
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun SplitifyNavGraph(
@@ -40,39 +39,44 @@ fun SplitifyNavGraph(
     var isCheckingAuth by remember { mutableStateOf(true) }
     var startDestination by remember { mutableStateOf(Screen.Login.route) }
 
-
     LaunchedEffect(Unit) {
         val session = supabase.auth.currentSessionOrNull()
-        startDestination = if(session != null)
+        startDestination = if (session != null)
             Screen.Trips.route
         else
             Screen.Login.route
         isCheckingAuth = false
     }
 
-    if(!isCheckingAuth){
+    if (!isCheckingAuth) {
         NavHost(
             navController = navController,
             startDestination = startDestination
         ) {
-            //Login Screen
-            composable(route = Screen.Login.route){
+            // Login Screen
+            composable(route = Screen.Login.route) {
                 LoginScreen(
                     onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) },
-                    onLoginSuccess = { navController.navigate(Screen.Trips.route){
-                        popUpTo(Screen.Login.route){ inclusive = true }
-                    } }
+                    onLoginSuccess = {
+                        navController.navigate(Screen.Trips.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    }
                 )
             }
-            //SignUp Screen
-            composable(route = Screen.SignUp.route){
+
+            // SignUp Screen
+            composable(route = Screen.SignUp.route) {
                 SignUpScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onSignUpSuccess = { navController.navigate(Screen.Trips.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    } }
+                    onSignUpSuccess = {
+                        navController.navigate(Screen.Trips.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    }
                 )
             }
+
             // Trips List Screen
             composable(route = Screen.Trips.route) {
                 TripsScreen(
@@ -83,8 +87,8 @@ fun SplitifyNavGraph(
                         navController.navigate(Screen.TripDetail.createRoute(tripId))
                     },
                     onLogOut = {
-                        navController.navigate(Screen.Login.route){
-                            popUpTo(0){inclusive=true}
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 )
@@ -97,7 +101,6 @@ fun SplitifyNavGraph(
                         navController.popBackStack()
                     },
                     onTripCreated = {
-                        // Navigate back to trips list
                         navController.popBackStack()
                     }
                 )
@@ -107,192 +110,267 @@ fun SplitifyNavGraph(
             composable(
                 route = Screen.TripDetail.route,
                 arguments = listOf(
-                    navArgument(Screen.TripDetail.ARG_TRIP_ID){
+                    navArgument(Screen.TripDetail.ARG_TRIP_ID) {
                         type = NavType.StringType
                     }
                 )
-            ){
-                val tripId = it.arguments?.getString(Screen.TripDetail.ARG_TRIP_ID) ?: return@composable
+            ) {
+                val tripId = it.arguments?.getString(Screen.TripDetail.ARG_TRIP_ID)
+                    ?: return@composable
+
+                Log.d("NavGraph", "🧭 TripDetailScreen - tripId: $tripId")
+
                 TripDetailScreen(
+                    tripId = tripId,
                     onNavigateBack = { navController.popBackStack() },
+
+                    // ✅ FIX 1: Add Expense
                     onAddExpense = {
-                        navController.navigate(Screen.AddExpense.route)
+                        Log.d("NavGraph", "🧭 Navigating to AddExpense with tripId: $tripId")
+                        navController.navigate(Screen.AddExpense.createRoute(tripId))
                     },
+
+                    // ✅ FIX 2: Add Members
                     onAddMembers = {
-                        navController.navigate(Screen.AddMember.route)
+                        Log.d("NavGraph", "🧭 Navigating to AddMember with tripId: $tripId")
+                        navController.navigate(Screen.AddMember.createRoute(tripId))
                     },
-                    onNavigateToSettlement = {tripId, memberId ->
+
+                    // ✅ FIX 3: Navigate to Expenses Screen
+                    onNavigateToExpense = { _, userId, memberId ->
+                        Log.d("NavGraph", "🧭 Navigating to ExpensesScreen")
                         navController.navigate(
-                            Screen.SettlementHistory.createRoute(tripId, memberId)
+                            Screen.ExpensesScreen.createRoute(tripId, userId!!, memberId!!)
                         )
                     },
-                    onNavigateToExpense = {tripId, userId, memberId ->
-                        navController.navigate(
-                            Screen.ExpensesScreen.createRoute(tripId!!, userId!!, memberId!!)
-                        )
-                    },
+
+                    // ✅ FIX 4: Navigate to Members Screen (was missing tripId!)
                     onNavigateToMembers = {
-                        navController.navigate(Screen.MembersScreen.route)
+                        Log.d("NavGraph", "🧭 Navigating to MembersScreen with tripId: $tripId")
+                        navController.navigate(Screen.MembersScreen.createRoute(tripId))
                     },
-                    onNavigateToBalances = {memberId ->
+
+                    // ✅ FIX 5: Navigate to Balances Screen
+                    onNavigateToBalances = { memberId ->
+                        Log.d("NavGraph", "🧭 Navigating to BalancesScreen")
                         navController.navigate(
                             Screen.BalancesScreen.createRoute(tripId, memberId)
                         )
                     },
-                    tripId = tripId,
-                    onNavigateToInsights = {
-                        navController.navigate(Screen.CreateTrip.route)
-                    }
 
+                    // ✅ FIX 6: Navigate to Insights (was going to CreateTrip!)
+                    onNavigateToInsights = {
+                        Log.d("NavGraph", "🧭 Navigating to TripInsights with tripId: $tripId")
+                        navController.navigate(Screen.TripInsights.createRoute(tripId))
+                    },
+
+                    // ✅ FIX 7: Navigate to Settlement
+                    onNavigateToSettlement = { _, memberId ->
+                        Log.d("NavGraph", "🧭 Navigating to SettlementHistory")
+                        navController.navigate(
+                            Screen.SettlementHistory.createRoute(tripId, memberId)
+                        )
+                    }
                 )
             }
 
+            // Trip Insights Screen
             composable(
                 route = Screen.TripInsights.route,
                 arguments = listOf(
-                    navArgument(Screen.TripInsights.ARG_TRIP_ID){
+                    navArgument(Screen.TripInsights.ARG_TRIP_ID) {
                         type = NavType.StringType
                     }
                 )
-            ){
+            ) {
+                val tripId = it.arguments?.getString(Screen.TripInsights.ARG_TRIP_ID)
+                    ?: return@composable
+
+                Log.d("NavGraph", "🧭 TripInsights - tripId: $tripId")
                 TripInsights()
             }
 
+            // Expenses Screen
             composable(
                 route = Screen.ExpensesScreen.route,
                 arguments = listOf(
-                    navArgument(Screen.ExpensesScreen.ARG_TRIP_ID){
+                    navArgument(Screen.ExpensesScreen.ARG_TRIP_ID) {
                         type = NavType.StringType
                     },
-                    navArgument(Screen.ExpensesScreen.ARG_USER_ID){
+                    navArgument(Screen.ExpensesScreen.ARG_USER_ID) {
                         type = NavType.StringType
                     },
-                    navArgument(Screen.ExpensesScreen.ARG_MEMBER_ID){
+                    navArgument(Screen.ExpensesScreen.ARG_MEMBER_ID) {
                         type = NavType.StringType
                     }
                 )
-            ){
-                val tripId = it.arguments?.getString(Screen.ExpensesScreen.ARG_TRIP_ID) ?: return@composable
-                val userId = it.arguments?.getString(Screen.ExpensesScreen.ARG_USER_ID) ?: return@composable
-                val memberId = it.arguments?.getString(Screen.ExpensesScreen.ARG_MEMBER_ID) ?: return@composable
+            ) {
+                val tripId = it.arguments?.getString(Screen.ExpensesScreen.ARG_TRIP_ID)
+                    ?: return@composable
+                val userId = it.arguments?.getString(Screen.ExpensesScreen.ARG_USER_ID)
+                    ?: return@composable
+                val memberId = it.arguments?.getString(Screen.ExpensesScreen.ARG_MEMBER_ID)
+                    ?: return@composable
+
+                Log.d("NavGraph", "🧭 ExpensesScreen - tripId: $tripId")
+
                 ExpensesScreen(
-                    onEditExpense = {
-                        navController.navigate(Screen.EditExpense.route)
-                    },
-                    onAddExpense = {
-                        navController.navigate(Screen.AddExpense.route)
-                    },
-                    onBack = {
-                        navController.popBackStack()
-                    },
+                    currentUserId = userId,
                     currentMemberId = memberId,
-                    currentUserId = userId
+                    onBack = { navController.popBackStack() },
+                    onAddExpense = {
+                        navController.navigate(Screen.AddExpense.createRoute(tripId))
+                    },
+                    onEditExpense = { expenseId ->
+                        navController.navigate(
+                            Screen.EditExpense.createRoute(tripId, expenseId)
+                        )
+                    }
                 )
             }
-            composable(route = Screen.MembersScreen.route,
+
+            // Members Screen
+            composable(
+                route = Screen.MembersScreen.route,
                 arguments = listOf(
-                    navArgument(Screen.MembersScreen.ARG_TRIP_ID){
+                    navArgument(Screen.MembersScreen.ARG_TRIP_ID) {
                         type = NavType.StringType
                     }
                 )
-            ){
-                val tripId = it.arguments?.getString(Screen.MembersScreen.ARG_TRIP_ID) ?: return@composable
+            ) {
+                val tripId = it.arguments?.getString(Screen.MembersScreen.ARG_TRIP_ID)
+                    ?: return@composable
+
+                Log.d("NavGraph", "🧭 MembersScreen - tripId: $tripId")
+
                 MembersScreen(
                     tripId = tripId,
                     onBack = { navController.popBackStack() },
-                    onAddMembers = {navController.navigate(Screen.AddMember.route)},
-                )
-            }
-            composable(route = Screen.BalancesScreen.route,
-                arguments = listOf(
-                    navArgument(Screen.BalancesScreen.ARG_TRIP_ID){
-                        type = NavType.StringType
-                    },
-                    navArgument(Screen.BalancesScreen.ARG_MEMBER_ID){
-                        type = NavType.StringType
+                    // ✅ FIX 8: Add Members from Members Screen (was missing tripId!)
+                    onAddMembers = {
+                        Log.d("NavGraph", "🧭 Navigating to AddMember from MembersScreen")
+                        navController.navigate(Screen.AddMember.createRoute(tripId))
                     }
-                )
-            ){
-                val tripId = it.arguments?.getString(Screen.BalancesScreen.ARG_TRIP_ID) ?: return@composable
-                val memberId = it.arguments?.getString(Screen.BalancesScreen.ARG_MEMBER_ID) ?: return@composable
-                BalancesScreen(
-                    tripId = tripId,
-                    onNavigateToHistory = {navController.navigate(Screen.SettlementHistory.route)},
-                    currentMemberId = memberId
                 )
             }
 
+            // Balances Screen
+            composable(
+                route = Screen.BalancesScreen.route,
+                arguments = listOf(
+                    navArgument(Screen.BalancesScreen.ARG_TRIP_ID) {
+                        type = NavType.StringType
+                    },
+                    navArgument(Screen.BalancesScreen.ARG_MEMBER_ID) {
+                        type = NavType.StringType
+                    }
+                )
+            ) {
+                val tripId = it.arguments?.getString(Screen.BalancesScreen.ARG_TRIP_ID)
+                    ?: return@composable
+                val memberId = it.arguments?.getString(Screen.BalancesScreen.ARG_MEMBER_ID)
+                    ?: return@composable
+
+                Log.d("NavGraph", "🧭 BalancesScreen - tripId: $tripId, memberId: $memberId")
+
+                BalancesScreen(
+                    tripId = tripId,
+                    currentMemberId = memberId,
+                    onNavigateToHistory = {
+                        navController.navigate(
+                            Screen.SettlementHistory.createRoute(tripId, memberId)
+                        )
+                    }
+                )
+            }
+
+            // Add Expense Screen
             composable(
                 route = Screen.AddExpense.route,
                 arguments = listOf(
-                    navArgument(Screen.AddExpense.ARG_TRIP_ID){
+                    navArgument(Screen.AddExpense.ARG_TRIP_ID) {
                         type = NavType.StringType
                     }
                 )
-            ){
+            ) {
+                val tripId = it.arguments?.getString(Screen.AddExpense.ARG_TRIP_ID)
+                    ?: return@composable
+
+                Log.d("NavGraph", "🧭 AddExpenseScreen - tripId: $tripId")
+
                 AddExpenseScreen(
-                    onNavigationBack = {navController.popBackStack()},
+                    onNavigationBack = { navController.popBackStack() }
                 )
             }
 
+            // Add Member Screen
             composable(
                 route = Screen.AddMember.route,
                 arguments = listOf(
-                    navArgument(Screen.AddMember.ARG_TRIP_ID){
+                    navArgument(Screen.AddMember.ARG_TRIP_ID) {
                         type = NavType.StringType
                     }
                 )
-            ){
+            ) {
+                val tripId = it.arguments?.getString(Screen.AddMember.ARG_TRIP_ID)
+                    ?: return@composable
+
+                Log.d("NavGraph", "🧭 AddMemberScreen - tripId: $tripId")
+
                 AddMemberScreen(
-                    onNavigateBack = {navController.popBackStack()}
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
+            // Edit Expense Screen
             composable(
                 route = Screen.EditExpense.route,
                 arguments = listOf(
-                    navArgument(Screen.EditExpense.ARG_TRIP_ID){
+                    navArgument(Screen.EditExpense.ARG_TRIP_ID) {
                         type = NavType.StringType
                     },
-                    navArgument(Screen.EditExpense.ARG_EXPENSE_ID){
+                    navArgument(Screen.EditExpense.ARG_EXPENSE_ID) {
                         type = NavType.StringType
                     }
                 )
-            ){
-                val args = it.arguments
-                Log.d("NAV_EDIT", "args = $args")
+            ) {
+                val tripId = it.arguments?.getString(Screen.EditExpense.ARG_TRIP_ID)
+                    ?: return@composable
+                val expenseId = it.arguments?.getString(Screen.EditExpense.ARG_EXPENSE_ID)
+                    ?: return@composable
 
-                val tripId = args?.getString(Screen.EditExpense.ARG_TRIP_ID)
-                val expenseId = args?.getString(Screen.EditExpense.ARG_EXPENSE_ID)
-
-                Log.d("NAV_EDIT", "tripId=$tripId expenseId=$expenseId")
+                Log.d("NavGraph", "🧭 EditExpenseScreen - tripId: $tripId, expenseId: $expenseId")
 
                 AddExpenseScreen(
                     onNavigationBack = { navController.navigateUp() }
                 )
-
             }
 
+            // Settlement History Screen
             composable(
                 route = Screen.SettlementHistory.route,
                 arguments = listOf(
                     navArgument(Screen.SettlementHistory.ARG_TRIP_ID) {
                         type = NavType.StringType
                     },
-                    navArgument(Screen.SettlementHistory.ARG_MEMBER_ID){
+                    navArgument(Screen.SettlementHistory.ARG_MEMBER_ID) {
                         type = NavType.StringType
                     }
                 )
             ) { backStackEntry ->
-                val tripId = backStackEntry.arguments?.getString(Screen.SettlementHistory.ARG_TRIP_ID) ?: return@composable
-                val memberId = backStackEntry.arguments?.getString(Screen.SettlementHistory.ARG_MEMBER_ID) ?: return@composable
+                val tripId = backStackEntry.arguments?.getString(Screen.SettlementHistory.ARG_TRIP_ID)
+                    ?: return@composable
+                val memberId = backStackEntry.arguments?.getString(Screen.SettlementHistory.ARG_MEMBER_ID)
+                    ?: return@composable
+
+                Log.d("NavGraph", "🧭 SettlementHistoryScreen - tripId: $tripId, memberId: $memberId")
+
                 SettlementHistoryScreen(
                     tripId = tripId,
-                    onBack = {navController.popBackStack()},
-                    currentMemberId = memberId
+                    currentMemberId = memberId,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }
     }
-
 }

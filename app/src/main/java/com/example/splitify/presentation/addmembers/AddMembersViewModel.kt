@@ -1,5 +1,6 @@
 package com.example.splitify.presentation.addmembers
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -53,20 +54,53 @@ class AddMembersViewModel @Inject constructor(
     }
 
     fun addMemberByName(name: String){
-        viewModelScope.launch {
+        val trimmedName = name.trim()
 
+        if (trimmedName.isBlank()) {
+            viewModelScope.launch {
+                _toastMessage.emit("Name cannot be empty")
+            }
+            return
+        }
+
+        if (trimmedName.length < 2) {
+            viewModelScope.launch {
+                _toastMessage.emit("Name must be at least 2 characters")
+            }
+            return
+        }
+
+        Log.d("AddMembersVM", "════════════════════════════════")
+        Log.d("AddMembersVM", "🔄 ADDING MEMBER")
+        Log.d("AddMembersVM", "  Trip ID: $tripId")
+        Log.d("AddMembersVM", "  Member Name: '$trimmedName'")
+        Log.d("AddMembersVM", "  User ID: null (guest)")
+        Log.d("AddMembersVM", "════════════════════════════════")
+
+        viewModelScope.launch {
             when(val result = addTripMemberUseCase(
                 tripId = tripId,
-                displayName = name,
+                displayName = trimmedName,
                 userId = null
             )){
                 is Result.Success -> {
+                    Log.d("AddMembersVM", "✅ SUCCESS: Member added")
                     _toastMessage.emit("${name.trim()} added to trip")
                 }
                 is Result.Error -> {
-                    _toastMessage.emit(result.message)
+                    Log.e("AddMembersVM", "❌ ERROR: ${result.message}")
+                    Log.e("AddMembersVM", "════════════════════════════════")
+                    val userFriendlyMessage = when {
+                        result.message.contains("FOREIGN KEY", ignoreCase = true) ->
+                            "Trip not found. Please try again."
+                        result.message.contains("UNIQUE", ignoreCase = true) ->
+                            "$trimmedName is already in this trip"
+                        else -> result.message
+                    }
+                    _toastMessage.emit(userFriendlyMessage)
                 }
-                else -> {//TODO
+                else -> {
+                    Log.w("AddMembersVM", "⚠️ Unexpected result: Loading state")
                 }
             }
         }

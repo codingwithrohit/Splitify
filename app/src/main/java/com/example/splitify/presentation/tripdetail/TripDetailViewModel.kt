@@ -2,6 +2,7 @@ package com.example.splitify.presentation.tripdetail
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.domain.model.Expense
@@ -30,13 +31,15 @@ class TripDetailViewModel @Inject constructor(
     private val getTripMemberUseCase: GetTripMemberUseCase,
     private val calculateTripBalancesUseCase: CalculateTripBalancesUseCase,
     private val settlementsForTripUseCase: GetSettlementsForTripUseCase,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    fun dashboardState(tripId: String): StateFlow<TripDashboardState> {
+    private val tripId: String = checkNotNull(savedStateHandle["tripId"])
 
-        return combine(
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    val dashboardState: StateFlow<TripDashboardState> =
+        combine(
             getTripUseCase(tripId),
             getExpensesUseCase(tripId),
             getTripMemberUseCase(tripId),
@@ -122,7 +125,7 @@ class TripDetailViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = TripDashboardState.Loading
         )
-    }
+
 }
 
 

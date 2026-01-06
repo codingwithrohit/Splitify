@@ -147,19 +147,47 @@ class AddExpenseViewModel @Inject constructor(
                         is Result.Success -> {
                             val members = result.data
 
+                            Log.d("AddExpenseVM", "════════════════════════════════")
+                            Log.d("AddExpenseVM", "📦 MEMBERS LOADED")
+                            Log.d("AddExpenseVM", "  Trip ID: $tripId")
+                            Log.d("AddExpenseVM", "  Total Members: ${members.size}")
+
+                            if (members.isEmpty()) {
+                                Log.e("AddExpenseVM", "❌ NO MEMBERS FOUND!")
+                                Log.e("AddExpenseVM", "  This trip has no members!")
+                                Log.e("AddExpenseVM", "════════════════════════════════")
+                                _uiState.update {
+                                    it.copy(
+                                        amountError = "No members in this trip",
+                                        isLoading = false
+                                    )
+                                }
+                                return@collect
+                            }
+
                             val currentMember = members.find {
                                 it.userId == user.id
                             }
 
                             currentUserMemberId = currentMember?.id
 
+                            val defaultPayer = currentMember?.id ?: members.firstOrNull()?.id
+
                             Log.d("AddExpenseVM", "📦 Loaded ${members.size} members")
                             Log.d("AddExpenseVM", "👤 Current user: ${user.id}")
                             Log.d("AddExpenseVM", "👤 MemberId: $currentUserMemberId")
+                            Log.d("AddExpenseVM", "  Default Payer: $defaultPayer")
+                            Log.d("AddExpenseVM", "  Mode: ${if (mode is ExpenseFormMode.Add) "ADD" else "EDIT"}")
+                            Log.d("AddExpenseVM", "════════════════════════════════")
 
                             _uiState.update {
                                 it.copy(
                                     members = members,
+                                    paidByMemberId = if (mode is ExpenseFormMode.Add) {
+                                        defaultPayer
+                                    } else {
+                                        it.paidByMemberId
+                                    },
                                     isLoading = false
                                 )
                             }
@@ -169,13 +197,16 @@ class AddExpenseViewModel @Inject constructor(
                                     if (_isGroupExpense.value) {
                                         members.map { it.id }.toSet()
                                     } else {
-                                        currentMember?.let { setOf(it.id) }.orEmpty()
+                                        setOfNotNull(currentMember?.id)
                                     }
                             }
 
                         }
 
                         is Result.Error -> {
+                            Log.e("AddExpenseVM", "════════════════════════════════")
+                            Log.e("AddExpenseVM", "❌ ERROR loading members: ${result.message}")
+                            Log.e("AddExpenseVM", "════════════════════════════════")
                             Log.e("AddExpenseVM", "❌ Error loading members: ${result.message}")
                             _uiState.update {
                                 it.copy(
