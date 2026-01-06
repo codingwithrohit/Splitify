@@ -11,6 +11,8 @@ import com.example.splitify.domain.repository.TripMemberRepository
 import kotlinx.coroutines.flow.first
 import com.example.splitify.util.Result
 import com.example.splitify.util.Result.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
 import kotlin.math.exp
 
@@ -20,35 +22,34 @@ class CalculateTripBalancesUseCase @Inject constructor(
     private val simplifyDebtsUseCase: SimplifyDebtsUseCase
 ) {
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    suspend operator fun invoke(tripId: String): Result<TripBalance> {
-        return try {
-            // Get all members
-            val membersResult = tripMemberRepository.getMembersForTrip(tripId).first()
-            val members = when (membersResult) {
-                is Success -> membersResult.data
-                is Error -> return Error(Exception(membersResult.message))
-                Loading -> TODO()
+    operator fun invoke(tripId: String): Flow<Result<TripBalance>> =
+        combine(
+            tripMemberRepository.getMembersForTrip(tripId),
+            expenseRepository.getExpensesWithSplits(tripId)
+        ) { membersResult, expensesResult ->
+
+            if (membersResult is Error) {
+                return@combine Error(Exception(membersResult.message))
             }
 
-            // Get all expenses with splits
-            val expensesResult = expenseRepository.getExpensesWithSplits(tripId).first()
-            val expensesWithSplits = when (expensesResult) {
-                is Success -> expensesResult.data
-                is Error -> return Error(Exception(expensesResult.message))
-                Loading -> TODO()
+            if (expensesResult is Error) {
+                return@combine Error(Exception(expensesResult.message))
             }
 
-            // Calculate total expenses
+            if (membersResult !is Success || expensesResult !is Success) {
+                return@combine Loading
+            }
+
+            val members = membersResult.data
+            val expensesWithSplits = expensesResult.data
+
             val totalExpenses = expensesWithSplits.sumOf { it.expense.amount }
 
-            // Calculate balances for each member
             val balances = members.map { member ->
-                // Total paid: Sum of all expenses where this member is the payer
                 val totalPaid = expensesWithSplits
                     .filter { it.expense.paidBy == member.id }
                     .sumOf { it.expense.amount }
 
-                // Total owed: Sum of all splits where this member owes
                 val totalOwed = expensesWithSplits
                     .flatMap { it.splits }
                     .filter { it.memberId == member.id }
@@ -61,7 +62,6 @@ class CalculateTripBalancesUseCase @Inject constructor(
                 )
             }
 
-            // Simplify debts
             val simplifiedDebts = simplifyDebtsUseCase(balances)
 
             Success(
@@ -72,9 +72,7 @@ class CalculateTripBalancesUseCase @Inject constructor(
                     totalExpenses = totalExpenses
                 )
             )
-        } catch (e: Exception) {
-            Result.Error(Exception("Failed to calculate balances: ${e.message}"))
         }
-    }
+
 
 }

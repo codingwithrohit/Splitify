@@ -1,170 +1,145 @@
 package com.example.splitify.presentation.tripdetail
 
-import androidx.compose.runtime.collectAsState
-import androidx.lifecycle.SavedStateHandle
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.splitify.domain.model.Expense
+import com.example.splitify.domain.model.SettlementStatus
+import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.repository.AuthRepository
-import com.example.splitify.domain.repository.ExpenseRepository
-import com.example.splitify.domain.repository.TripRepository
+import com.example.splitify.domain.usecase.balance.CalculateTripBalancesUseCase
+import com.example.splitify.domain.usecase.expense.GetExpensesUseCase
 import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
-import com.example.splitify.presentation.navigation.Screen
+import com.example.splitify.domain.usecase.settlement.GetSettlementsForTripUseCase
+import com.example.splitify.domain.usecase.trip.GetTripUseCase
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
 class TripDetailViewModel @Inject constructor(
-    private val tripRepository: TripRepository,
-    private val expenseRepository: ExpenseRepository,
+    private val getTripUseCase: GetTripUseCase,
+    private val getExpensesUseCase: GetExpensesUseCase,
     private val getTripMemberUseCase: GetTripMemberUseCase,
-    private val authRepository: AuthRepository,
-    savedStateHandle: SavedStateHandle
-): ViewModel() {
+    private val calculateTripBalancesUseCase: CalculateTripBalancesUseCase,
+    private val settlementsForTripUseCase: GetSettlementsForTripUseCase,
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
-    //Get trip id from navigation arguments
-    private val tripId: String = checkNotNull(
-        savedStateHandle[Screen.TripDetail.ARG_TRIP_ID]
-    )
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    fun dashboardState(tripId: String): StateFlow<TripDashboardState> {
 
-    private val _uiState = MutableStateFlow<TripDetailUiState>(TripDetailUiState.Loading)
-    val uiState: StateFlow<TripDetailUiState> = _uiState.asStateFlow()
+        return combine(
+            getTripUseCase(tripId),
+            getExpensesUseCase(tripId),
+            getTripMemberUseCase(tripId),
+            calculateTripBalancesUseCase(tripId),
+            settlementsForTripUseCase(tripId)
+        ) { tripResult,
+            expensesResult,
+            membersResult,
+            balancesResult,
+            settlementsResult ->
 
-    private val _currentMemberId = MutableStateFlow<String?>(null)
-    val currentMemberId: StateFlow<String?> = _currentMemberId.asStateFlow()
+            when {
+                tripResult is Result.Error ->
+                    TripDashboardState.Error(tripResult.message)
 
-    init {
-        loadTripDetails()
-        loadCurrentMemberId()
-        loadExpenses()
-        loadMembers()
-    }
+                expensesResult is Result.Error ->
+                    TripDashboardState.Error(expensesResult.message)
 
-     fun loadCurrentMemberId() {
-        viewModelScope.launch {
-            val currentUserId = authRepository.getCurrentUser().firstOrNull()?.id
-            if (currentUserId != null) {
-                // Get current user's member ID in this trip
-                getTripMemberUseCase(tripId).collect { result ->
-                    when (result) {
-                        is Result.Success -> {
-                            val currentMember = result.data.find { it.userId == currentUserId }
-                            _currentMemberId.value = currentMember?.id
-                        }
-                        is Result.Error -> {
-                            // Handle error if needed
-                        }
+                membersResult is Result.Error ->
+                    TripDashboardState.Error(membersResult.message)
 
-                        Result.Loading -> TODO()
-                    }
-                }
-            }
-        }
-    }
+                balancesResult is Result.Error ->
+                    TripDashboardState.Error(balancesResult.message)
 
-    private fun loadMembers() {
-        viewModelScope.launch {
-            getTripMemberUseCase(tripId).collect { result ->
-                _uiState.update { currentState ->
-                    if (currentState is TripDetailUiState.Success) {
-                        when (result) {
-                            is Result.Success -> {
-                                currentState.copy(
-                                    members = result.data,
-                                    memberCount = result.data.size
-                                )
-                            }
+                settlementsResult is Result.Error ->
+                    TripDashboardState.Error(settlementsResult.message)
 
-                            is Result.Error -> {
-                                TripDetailUiState.Error(result.message)
-                            }
+                tripResult is Result.Success &&
+                        expensesResult is Result.Success &&
+                        membersResult is Result.Success &&
+                        balancesResult is Result.Success &&
+                        settlementsResult is Result.Success -> {
 
-                            is Result.Loading -> {
-                                TripDetailUiState.Loading
-                            }
-                        }
-                    } else {
-                        currentState
-                    }
-                }
-            }
-        }
-    }
+                    val trip = tripResult.data
+                    val expenses = expensesResult.data
+                    val members = membersResult.data
+                    val balances = balancesResult.data
+                    val settlements = settlementsResult.data
 
+                    val currentUserId =
+                        authRepository.getCurrentUser().firstOrNull()?.id
 
-    private fun loadExpenses() {
-        viewModelScope.launch {
-            expenseRepository.getExpensesByTrip(tripId).collect { result ->
-                when(result){
-                    is Result.Success -> {
-                        val expenses = result.data
-                        _uiState.update { currentState ->
-                            if (currentState is TripDetailUiState.Success) {
-                                currentState.copy(
-                                    expenses = expenses,
-                                    totalExpenses = expenses.sumOf { it.amount }
-                                )
-                            } else {
-                                currentState
-                            }
-                        }
-                    }
+                    val currentMember =
+                        members.firstOrNull { it.userId == currentUserId }
 
-                    is Result.Error -> {
-                        _uiState.update {
-                            TripDetailUiState.Error(result.message)
-                        }
-                    }
-                    Result.Loading -> TODO()
-                }
+                    val currentBalance =
+                        balances.memberBalances
+                            .firstOrNull { it.member.id == currentMember?.id }
 
-            }
-        }
-    }
+                    val youOwe =
+                        currentBalance?.netBalance
+                            ?.takeIf { it < 0 }
+                            ?.let { -it } ?: 0.0
 
-    private fun loadTripDetails(){
-        viewModelScope.launch {
-            try {
-                val trip = tripRepository.getTripById(tripId)
-                if(trip != null){
-                    _uiState.value = TripDetailUiState.Success(
+                    val youAreOwed =
+                        currentBalance?.netBalance
+                            ?.takeIf { it > 0 } ?: 0.0
+
+                    TripDashboardState.Success(
                         trip = trip,
-                        totalExpenses = 0.0,
-                        memberCount = 1,
-                        members = emptyList()
+                        currentUserId = currentUserId,
+                        members = members,
+                        expenseCount = expenses.size,
+                        totalAmount = expenses.sumOf { it.amount },
+                        recentExpenses = expenses
+                            .sortedByDescending { it.expenseDate }
+                            .take(3),
+                        youOwe = youOwe,
+                        youAreOwed = youAreOwed,
+                        pendingSettlements = settlements.count {
+                            it.status == SettlementStatus.PENDING
+                        },
+                        completedSettlements = settlements.count {
+                            it.status == SettlementStatus.CONFIRMED
+                        }
                     )
                 }
-                else{
-                    _uiState.value = TripDetailUiState.Error(message = "Trip not found")
-                }
+
+                else -> TripDashboardState.Loading
             }
-            catch (e: Exception){
-                _uiState.value = TripDetailUiState.Error(message = e.message ?: "Failed to load trips")
-            }
-        }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = TripDashboardState.Loading
+        )
     }
-
-    fun selectTab(tab: TripDetailTab){
-        _uiState.update { currentState ->
-            if (currentState is TripDetailUiState.Success){
-                currentState.copy(currentTab = tab)
-            }
-            else{
-                currentState
-            }
-        }
-    }
-
-    fun refresh(){
-        loadTripDetails()
-    }
+}
 
 
+sealed interface TripDashboardState{
+    object Loading: TripDashboardState
+    data class Success(
+        val trip: Trip,
+        val currentUserId: String?,
+        val members: List<TripMember>,
+        val expenseCount: Int,
+        val totalAmount: Double,
+        val recentExpenses: List<Expense>,
+        val youOwe: Double,
+        val youAreOwed: Double,
+        val pendingSettlements: Int,
+        val completedSettlements: Int
+    ): TripDashboardState
+
+    data class Error(val message: String): TripDashboardState
 }

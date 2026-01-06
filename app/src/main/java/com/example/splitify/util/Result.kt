@@ -45,6 +45,15 @@ sealed class Result<out T>{
     }
 
 }
+
+inline fun <reified T> Result<T>.requireData(): T {
+    return when (this) {
+        is Result.Success -> data
+        is Result.Error -> throw exception
+        Result.Loading -> throw IllegalStateException("Result is Loading")
+    }
+}
+
 // Extension function to create success result
 fun<T> T.asSuccess(): Result<T> = Result.Success(this)
 

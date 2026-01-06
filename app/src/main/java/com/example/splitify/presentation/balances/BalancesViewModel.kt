@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
@@ -42,7 +43,7 @@ class BalancesViewModel @Inject constructor(
     val uiState: StateFlow<BalancesUiState> = flow {
         val currentUserId = authRepository.getCurrentUser().firstOrNull()?.id
 
-        when (val result = calculateTripBalancesUseCase(tripId = tripId)) {
+        when (val result = calculateTripBalancesUseCase(tripId = tripId).first()) {
             is Result.Success -> {
                 val tripBalance = result.data
 

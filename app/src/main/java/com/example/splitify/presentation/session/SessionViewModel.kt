@@ -18,13 +18,9 @@ class SessionViewModel @Inject constructor(
     val currentUserId: StateFlow<String?> = _currentUserId
 
     init {
-        observeSession()
-    }
-
-    private fun observeSession(){
         viewModelScope.launch {
-            val session = supabase.auth.currentSessionOrNull()
-            _currentUserId.value = session?.user?.id
+            _currentUserId.value =
+                supabase.auth.currentSessionOrNull()?.user?.id
         }
     }
 

@@ -23,6 +23,7 @@ captures/
 *.log
 
 # Android specific
+.idea/
 *.iml
 
 # Generated files

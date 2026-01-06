@@ -21,7 +21,9 @@ import com.example.splitify.domain.model.Balance
 import com.example.splitify.domain.model.SimplifiedDebt
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.presentation.components.AllSettledState
+import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.settlement.SettleUpDialog
+import com.example.splitify.presentation.settlement.SettlementUiState
 import com.example.splitify.presentation.settlement.SettlementViewModel
 import java.text.NumberFormat
 import java.util.*
@@ -37,10 +39,16 @@ fun BalancesScreen(
     settlementViewModel: SettlementViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val settlementState by settlementViewModel.uiState.collectAsStateWithLifecycle()
 
     var selectedDebt by remember { mutableStateOf<Pair<SimplifiedDebt, Pair<TripMember, TripMember>>?>(null) }
 
-
+    LaunchedEffect(settlementState) {
+        if (settlementState is SettlementUiState.Success) {
+            settlementViewModel.resetSettlementState()
+            selectedDebt = null
+        }
+    }
 
     // Show settle up dialog
     selectedDebt?.let { (debt, members) ->
@@ -115,7 +123,13 @@ fun BalancesScreen(
                 }
 
                 is BalancesUiState.Error -> {
-                    ErrorState(message = state.message)
+                    ErrorStateWithRetry(
+                        message = state.message,
+                        onRetry = { /* Auto-retry */ },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                    )
                 }
             }
 
@@ -350,31 +364,6 @@ private fun EmptyBalancesState() {
                 text = "No pending settlements",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun ErrorState(message: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.Error,
-                contentDescription = null,
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.error
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
             )
         }
     }

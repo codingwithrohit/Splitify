@@ -26,6 +26,9 @@ interface TripDao {
     @Query("Select * from trips WHERE id = :tripId")
     suspend fun getTripById(tripId: String): TripEntity?
 
+    @Query("Select * from trips Where id = :tripId")
+    fun observeTripById(tripId: String): Flow<TripEntity>
+
     // Get all trips created by a specific user
     @Query("Select * From trips WHERE created_by = :userId ORDER BY start_date DESC")
     fun getTripsByUser(userId: String): Flow<List<TripEntity>>

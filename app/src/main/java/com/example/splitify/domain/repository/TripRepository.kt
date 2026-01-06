@@ -12,6 +12,8 @@ interface TripRepository {
 
     suspend fun getTripById(tripId: String): Trip?
 
+    fun observeTripById(tripId: String):  Flow<Result<Trip>>
+
     suspend fun createTrip(trip: Trip): Result<Trip>
 
     suspend fun deleteTrip(tripId: String): Result<Unit>

@@ -14,6 +14,8 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -56,6 +58,21 @@ class TripRepositoryImpl @Inject constructor(
             null
         }
     }
+
+    override fun observeTripById(tripId: String): Flow<Result<Trip>> = flow {
+        emit(Result.Loading)
+        try {
+            val trip = tripDao.getTripById(tripId)?.toDomain()
+            if (trip != null) {
+                emit(Result.Success(trip))
+            } else {
+                emit(Result.Error(Exception("Trip not found")))
+            }
+        } catch (e: Exception) {
+            emit(Result.Error(e))
+        }
+    }
+
 
     override suspend fun createTrip(trip: Trip): Result<Trip> {
         return try {

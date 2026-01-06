@@ -8,9 +8,13 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-val localProps = gradleLocalProperties(rootDir)
+val localProps = gradleLocalProperties(rootProject.projectDir)
+println("SUPABASE_URL from local.properties = ${localProps.getProperty("SUPABASE_URL")}")
+println("SUPABASE_KEY from local.properties = ${localProps.getProperty("SUPABASE_KEY")}")
+
+
 val supabaseUrl = localProps.getProperty("SUPABASE_URL")
-val supabaseKey = localProps.getProperty("SUPABASE_KEY")
+val supabaseKey  = localProps.getProperty("SUPABASE_KEY")
 
 
 android {
@@ -27,7 +31,7 @@ android {
         buildConfigField(
             "String",
             "SUPABASE_KEY",
-            "\"$supabaseKey\""
+            "\"$supabaseKey \""
         )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
