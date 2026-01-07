@@ -24,6 +24,14 @@ class TripMemberRepositoryImpl @Inject constructor(
             }
     }
 
+    override suspend fun getMemberById(memberId: String): TripMember? {
+        return try {
+            tripMemberDao.getMemberById(memberId)?.toDomain()
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     override suspend fun addMember(tripMember: TripMember): Result<Unit> {
         return try {
             //Check if member already exist

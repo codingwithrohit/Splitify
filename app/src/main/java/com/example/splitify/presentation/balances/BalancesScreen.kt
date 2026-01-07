@@ -125,7 +125,7 @@ fun BalancesScreen(
                 is BalancesUiState.Error -> {
                     ErrorStateWithRetry(
                         message = state.message,
-                        onRetry = { /* Auto-retry */ },
+                        onRetry = {viewModel::retry},
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding)

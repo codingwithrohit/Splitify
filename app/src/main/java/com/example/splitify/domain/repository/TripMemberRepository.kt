@@ -9,6 +9,8 @@ interface TripMemberRepository {
 
     fun getMembersForTrip(tripId: String): Flow<Result<List<TripMember>>>
 
+    suspend fun getMemberById(memberId: String): TripMember?
+
     suspend fun addMember(tripMember: TripMember): Result<Unit>
 
     suspend fun removeMember(tripId: String,memberId: String): Result<Unit>

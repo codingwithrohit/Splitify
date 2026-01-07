@@ -1,6 +1,7 @@
 package com.example.splitify.presentation.tripdetail.cards
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.People
@@ -16,6 +17,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.*
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TripInfoCard(
     trip: Trip,
@@ -38,7 +40,8 @@ fun TripInfoCard(
                 text = trip.name,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                maxLines = 2
             )
 
             if (trip.description?.isNotBlank() == true) {
@@ -46,19 +49,20 @@ fun TripInfoCard(
                 Text(
                     text = trip.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 3
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 InfoChip(
                     icon = Icons.Default.CalendarToday,
-                    text = formatDateRange(trip.startDate,trip.endDate )
+                    text = formatSmartDateRange(trip.startDate,trip.endDate )
                 )
 
                 InfoChip(
@@ -70,19 +74,42 @@ fun TripInfoCard(
     }
 }
 
-fun formatDateRange(
+//fun formatDateRange(
+//    startDate: LocalDate,
+//    endDate: LocalDate?
+//): String {
+//    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+//    val start = startDate.format(formatter)
+//
+//    return if (endDate != null && endDate != startDate) {
+//        "${startDate.format(formatter)} - ${endDate.format(formatter)}"
+//    } else {
+//        start
+//    }
+//}
+
+fun formatSmartDateRange(
     startDate: LocalDate,
     endDate: LocalDate?
 ): String {
-    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
-    val start = startDate.format(formatter)
+    val dayFormatter = DateTimeFormatter.ofPattern("dd")
+    val fullFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 
-    return if (endDate != null && endDate != startDate) {
-        "${startDate.format(formatter)} - ${endDate.format(formatter)}"
+    if (endDate == null) {
+        return startDate.format(fullFormatter)
+    }
+
+    return if (
+        startDate.month == endDate.month &&
+        startDate.year == endDate.year
+    ) {
+        "${startDate.format(dayFormatter)} - ${endDate.format(fullFormatter)}"
     } else {
-        start
+        "${startDate.format(fullFormatter)} - ${endDate.format(fullFormatter)}"
     }
 }
+
+
 
 //private fun formatDateRange(startDate: Long, endDate: Long?): String {
 //    val dateFormat = SimpleDateFormat("MMM dd", Locale.getDefault())

@@ -70,12 +70,7 @@ class AddMembersViewModel @Inject constructor(
             return
         }
 
-        Log.d("AddMembersVM", "════════════════════════════════")
-        Log.d("AddMembersVM", "🔄 ADDING MEMBER")
-        Log.d("AddMembersVM", "  Trip ID: $tripId")
-        Log.d("AddMembersVM", "  Member Name: '$trimmedName'")
-        Log.d("AddMembersVM", "  User ID: null (guest)")
-        Log.d("AddMembersVM", "════════════════════════════════")
+        Log.d("AddMembersVM", "🔄 Adding member: '$trimmedName' to trip: $tripId")
 
         viewModelScope.launch {
             when(val result = addTripMemberUseCase(
@@ -107,13 +102,29 @@ class AddMembersViewModel @Inject constructor(
     }
 
     fun removeMember(memberId: String, memberName: String) {
+        Log.d("AddMembersVM", "🗑️ Attempting to remove member: $memberName (ID: $memberId)")
+
         viewModelScope.launch {
             when (val result = removeTripMemberUseCase(tripId, memberId)) {
                 is Result.Success -> {
-                    _toastMessage.emit("$memberName removed")
+                    Log.d("AddMembersVM", "✅ Member removed successfully")
+                    _toastMessage.emit("$memberName removed from trip")
                 }
                 is Result.Error -> {
-                    _toastMessage.emit(result.message)
+                    Log.e("AddMembersVM", "❌ Failed to remove member: ${result.message}")
+
+                    // User-friendly error messages
+                    val message = when {
+                        result.message.contains("admin", ignoreCase = true) ->
+                            "Cannot remove trip admin"
+                        result.message.contains("paid for expenses", ignoreCase = true) ->
+                            "$memberName has paid for expenses and cannot be removed"
+                        result.message.contains("pending settlements", ignoreCase = true) ->
+                            "$memberName has pending settlements and cannot be removed"
+                        else -> "Failed to remove $memberName: ${result.message}"
+                    }
+
+                    _toastMessage.emit(message)
                 }
                 else -> {}
             }

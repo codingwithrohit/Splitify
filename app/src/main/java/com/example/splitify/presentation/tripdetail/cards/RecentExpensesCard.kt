@@ -3,6 +3,7 @@ package com.example.splitify.presentation.tripdetail.cards
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,9 +77,11 @@ private fun ExpensePreviewItem(expense: Expense) {
             modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = getCategoryIcon(expense.category).toString(),
-                style = MaterialTheme.typography.bodyLarge
+            Icon(
+                imageVector = getCategoryIcon(expense.category),
+                contentDescription = expense.category.name,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
             )
             Text(
                 text = expense.description,

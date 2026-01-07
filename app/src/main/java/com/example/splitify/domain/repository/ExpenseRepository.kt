@@ -16,6 +16,7 @@ interface ExpenseRepository {
         splits: List<ExpenseSplit>
     ): Result<Unit>
 
+
     fun getExpenseWithSplitsById(expenseId: String): Flow<Result<ExpenseWithSplits>>
 
     suspend fun addExpense(expense: Expense): Result<Expense>

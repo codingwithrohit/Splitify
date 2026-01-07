@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,45 +37,51 @@ class BalancesViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-
+    private val retryTrigger = MutableStateFlow(0)
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    val uiState: StateFlow<BalancesUiState> = flow {
-        val currentUserId = authRepository.getCurrentUser().firstOrNull()?.id
 
-        when (val result = calculateTripBalancesUseCase(tripId = tripId).first()) {
-            is Result.Success -> {
-                val tripBalance = result.data
+    val uiState: StateFlow<BalancesUiState> =
+        calculateTripBalancesUseCase(tripId)
+            .map { result ->
+                when (result) {
+                    is Result.Success -> {
+                        val tripBalance = result.data
 
-                // Verify balances
-                val sumOfBalances = tripBalance.memberBalances.sumOf { it.netBalance }
-                if (abs(sumOfBalances) > 0.01) {
-                    Log.e("BalancesVM", "❌ BALANCE ERROR: Sum is ₹$sumOfBalances")
-                    emit(Error("Balance calculation error"))
-                } else {
-                    Log.d("BalancesVM", "✅ Balances verified. Sum = ₹$sumOfBalances")
-                    emit(
-                        Success(
-                            memberBalances = tripBalance.memberBalances,
-                            simplifiedDebts = tripBalance.simplifiedDebts,
-                            currentUserId = currentUserId
-                        )
-                    )
+                        val sumOfBalances =
+                            tripBalance.memberBalances.sumOf { it.netBalance }
+
+                        if (abs(sumOfBalances) > 0.01) {
+                            BalancesUiState.Error("Balance calculation error")
+                        } else {
+                            BalancesUiState.Success(
+                                memberBalances = tripBalance.memberBalances,
+                                simplifiedDebts = tripBalance.simplifiedDebts,
+                                currentUserId = authRepository
+                                    .getCurrentUser()
+                                    .firstOrNull()
+                                    ?.id
+                            )
+                        }
+                    }
+
+                    is Result.Error ->
+                        BalancesUiState.Error(result.message)
+
+                    Result.Loading ->
+                        BalancesUiState.Loading
                 }
             }
-            is Result.Error -> {
-                emit(Error(result.message))
-            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = BalancesUiState.Loading
+            )
 
-            Result.Loading -> Unit
-        }
+    fun retry(){
+        retryTrigger.value++
     }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),  // ✅ Cache for 5 seconds
-            initialValue = BalancesUiState.Loading
-        )
 
 
 }
