@@ -66,6 +66,32 @@ class SettlementRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun cancelSettlement(
+        settlementId: String,
+        cancellingMemberId: String
+    ): Result<Unit> {
+        return try {
+            val settlement = settlementDao.getSettlementById(settlementId)
+
+            if (settlement == null) {
+                return Result.Error(Exception("Settlement not found"))
+            }
+
+            if (settlement.status != "pending") {
+                return Result.Error(Exception("Can only cancel pending settlements"))
+            }
+
+            if (settlement.fromMemberId != cancellingMemberId) {
+                return Result.Error(Exception("Only the payer can cancel this settlement"))
+            }
+
+            settlementDao.deleteSettlement(settlementId)
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error(e)
+        }
+    }
+
     override fun getSettlementsForTrip(tripId: String): Flow<Result<List<Settlement>>> {
         return settlementDao.getSettlementsForTrip(tripId)
             .map { entities ->

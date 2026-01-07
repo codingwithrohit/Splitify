@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.splitify.domain.model.Settlement
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
+import com.example.splitify.domain.usecase.settlement.CancelSettlementUseCase
+import com.example.splitify.domain.usecase.settlement.ConfirmSettlementOnBehalfUseCase
 import com.example.splitify.domain.usecase.settlement.ConfirmSettlementUseCase
 import com.example.splitify.domain.usecase.settlement.CreateSettlementUseCase
 import com.example.splitify.domain.usecase.settlement.GetSettlementsForTripUseCase
@@ -23,9 +25,12 @@ import javax.inject.Inject
 class SettlementViewModel @Inject constructor(
     private val createSettlementUseCase: CreateSettlementUseCase,
     private val confirmSettlementUseCase: ConfirmSettlementUseCase,
+    private val cancelSettlementUseCase: CancelSettlementUseCase,
+    private val confirmSettlementOnBehalfUseCase: ConfirmSettlementOnBehalfUseCase,
     private val getSettlementsForTripUseCase: GetSettlementsForTripUseCase,
     private val getTripMemberUseCase: GetTripMemberUseCase
 ): ViewModel() {
+
     private val _settlementState = MutableStateFlow<SettlementUiState>(SettlementUiState.Initial)
     val uiState: StateFlow<SettlementUiState> = _settlementState.asStateFlow()
 
@@ -37,7 +42,8 @@ class SettlementViewModel @Inject constructor(
         fromMemberId: String,
         toMemberId: String,
         amount: Double,
-        notes: String? = null
+        notes: String? = null,
+        confirmOnBehalf: Boolean = false
     ){
         viewModelScope.launch {
             _settlementState.value = SettlementUiState.Loading
@@ -52,6 +58,21 @@ class SettlementViewModel @Inject constructor(
 
             when(result){
                 is Result.Success -> {
+                    val settlement = result.data
+
+                    // ✅ If admin chose to confirm on behalf, confirm immediately
+                    val finalSettlement = if (confirmOnBehalf) {
+                        when (val confirmResult = confirmSettlementOnBehalfUseCase(
+                            settlementId = settlement.id,
+                            adminMemberId = fromMemberId
+                        )) {
+                            is Result.Success -> confirmResult.data
+                            else -> settlement
+                        }
+                    } else {
+                        settlement
+                    }
+
                     //Fetch member details for display
                     val members = getTripMemberUseCase(tripId).first()
                     when(members){
@@ -120,6 +141,22 @@ class SettlementViewModel @Inject constructor(
                 }
                 Result.Loading -> Unit
 
+            }
+        }
+    }
+
+    fun cancelSettlement(settlementId: String, cancellingMemberId: String) {
+        viewModelScope.launch {
+            _settlementState.value = SettlementUiState.Loading
+
+            when (val result = cancelSettlementUseCase(settlementId, cancellingMemberId)) {
+                is Result.Success -> {
+                    _settlementState.value = SettlementUiState.Initial
+                }
+                is Result.Error -> {
+                    _settlementState.value = SettlementUiState.Error(result.message)
+                }
+                Result.Loading -> Unit
             }
         }
     }

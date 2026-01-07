@@ -18,10 +18,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.Balance
+import com.example.splitify.domain.model.Settlement
+import com.example.splitify.domain.model.SettlementStatus
 import com.example.splitify.domain.model.SimplifiedDebt
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.presentation.components.AllSettledState
 import com.example.splitify.presentation.components.ErrorStateWithRetry
+import com.example.splitify.presentation.settlement.CancelSettlementDialog
 import com.example.splitify.presentation.settlement.SettleUpDialog
 import com.example.splitify.presentation.settlement.SettlementUiState
 import com.example.splitify.presentation.settlement.SettlementViewModel
@@ -42,6 +45,7 @@ fun BalancesScreen(
     val settlementState by settlementViewModel.uiState.collectAsStateWithLifecycle()
 
     var selectedDebt by remember { mutableStateOf<Pair<SimplifiedDebt, Pair<TripMember, TripMember>>?>(null) }
+    var settlementToCancel by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(settlementState) {
         if (settlementState is SettlementUiState.Success) {
@@ -56,15 +60,31 @@ fun BalancesScreen(
             debt = debt,
             fromMember = members.first,
             toMember = members.second,
+            isAdmin = (uiState as? BalancesUiState.Success)
+                ?.memberBalances
+                ?.find { it.member.id == currentMemberId }
+                ?.member
+                ?.isAdmin ?: false,
             onDismiss = { selectedDebt = null },
-            onConfirm = { amount, notes ->
+            onConfirm = { amount, notes, confirmOnBehalf ->
                 settlementViewModel.createSettlement(
                     tripId = tripId,
                     fromMemberId = debt.fromMemberId,
                     toMemberId = debt.toMemberId,
                     amount = amount,
-                    notes = notes
+                    notes = notes,
+                    confirmOnBehalf = confirmOnBehalf
                 )
+            }
+        )
+    }
+
+    settlementToCancel?.let { settlementId ->
+        CancelSettlementDialog(
+            onDismiss = { settlementToCancel = null },
+            onConfirm = {
+                settlementViewModel.cancelSettlement(settlementId, currentMemberId)
+                settlementToCancel = null
             }
         )
     }
@@ -114,9 +134,16 @@ fun BalancesScreen(
                         BalancesContent(
                             memberBalances = state.memberBalances,
                             simplifiedDebts = state.simplifiedDebts,
+                            settlements = state.settlements,
                             currentMemberId = currentMemberId,
                             onSettleUp = { debt, fromMember, toMember ->
                                 selectedDebt = debt to (fromMember to toMember)
+                            },
+                            onCancelSettlement = { settlementId ->
+                                settlementToCancel = settlementId
+                            },
+                            onConfirmSettlement = { settlementId ->
+                                settlementViewModel.confirmSettlement(settlementId, currentMemberId)
                             }
                         )
                     }
@@ -143,8 +170,11 @@ fun BalancesScreen(
 private fun BalancesContent(
     memberBalances: List<Balance>,
     simplifiedDebts: List<SimplifiedDebt>,
+    settlements: List<Settlement>,
     currentMemberId: String,
-    onSettleUp: (SimplifiedDebt, TripMember, TripMember) -> Unit
+    onSettleUp: (SimplifiedDebt, TripMember, TripMember) -> Unit,
+    onCancelSettlement: (String) -> Unit,
+    onConfirmSettlement: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -175,19 +205,66 @@ private fun BalancesContent(
         }
 
         items(simplifiedDebts) { debt ->
+
             val fromMember = memberBalances.find { it.member.id == debt.fromMemberId }?.member
             val toMember = memberBalances.find { it.member.id == debt.toMemberId }?.member
 
             if (fromMember != null && toMember != null) {
+
+                val settlementState = getSettlementState(
+                    debt = debt,
+                    settlements = settlements,
+                    currentMemberId = currentMemberId,
+                    toMember = toMember
+                )
+
                 SimplifiedDebtCard(
                     debt = debt,
                     fromMember = fromMember,
                     toMember = toMember,
                     currentMemberId = currentMemberId,
-                    onSettleUp = { onSettleUp(debt, fromMember, toMember) }
+                    settlementState = settlementState,
+                    onSettleUp = { onSettleUp(debt, fromMember, toMember) },
+                    onCancelSettlement = onCancelSettlement,
+                    onConfirmSettlement = onConfirmSettlement
                 )
             }
         }
+    }
+}
+
+private fun getSettlementState(
+    debt: SimplifiedDebt,
+    settlements: List<Settlement>,
+    currentMemberId: String,
+    toMember: TripMember
+): SettlementButtonState {
+    // Find any settlement between these two members
+    val settlement = settlements.firstOrNull { s ->
+        (s.fromMemberId == debt.fromMemberId && s.toMemberId == debt.toMemberId) ||
+                (s.fromMemberId == debt.toMemberId && s.toMemberId == debt.fromMemberId)
+    }
+//    s.fromMemberId == debt.fromMemberId && s.toMemberId == debt.toMemberId
+    return when {
+        settlement == null -> {
+            SettlementButtonState.NoSettlement
+        }
+        settlement.status == SettlementStatus.PENDING -> {
+            SettlementButtonState.Pending(
+                settlementId = settlement.id,
+                amount = settlement.amount,
+                canConfirm = currentMemberId == debt.toMemberId,
+                canCancel = currentMemberId == settlement.fromMemberId,  //debt.fromMemberId
+                isGuest = toMember.isGuest
+            )
+        }
+        settlement.status == SettlementStatus.CONFIRMED -> {
+            SettlementButtonState.Confirmed(
+                amount = settlement.amount,
+                date = settlement.settledAt ?: settlement.createdAt
+            )
+        }
+        else -> SettlementButtonState.NoSettlement
     }
 }
 
@@ -276,7 +353,10 @@ private fun SimplifiedDebtCard(
     fromMember: TripMember,
     toMember: TripMember,
     currentMemberId: String,
-    onSettleUp: () -> Unit
+    settlementState: SettlementButtonState,
+    onSettleUp: () -> Unit,
+    onCancelSettlement: (String) -> Unit,
+    onConfirmSettlement: (String) -> Unit
 ) {
     val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
     val isCurrentUserDebtor = fromMember.id == currentMemberId
@@ -317,21 +397,91 @@ private fun SimplifiedDebtCard(
                 )
             }
 
-            // Show "Settle Up" button only to debtor
-            if (isCurrentUserDebtor) {
-                Button(
-                    onClick = onSettleUp,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
+            when (settlementState) {
+                is SettlementButtonState.NoSettlement -> {
+                    if (isCurrentUserDebtor) {
+                        Button(
+                            onClick = onSettleUp,
+                            modifier = Modifier.wrapContentWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(Icons.Default.Payment, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Settle Up")
+                        }
+                    }
+                }
+
+                is SettlementButtonState.Pending -> {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Info chip
+                        AssistChip(
+                            onClick = {},
+                            label = { Text("Settlement Pending") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Schedule,
+                                    null,
+                                    Modifier.size(18.dp)
+                                )
+                            },
+                            colors = AssistChipDefaults.assistChipColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        )
+
+                        Text(
+                            text = "${currencyFormat.format(settlementState.amount)} payment pending confirmation",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        // Action buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (settlementState.canConfirm) {
+                                Button(
+                                    onClick = { onConfirmSettlement(settlementState.settlementId) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Confirm")
+                                }
+                            }
+
+                            if (settlementState.canCancel) {
+                                OutlinedButton(
+                                    onClick = { onCancelSettlement(settlementState.settlementId) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Default.Close, null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Cancel")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                is SettlementButtonState.Confirmed -> {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text("Settled ✓") },
+                        leadingIcon = {
+                            Icon(Icons.Default.CheckCircle, null, Modifier.size(18.dp))
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
                     )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Payment,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Settle Up")
                 }
             }
         }

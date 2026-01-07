@@ -18,6 +18,9 @@ interface SettlementDao {
     @Query("Select * from settlements where id = :settlementId")
     suspend fun getSettlementById(settlementId: String): SettlementEntity
 
+    @Query("DELETE FROM settlements WHERE id = :settlementId")
+    suspend fun deleteSettlement(settlementId: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSettlement(settlement: SettlementEntity)
 

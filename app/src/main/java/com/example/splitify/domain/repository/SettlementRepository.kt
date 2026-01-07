@@ -19,6 +19,11 @@ interface SettlementRepository {
 
     fun getSettlementsForTrip(tripId: String): Flow<Result<List<Settlement>>>
 
+    suspend fun cancelSettlement(
+        settlementId: String,
+        cancellingMemberId: String
+    ): Result<Unit>
+
     fun getPendingSettlementsForMember(memberId: String): Flow<Result<List<Settlement>>>
 
     fun getPendingSettlementsBetweenMembers(fromMemberId: String, toMemberId: String): Flow<Result<List<Settlement>>>

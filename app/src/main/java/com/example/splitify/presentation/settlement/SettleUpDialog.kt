@@ -16,6 +16,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -42,11 +43,15 @@ fun SettleUpDialog(
     debt: SimplifiedDebt,
     fromMember: TripMember,
     toMember: TripMember,
+    isAdmin: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (amount: Double, notes: String?) -> Unit
+    onConfirm: (amount: Double, notes: String?, confirmOnBehalf: Boolean) -> Unit
 ){
     var notes by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf(debt.amount.toString()) }
+    var confirmOnBehalf by remember { mutableStateOf(false) }
+
+    val isReceiverGuest = toMember.isGuest
 
     Dialog(onDismiss) {
         Card(
@@ -100,15 +105,52 @@ fun SettleUpDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                if (isReceiverGuest && isAdmin){
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ){
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ){
+                            Checkbox(
+                                checked = confirmOnBehalf,
+                                onCheckedChange = { confirmOnBehalf = it }
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Confirm receipt on behalf",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "${toMember.displayName} is not an app user",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 // Notes field (optional)
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Notes (optional)") },
-                    placeholder = { Text("e.g., Paid via UPI") },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
-                )
+//                OutlinedTextField(
+//                    value = notes,
+//                    onValueChange = { notes = it },
+//                    label = { Text("Notes (optional)") },
+//                    placeholder = { Text("e.g., Paid via UPI") },
+//                    modifier = Modifier.fillMaxWidth(),
+//                    maxLines = 3
+//                )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -129,8 +171,13 @@ fun SettleUpDialog(
                             tint = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(modifier = Modifier.width(8.dp))
+
                         Text(
-                            text = "Payment will be marked as pending until ${toMember.displayName} confirms receipt.",
+                            text = if (confirmOnBehalf) {
+                                "Payment will be marked as confirmed immediately."
+                            } else {
+                                "Payment will be pending until ${toMember.displayName} confirms."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -157,7 +204,8 @@ fun SettleUpDialog(
                             if (amountDouble != null && amountDouble > 0) {
                                 onConfirm(
                                     amountDouble,
-                                    notes.takeIf { it.isNotBlank() }
+                                    notes.takeIf { it.isNotBlank() },
+                                    confirmOnBehalf
                                 )
                             }
                         },
