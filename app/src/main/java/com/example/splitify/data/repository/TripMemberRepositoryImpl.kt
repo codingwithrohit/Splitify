@@ -1,11 +1,13 @@
 package com.example.splitify.data.repository
 
 import com.example.splitify.data.local.dao.TripMemberDao
+import com.example.splitify.data.local.entity.TripMemberEntity
 import com.example.splitify.data.local.toDomain
 import com.example.splitify.data.local.toEntity
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.repository.TripMemberRepository
 import com.example.splitify.util.Result
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -13,16 +15,39 @@ import javax.inject.Inject
 
 class TripMemberRepositoryImpl @Inject constructor(
     private val tripMemberDao: TripMemberDao
-): TripMemberRepository {
+) : TripMemberRepository {
+
     override fun getMembersForTrip(tripId: String): Flow<Result<List<TripMember>>> {
-        return tripMemberDao.getAllMembersForTrip(tripId)
-            .map { entities ->
-                Result.Success(entities.map { it.toDomain() }) as Result<List<TripMember>>
+        return tripMemberDao
+            .getAllMembersForTrip(tripId)
+            .map<List<TripMemberEntity>, Result<List<TripMember>>> { entities ->
+                Result.Success(entities.map { it.toDomain() })
             }
-            .catch { e->
-                emit(Result.Error(e))
+            .catch { e ->
+                if (e is CancellationException) {
+                    throw e
+                } else {
+                    emit(Result.Error(e))
+                }
             }
     }
+
+
+    override fun searchUsers(query: String): Flow<Result<List<TripMember>>> {
+        return tripMemberDao
+            .searchUsers(query)
+            .map<List<TripMemberEntity>, Result<List<TripMember>>> { entities ->
+                Result.Success(entities.map { it.toDomain() })
+            }
+            .catch { e ->
+                if (e is CancellationException) {
+                    throw e
+                } else {
+                    emit(Result.Error(e))
+                }
+            }
+    }
+
 
     override suspend fun getMemberById(memberId: String): TripMember? {
         return try {
@@ -34,18 +59,16 @@ class TripMemberRepositoryImpl @Inject constructor(
 
     override suspend fun addMember(tripMember: TripMember): Result<Unit> {
         return try {
-            //Check if member already exist
             val existingMember = tripMemberDao.getMemberById(tripMember.id)
-            if(existingMember != null){
-                return Result.Error(Exception("Member already exists"))
+            if (existingMember != null) {
+                Result.Error(Exception("Member already exists"))
+            } else {
+                tripMemberDao.insertMember(tripMember.toEntity())
+                Result.Success(Unit)
             }
-            tripMemberDao.insertMember(tripMember.toEntity())
-            Result.Success(Unit)
-        }
-        catch (e: Exception){
+        } catch (e: Exception) {
             Result.Error(e)
         }
-
     }
 
     override suspend fun removeMember(
@@ -54,9 +77,7 @@ class TripMemberRepositoryImpl @Inject constructor(
     ): Result<Unit> {
         return try {
             val member = tripMemberDao.getMemberById(memberId)
-            if (member == null) {
-                return Result.Error(Exception("Member not found"))
-            }
+                ?: return Result.Error(Exception("Member not found"))
 
             if (member.tripId != tripId) {
                 return Result.Error(Exception("Member does not belong to this trip"))
@@ -76,9 +97,7 @@ class TripMemberRepositoryImpl @Inject constructor(
     ): Result<Unit> {
         return try {
             val member = tripMemberDao.getMemberById(memberId)
-            if (member == null) {
-                return Result.Error(Exception("Member not found"))
-            }
+                ?: return Result.Error(Exception("Member not found"))
 
             val updated = member.copy(
                 role = newRole,
@@ -91,16 +110,4 @@ class TripMemberRepositoryImpl @Inject constructor(
             Result.Error(e)
         }
     }
-
-    override fun searchUsers(query: String): Flow<Result<List<TripMember>>> {
-        return tripMemberDao.searchUsers(query)
-            .map { entities ->
-                Result.Success(entities.map { it.toDomain() }) as Result<List<TripMember>>
-            }
-            .catch { e ->
-                emit(Result.Error(e))
-            }
-    }
-
-
 }

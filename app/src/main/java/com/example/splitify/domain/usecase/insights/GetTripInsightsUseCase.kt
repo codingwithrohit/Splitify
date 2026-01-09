@@ -1,9 +1,11 @@
 package com.example.splitify.domain.usecase.insights
 
 import android.util.Log
+import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.MemberSpending
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.model.TripInsights
+import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.repository.ExpenseRepository
 import com.example.splitify.domain.repository.TripMemberRepository
 import com.example.splitify.domain.repository.TripRepository
@@ -12,7 +14,7 @@ import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
-import kotlin.math.exp
+import kotlin.coroutines.cancellation.CancellationException
 
 
 class GetTripInsightsUseCase @Inject constructor(
@@ -25,27 +27,29 @@ class GetTripInsightsUseCase @Inject constructor(
             Log.d("InsightsUseCase", "════════════════════════════════")
             Log.d("InsightsUseCase", "📊 Calculating insights for trip: $tripId")
 
-            //1. Get trip details
-            val tripResult = tripRepository.observeTripById(tripId).first()
-            if(tripResult !is Result.Success){
-                return Result.Error(Exception("Failed to load trip"))
-            }
-            val trip = tripResult.data
+            // 1️ Trip
+            val trip = tripRepository.getTripById(tripId)
+                ?: return Result.Error(Exception("Trip not found"))
 
-            //2. Get all expenses
-            val expenseResult = expenseRepository.getExpensesByTrip(tripId).first()
-            if(expenseResult !is Result.Success){
-                return Result.Error(Exception("Failed to load expenses"))
+            // ✅ Use .getExpensesByTrip which returns Flow<Result<List>>
+            var expenses: List<Expense> = emptyList()
+            expenseRepository.getExpensesByTrip(tripId).first().let { result ->
+                when (result) {
+                    is Result.Success -> expenses = result.data
+                    is Result.Error -> return result
+                    Result.Loading -> {}
+                }
             }
-            val expenses = expenseResult.data
 
-
-            //3. Get all members
-            val memberResult = tripMemberRepository.getMembersForTrip(tripId).first()
-            if(memberResult !is Result.Success){
-                return Result.Error(Exception("Failed to load members"))
+            var members: List<TripMember> = emptyList()
+            tripMemberRepository.getMembersForTrip(tripId).first().let { result ->
+                when (result) {
+                    is Result.Success -> members = result.data
+                    is Result.Error -> return result
+                    Result.Loading -> {}
+                }
             }
-            val members = memberResult.data
+
 
             Log.d("InsightsUseCase", "  Expenses: ${expenses.size}")
             Log.d("InsightsUseCase", "  Members: ${members.size}")
@@ -143,8 +147,11 @@ class GetTripInsightsUseCase @Inject constructor(
             )
 
         }
-        catch (e: Exception) {
-            Log.e("InsightsUseCase", "❌ Error calculating insights: ${e.message}")
+        catch (e: CancellationException) {
+            // 🔴 MUST rethrow – Flow cancellation
+            throw e
+        } catch (e: Exception) {
+            Log.e("InsightsUseCase", "❌ Error calculating insights", e)
             Result.Error(e)
         }
     }

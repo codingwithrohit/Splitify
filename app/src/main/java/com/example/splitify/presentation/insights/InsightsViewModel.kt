@@ -1,5 +1,5 @@
 package com.example.splitify.presentation.insights
-
+import com.example.splitify.domain.usecase.insights.GenerateTripSummaryUseCase
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -17,6 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class InsightsViewModel @Inject constructor(
     private val getTripInsightsUseCase: GetTripInsightsUseCase,
+    private val generateTripSummaryUseCase: GenerateTripSummaryUseCase,
     savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
@@ -58,14 +59,19 @@ class InsightsViewModel @Inject constructor(
     fun generateSummary(onComplete: (String) -> Unit) {
         val currentState = _uiState.value
         if (currentState !is InsightsUiState.Success) return
-
         Log.d("InsightsVM", "📝 Generating summary...")
         _uiState.value = currentState.copy(isGeneratingSummary = true)
 
         viewModelScope.launch {
-            // TODO: Implement summary generation in Commit 7
-            // For now, just placeholder
-            _uiState.value = currentState.copy(isGeneratingSummary = false)
+            try {
+                val summary = generateTripSummaryUseCase(currentState.insights)
+                Log.d("InsightsVM", "✅ Summary generated (${summary.length} chars)")
+                onComplete(summary)
+                _uiState.value = currentState.copy(isGeneratingSummary = false)
+            } catch (e: Exception) {
+                Log.e("InsightsVM", "❌ Failed to generate summary: ${e.message}")
+                _uiState.value = currentState.copy(isGeneratingSummary = false)
+            }
         }
     }
 }

@@ -25,8 +25,8 @@ sealed class Screen(val route: String) {
         const val ARG_MEMBER_ID = "memberId"
     }
 
-    data object TripInsights: Screen("trip_insights/{tripId}"){
-        fun createRoute(tripId: String) = "trip_insights/$tripId"
+    data object InsightsScreen: Screen("insights_screen/{tripId}"){
+        fun createRoute(tripId: String) = "insights_screen/$tripId"
         const val ARG_TRIP_ID = "tripId"
     }
 

@@ -16,6 +16,7 @@ import com.example.splitify.util.asError
 import com.example.splitify.util.asSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -46,14 +47,15 @@ class ExpenseRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getExpenseWithSplitsById(expenseId: String): Flow<Result<ExpenseWithSplits>> {
-        return expenseDao.getExpenseWithSplitsById(expenseId)
-            .map { expenseWithSplits ->
-                Result.Success(expenseWithSplits.toDomain())
+    override fun getExpenseWithSplitsById(expenseId: String): Flow<Result<ExpenseWithSplits>> = flow {
+        try {
+            emit(Result.Loading)
+            expenseDao.getExpenseWithSplitsById(expenseId).collect { expenseWithSplits ->
+                emit(Result.Success(expenseWithSplits.toDomain()))
             }
-            .catch { e ->
-                Result.Error(Exception("Failed to load expense with splits", e))
-            }
+        } catch (e: Exception) {
+            emit(Result.Error(Exception("Failed to load expense with splits", e)))
+        }
     }
 
 
@@ -123,15 +125,15 @@ class ExpenseRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getExpensesWithSplits(tripId: String): Flow<Result<List<ExpenseWithSplits>>> {
-        return expenseDao.getExpensesByTripId(tripId)
-            .map { expenseEntities ->
+    override fun getExpensesWithSplits(tripId: String): Flow<Result<List<ExpenseWithSplits>>> = flow {
+        try {
+            emit(Result.Loading)
+
+            expenseDao.getExpensesByTripId(tripId).collect { expenseEntities ->
                 Log.d("ExpenseRepository", "📦 Got ${expenseEntities.size} expenses for trip $tripId")
 
                 val expensesWithSplits = expenseEntities.map { expenseEntity ->
-                    // Get splits for this expense
                     val splitsResult = expenseSplitDao.getSplitsForExpenseSync(expenseEntity.id)
-
                     Log.d("ExpenseRepository", "  - ${expenseEntity.description}: ${splitsResult.size} splits")
 
                     ExpenseWithSplits(
@@ -140,12 +142,12 @@ class ExpenseRepositoryImpl @Inject constructor(
                     )
                 }
 
-                Result.Success(expensesWithSplits) as Result<List<ExpenseWithSplits>>
+                emit(Result.Success(expensesWithSplits))
             }
-            .catch { e ->
-                Log.e("ExpenseRepository", "❌ Error getting expenses with splits", e)
-                emit(Result.Error(e, "Failed to load expenses: ${e.message}"))
-            }
+        } catch (e: Exception) {
+            Log.e("ExpenseRepository", "❌ Error getting expenses with splits", e)
+            emit(Result.Error(e, "Failed to load expenses: ${e.message}"))
+        }
     }
 
     override suspend fun createExpenseWithSplits(

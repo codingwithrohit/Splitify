@@ -22,9 +22,9 @@ import com.example.splitify.presentation.auth.SignUpScreen
 import com.example.splitify.presentation.balances.BalancesScreen
 import com.example.splitify.presentation.expense.AddExpenseScreen
 import com.example.splitify.presentation.expense.ExpensesScreen
+import com.example.splitify.presentation.insights.InsightsScreen
 import com.example.splitify.presentation.settlement.SettlementHistoryScreen
 import com.example.splitify.presentation.tripdetail.TripDetailScreen
-import com.example.splitify.presentation.tripdetail.TripInsights
 import com.example.splitify.presentation.trips.CreateTripScreen
 import com.example.splitify.presentation.trips.TripsScreen
 import io.github.jan.supabase.SupabaseClient
@@ -161,7 +161,7 @@ fun SplitifyNavGraph(
                     // ✅ FIX 6: Navigate to Insights (was going to CreateTrip!)
                     onNavigateToInsights = {
                         Log.d("NavGraph", "🧭 Navigating to TripInsights with tripId: $tripId")
-                        navController.navigate(Screen.TripInsights.createRoute(tripId))
+                        navController.navigate(Screen.InsightsScreen.createRoute(tripId))
                     },
 
                     // ✅ FIX 7: Navigate to Settlement
@@ -176,18 +176,19 @@ fun SplitifyNavGraph(
 
             // Trip Insights Screen
             composable(
-                route = Screen.TripInsights.route,
+                route = Screen.InsightsScreen.route,
                 arguments = listOf(
-                    navArgument(Screen.TripInsights.ARG_TRIP_ID) {
+                    navArgument(Screen.InsightsScreen.ARG_TRIP_ID){
                         type = NavType.StringType
                     }
                 )
             ) {
-                val tripId = it.arguments?.getString(Screen.TripInsights.ARG_TRIP_ID)
+                val tripId = it.arguments?.getString(Screen.InsightsScreen.ARG_TRIP_ID)
                     ?: return@composable
 
-                Log.d("NavGraph", "🧭 TripInsights - tripId: $tripId")
-                TripInsights()
+                InsightsScreen(
+                    onBack = {navController.popBackStack()}
+                )
             }
 
             // Expenses Screen

@@ -34,6 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -43,6 +46,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.TripInsights
 import com.example.splitify.presentation.components.ErrorStateWithRetry
+import com.example.splitify.presentation.insights.charts.CategoryBreakdownSection
+import com.example.splitify.presentation.insights.charts.DailySpendingSection
+import com.example.splitify.presentation.insights.charts.MemberSpendingSection
 import com.example.splitify.util.CurrencyUtils
 import java.time.format.DateTimeFormatter
 
@@ -54,6 +60,8 @@ fun InsightsScreen(
     viewModel: InsightsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showSummaryDialog by remember { mutableStateOf(false) }
+    var summaryText by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -71,8 +79,12 @@ fun InsightsScreen(
                     }
                 },
                 actions = {
-                    // Share button (will implement in Commit 7)
-                    IconButton(onClick = { /* TODO */ }) {
+                    IconButton(onClick = {
+                        viewModel.generateSummary { summary ->
+                            summaryText = summary
+                            showSummaryDialog = true
+                        }
+                    }) {
                         Icon(Icons.Default.Share, "Share Summary")
                     }
                 }
@@ -111,6 +123,12 @@ fun InsightsScreen(
                 }
             }
         }
+    }
+    if (showSummaryDialog) {
+        SummaryDialog(
+            summary = summaryText,
+            onDismiss = { showSummaryDialog = false }
+        )
     }
 }
 
@@ -164,11 +182,7 @@ private fun InsightsContent(
 
         // Category Breakdown Section (Commit 4)
         item {
-            Text(
-                text = "Spending by Category",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            CategoryBreakdownSection(insights)
         }
         item {
             // CategoryPieChart(insights) - Will add in Commit 4
@@ -177,11 +191,7 @@ private fun InsightsContent(
 
         // Member Spending Section (Commit 5)
         item {
-            Text(
-                text = "Who Paid What?",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            MemberSpendingSection(insights)
         }
         item {
             // MemberBarChart(insights) - Will add in Commit 5
@@ -190,11 +200,7 @@ private fun InsightsContent(
 
         // Daily Trend Section (Commit 6)
         item {
-            Text(
-                text = "Daily Spending",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            DailySpendingSection(insights)
         }
         item {
             // DailyLineChart(insights) - Will add in Commit 6

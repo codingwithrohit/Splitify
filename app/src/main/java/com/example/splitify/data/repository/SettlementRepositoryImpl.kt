@@ -97,18 +97,12 @@ class SettlementRepositoryImpl @Inject constructor(
             .map { entities ->
                 Result.Success(entities.toDomain())
             }
-            .catch { e ->
-                Result.Error(e, "Failed to load settlements for trip")
-            }
     }
 
     override fun getPendingSettlementsForMember(memberId: String): Flow<Result<List<Settlement>>> {
         return settlementDao.getPendingSettlementsForMember(memberId)
             .map { entities ->
                 Result.Success(entities.toDomain())
-            }
-            .catch { e ->
-                Result.Error(Exception("Failed to load pending settlements for member"), e.message.toString())
             }
     }
 
@@ -119,9 +113,6 @@ class SettlementRepositoryImpl @Inject constructor(
         return settlementDao.getPendingSettlementsBetweenMembers(fromMemberId, toMemberId)
             .map { entities ->
                 Result.Success(entities.toDomain())
-            }
-            .catch { e ->
-                Result.Error(Exception("Failed to load pending settlements between members"), e.message.toString())
             }
     }
 
