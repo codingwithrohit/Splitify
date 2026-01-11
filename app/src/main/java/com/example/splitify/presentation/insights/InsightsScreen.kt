@@ -170,42 +170,27 @@ private fun InsightsContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Trip Header
+
         item {
             TripHeaderCard(insights)
         }
 
-        // Stats Cards Grid
         item {
             StatsCardsGrid(insights)
         }
 
-        // Category Breakdown Section (Commit 4)
         item {
             CategoryBreakdownSection(insights)
         }
-        item {
-            // CategoryPieChart(insights) - Will add in Commit 4
-            Text("Chart coming in Commit 4...")
-        }
 
-        // Member Spending Section (Commit 5)
         item {
             MemberSpendingSection(insights)
         }
-        item {
-            // MemberBarChart(insights) - Will add in Commit 5
-            Text("Chart coming in Commit 5...")
-        }
 
-        // Daily Trend Section (Commit 6)
         item {
             DailySpendingSection(insights)
         }
-        item {
-            // DailyLineChart(insights) - Will add in Commit 6
-            Text("Chart coming in Commit 6...")
-        }
+
     }
 }
 

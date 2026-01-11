@@ -18,23 +18,30 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 private val LightColorScheme = lightColorScheme(
-//    primary = Purple40,
-//    secondary = PurpleGrey40,
-//    tertiary = Pink40
-        primary = Color(0xFF6750A4),
-    secondary = Color(0xFF625B71),
-    tertiary = Color(0xFF7D5260),
-
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    primary = Color(0xFF6366F1),           // Modern indigo
     onPrimary = Color.White,
+    primaryContainer = Color(0xFFE0E7FF),
+    onPrimaryContainer = Color(0xFF1E1B4B),
+
+    secondary = Color(0xFF10B981),         // Success green
     onSecondary = Color.White,
+    secondaryContainer = Color(0xFFD1FAE5),
+    onSecondaryContainer = Color(0xFF065F46),
+
+    tertiary = Color(0xFF7C3AED),          // Purple accent
     onTertiary = Color.White,
+
+    error = Color(0xFFEF4444),
+    onError = Color.White,
+    errorContainer = Color(0xFFFEE2E2),
+
+    background = Color(0xFFFAFAFA),
     onBackground = Color(0xFF1C1B1F),
+
+    surface = Color.White,
     onSurface = Color(0xFF1C1B1F),
-    */
+    surfaceVariant = Color(0xFFF3F4F6),
+    onSurfaceVariant = Color(0xFF6B7280)
 )
 
 @Composable
