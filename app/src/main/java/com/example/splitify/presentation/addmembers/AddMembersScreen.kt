@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.TripMember
+import com.example.splitify.presentation.components.SuccessToast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,11 +71,13 @@ fun AddMemberScreen(
 ){
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle("")
+    var showSuccessToast by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) {
-        viewModel.toastMessage.collect { message ->
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+    LaunchedEffect(toastMessage) {
+        if (toastMessage.isNotBlank()) {
+            showSuccessToast = true
         }
     }
 
@@ -118,6 +121,15 @@ fun AddMemberScreen(
                 }
             }
         }
+
+        SuccessToast(
+            message = toastMessage,
+            visible = showSuccessToast,
+            onDismiss = {
+                showSuccessToast = false
+                viewModel.clearToastMessage() // We'll add this method
+            }
+        )
 
     }
 

@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,6 +28,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -41,7 +44,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.splitify.presentation.components.LoadingButton
+import com.example.splitify.presentation.components.SuccessToast
+import kotlinx.coroutines.delay
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 
@@ -49,14 +58,16 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CreateTripScreen(
     onNavigateBack: () -> Unit,
-    onTripCreated: () -> Unit,
     viewModel: CreateTripViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showSuccessToast by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSaved) {
         if(uiState.isSaved){
-            onTripCreated()
+            showSuccessToast = true
+            delay(1500)
+            onNavigateBack()
         }
     }
 
@@ -164,25 +175,22 @@ fun CreateTripScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Button(
+            LoadingButton(
+                text = "Create Trip",
                 onClick = viewModel::saveTrip,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isLoading
-            ) {
-                if(uiState.isLoading){
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color =  MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-                else{
-                    Text(
-                        text = "Save Trip",
-                    )
-                }
-            }
+                isLoading = uiState.isLoading,
+                icon = Icons.Default.Save,
+                modifier = Modifier.fillMaxWidth()
+            )
+
 
         }
+
+        SuccessToast(
+            message = "Trip created! 🎉",
+            visible = showSuccessToast,
+            onDismiss = { showSuccessToast = false }
+        )
 
     }
 
@@ -216,7 +224,7 @@ fun DatePickerField(
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = (date ?: LocalDate.now())
                 .atStartOfDay()
-                .toInstant(java.time.ZoneOffset.UTC)
+                .toInstant(ZoneOffset.UTC)
                 .toEpochMilli()
         )
 
@@ -226,9 +234,9 @@ fun DatePickerField(
                 TextButton(
                     onClick = {
                         datePickerState.selectedDateMillis?.let { millis ->
-                            val selectedDate = java.time.Instant
+                            val selectedDate = Instant
                                 .ofEpochMilli(millis)
-                                .atZone(java.time.ZoneId.systemDefault())
+                                .atZone(ZoneId.systemDefault())
                                 .toLocalDate()
                             onDateChange(selectedDate)
                         }

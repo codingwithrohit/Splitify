@@ -99,9 +99,6 @@ fun SplitifyNavGraph(
                 CreateTripScreen(
                     onNavigateBack = {
                         navController.popBackStack()
-                    },
-                    onTripCreated = {
-                        navController.popBackStack()
                     }
                 )
             }

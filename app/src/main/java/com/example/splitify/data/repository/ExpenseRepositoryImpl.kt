@@ -145,6 +145,8 @@ class ExpenseRepositoryImpl @Inject constructor(
                 emit(Result.Success(expensesWithSplits))
             }
         } catch (e: Exception) {
+            // IMPORTANT: Allow Coroutine cancellation/flow abortion to pass through
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e("ExpenseRepository", "❌ Error getting expenses with splits", e)
             emit(Result.Error(e, "Failed to load expenses: ${e.message}"))
         }

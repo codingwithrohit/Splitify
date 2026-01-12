@@ -31,8 +31,8 @@ class AddMembersViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<AddMembersUiState>(AddMembersUiState.Loading)
     val uiState: StateFlow<AddMembersUiState> = _uiState.asStateFlow()
 
-    private val _toastMessage = MutableSharedFlow<String>()
-    val toastMessage: SharedFlow<String> = _toastMessage.asSharedFlow()
+    private val _toastMessage = MutableStateFlow("")
+    val toastMessage: StateFlow<String> = _toastMessage.asStateFlow()
 
     init {
         loadMembers()
@@ -58,14 +58,14 @@ class AddMembersViewModel @Inject constructor(
 
         if (trimmedName.isBlank()) {
             viewModelScope.launch {
-                _toastMessage.emit("Name cannot be empty")
+                _toastMessage.value = "Name cannot be blank"
             }
             return
         }
 
         if (trimmedName.length < 2) {
             viewModelScope.launch {
-                _toastMessage.emit("Name must be at least 2 characters")
+                _toastMessage.value = "Name must be at least 2 characters"
             }
             return
         }
@@ -80,7 +80,7 @@ class AddMembersViewModel @Inject constructor(
             )){
                 is Result.Success -> {
                     Log.d("AddMembersVM", "✅ SUCCESS: Member added")
-                    _toastMessage.emit("${name.trim()} added to trip")
+                    _toastMessage.value = "$trimmedName added to trip"
                 }
                 is Result.Error -> {
                     Log.e("AddMembersVM", "❌ ERROR: ${result.message}")
@@ -92,7 +92,7 @@ class AddMembersViewModel @Inject constructor(
                             "$trimmedName is already in this trip"
                         else -> result.message
                     }
-                    _toastMessage.emit(userFriendlyMessage)
+                    _toastMessage.value = userFriendlyMessage
                 }
                 else -> {
                     Log.w("AddMembersVM", "⚠️ Unexpected result: Loading state")
@@ -108,7 +108,7 @@ class AddMembersViewModel @Inject constructor(
             when (val result = removeTripMemberUseCase(tripId, memberId)) {
                 is Result.Success -> {
                     Log.d("AddMembersVM", "✅ Member removed successfully")
-                    _toastMessage.emit("$memberName removed from trip")
+                    _toastMessage.value = "$memberName removed from trip"
                 }
                 is Result.Error -> {
                     Log.e("AddMembersVM", "❌ Failed to remove member: ${result.message}")
@@ -124,7 +124,7 @@ class AddMembersViewModel @Inject constructor(
                         else -> "Failed to remove $memberName: ${result.message}"
                     }
 
-                    _toastMessage.emit(message)
+                    _toastMessage.value = message
                 }
                 else -> {}
             }
@@ -162,12 +162,16 @@ class AddMembersViewModel @Inject constructor(
                         }
                         is Result.Error -> {
                             _uiState.value = state.copy(isSearching = false)
-                            _toastMessage.emit("Search failed: ${result.message}")
+                            _toastMessage.value = result.message
                         }
                         else -> {}
                     }
                 }
             }
         }
+    }
+
+    fun clearToastMessage() {
+        _toastMessage.value = ""
     }
 }
