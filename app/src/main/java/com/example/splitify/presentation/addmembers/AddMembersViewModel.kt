@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.example.splitify.util.Result
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 @HiltViewModel
@@ -73,6 +74,20 @@ class AddMembersViewModel @Inject constructor(
         Log.d("AddMembersVM", "🔄 Adding member: '$trimmedName' to trip: $tripId")
 
         viewModelScope.launch {
+
+            val currentResult = getTripMembersUseCase(tripId).first()
+
+            if (currentResult is Result.Success) {
+                val alreadyExists = currentResult.data.any {
+                    it.displayName.equals(trimmedName, ignoreCase = true)
+                }
+
+                if (alreadyExists) {
+                    _toastMessage.value = "$trimmedName is already in this trip"
+                    return@launch
+                }
+            }
+
             when(val result = addTripMemberUseCase(
                 tripId = tripId,
                 displayName = trimmedName,

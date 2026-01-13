@@ -55,6 +55,7 @@ import com.example.splitify.domain.usecase.expense.CanModifyExpenseUseCase
 import com.example.splitify.presentation.components.EmptyExpensesState
 import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.ExpensesLoadingSkeleton
+import com.example.splitify.presentation.components.SuccessToast
 import com.example.splitify.util.SnackbarController
 import com.example.splitify.util.formatDate
 import com.example.splitify.util.getCategoryIcon
@@ -78,12 +79,8 @@ fun ExpensesScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
+    var showSuccessToast by remember { mutableStateOf(false) }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val snackbarController = remember(snackbarHostState, scope) {
-        SnackbarController(snackbarHostState, scope)
-    }
 
     // Delete confirmation
     expenseToDelete?.let { expense ->
@@ -92,7 +89,7 @@ fun ExpensesScreen(
             onConfirm = {
                 viewModel.deleteExpense(expense.id)
                 expenseToDelete = null
-                snackbarController.showSuccess("Expense deleted")
+                showSuccessToast = true
             },
             onDismiss = { expenseToDelete = null }
         )
@@ -113,8 +110,7 @@ fun ExpensesScreen(
             FloatingActionButton(onClick = onAddExpense) {
                 Icon(Icons.Default.Add, contentDescription = "Add Expense")
             }
-        },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        }
     ) { padding ->
         when (val state = uiState) {
             is ExpenseUiState.Loading -> {
@@ -169,6 +165,12 @@ fun ExpensesScreen(
                 )
             }
         }
+
+        SuccessToast(
+            message = "Expense deleted successfully",
+            visible = showSuccessToast,
+            onDismiss = { showSuccessToast = false }
+        )
     }
 }
 

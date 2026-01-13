@@ -54,7 +54,8 @@ class ExpenseRepositoryImpl @Inject constructor(
                 emit(Result.Success(expenseWithSplits.toDomain()))
             }
         } catch (e: Exception) {
-            emit(Result.Error(Exception("Failed to load expense with splits", e)))
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Result.Error(e, "Failed to load expenses with Splits"))
         }
     }
 
@@ -125,31 +126,28 @@ class ExpenseRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getExpensesWithSplits(tripId: String): Flow<Result<List<ExpenseWithSplits>>> = flow {
-        try {
-            emit(Result.Loading)
-
-            expenseDao.getExpensesByTripId(tripId).collect { expenseEntities ->
-                Log.d("ExpenseRepository", "📦 Got ${expenseEntities.size} expenses for trip $tripId")
-
-                val expensesWithSplits = expenseEntities.map { expenseEntity ->
-                    val splitsResult = expenseSplitDao.getSplitsForExpenseSync(expenseEntity.id)
-                    Log.d("ExpenseRepository", "  - ${expenseEntity.description}: ${splitsResult.size} splits")
-
-                    ExpenseWithSplits(
-                        expense = expenseEntity.toDomain(),
-                        splits = splitsResult.map { it.toDomain() }
-                    )
+    override fun getExpensesWithSplits(tripId: String): Flow<Result<List<ExpenseWithSplits>>> {
+        return expenseSplitDao.getExpensesWithSplitsForTrip(tripId)
+            .map { map ->
+                try {
+                    val domainList = map.map { (expenseEntity, splitEntities) ->
+                        ExpenseWithSplits(
+                            expense = expenseEntity.toDomain(),
+                            splits = splitEntities.map { it.toDomain() }
+                        )
+                    }
+                    // Wrap in Success
+                    Result.Success(domainList)
+                } catch (e: Exception) {
+                    // Return Error - Both Success and Error are subtypes of Result
+                    Result.Error(e, "Mapping failed")
                 }
-
-                emit(Result.Success(expensesWithSplits))
             }
-        } catch (e: Exception) {
-            // IMPORTANT: Allow Coroutine cancellation/flow abortion to pass through
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            Log.e("ExpenseRepository", "❌ Error getting expenses with splits", e)
-            emit(Result.Error(e, "Failed to load expenses: ${e.message}"))
-        }
+            .catch { e ->
+                // This handles DB errors (like connection or query issues)
+                Log.e("ExpenseRepository", "❌ DB Error", e)
+                emit(Result.Error(e, "Failed to load expenses"))
+            }
     }
 
     override suspend fun createExpenseWithSplits(

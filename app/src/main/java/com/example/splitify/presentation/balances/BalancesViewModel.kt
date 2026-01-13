@@ -47,8 +47,9 @@ class BalancesViewModel @Inject constructor(
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     val uiState: StateFlow<BalancesUiState> = combine(
         calculateTripBalancesUseCase(tripId),
-        getSettlementsForTripUseCase(tripId)
-    ) { balanceResult, settlementsResult ->
+        getSettlementsForTripUseCase(tripId),
+        authRepository.getCurrentUser()
+    ) { balanceResult, settlementsResult, user ->
 
         when {
             balanceResult is Result.Error -> {
@@ -85,10 +86,7 @@ class BalancesViewModel @Inject constructor(
                         memberBalances = tripBalance.memberBalances,
                         simplifiedDebts = activeDebts, // ✅ Use filtered debts
                         settlements = settlements,      // ✅ Pass settlements for button state
-                        currentUserId = authRepository
-                            .getCurrentUser()
-                            .firstOrNull()
-                            ?.id
+                        currentUserId = user?.id
                     )
                 }
             }
@@ -101,42 +99,6 @@ class BalancesViewModel @Inject constructor(
         initialValue = BalancesUiState.Loading
     )
 
-//    val uiState: StateFlow<BalancesUiState> =
-//        calculateTripBalancesUseCase(tripId)
-//            .map { result ->
-//                when (result) {
-//                    is Result.Success -> {
-//                        val tripBalance = result.data
-//
-//                        val sumOfBalances =
-//                            tripBalance.memberBalances.sumOf { it.netBalance }
-//
-//                        if (abs(sumOfBalances) > 0.01) {
-//                            BalancesUiState.Error("Balance calculation error")
-//                        } else {
-//                            BalancesUiState.Success(
-//                                memberBalances = tripBalance.memberBalances,
-//                                simplifiedDebts = tripBalance.simplifiedDebts,
-//                                currentUserId = authRepository
-//                                    .getCurrentUser()
-//                                    .firstOrNull()
-//                                    ?.id
-//                            )
-//                        }
-//                    }
-//
-//                    is Result.Error ->
-//                        BalancesUiState.Error(result.message)
-//
-//                    Result.Loading ->
-//                        BalancesUiState.Loading
-//                }
-//            }
-//            .stateIn(
-//                scope = viewModelScope,
-//                started = SharingStarted.WhileSubscribed(5000),
-//                initialValue = BalancesUiState.Loading
-//            )
 
     fun retry(){
         retryTrigger.value++

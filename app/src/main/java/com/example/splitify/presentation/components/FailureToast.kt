@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -30,16 +30,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
-
 @Composable
-fun SuccessToast(
+fun FailureToast(
     message: String,
     visible: Boolean,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    durationMillis: Long = 2000
+    durationMillis: Long = 3000 // Errors usually benefit from slightly longer display time
 ) {
-    // Auto-dismiss after duration
+    // Auto-dismiss logic
     LaunchedEffect(visible) {
         if (visible) {
             delay(durationMillis)
@@ -48,7 +47,8 @@ fun SuccessToast(
     }
 
     Box(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
             .windowInsetsPadding(WindowInsets.navigationBars),
         contentAlignment = Alignment.BottomCenter
     ) {
@@ -68,7 +68,7 @@ fun SuccessToast(
                     .padding(16.dp)
                     .fillMaxWidth(0.9f),
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.secondary,
+                color = MaterialTheme.colorScheme.error, // Changed to error color
                 shadowElevation = 8.dp
             ) {
                 Row(
@@ -77,15 +77,15 @@ fun SuccessToast(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondary,
+                        imageVector = Icons.Default.Error, // Changed to error icon
+                        contentDescription = "Error",
+                        tint = MaterialTheme.colorScheme.onError,
                         modifier = Modifier.size(24.dp)
                     )
                     Text(
                         text = message,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSecondary
+                        color = MaterialTheme.colorScheme.onError
                     )
                 }
             }

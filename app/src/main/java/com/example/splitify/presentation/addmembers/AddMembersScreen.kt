@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -18,11 +19,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
@@ -73,7 +76,6 @@ fun AddMemberScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle("")
     var showSuccessToast by remember { mutableStateOf(false) }
-    val context = LocalContext.current
 
     LaunchedEffect(toastMessage) {
         if (toastMessage.isNotBlank()) {
@@ -163,50 +165,49 @@ fun AddMemberContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
+        OutlinedTextField(
+            value = memberName,
+            onValueChange = { memberName = it },
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = memberName,
-                onValueChange = { memberName = it },
-                label = { Text("Name") },
-                placeholder = { Text("Rohit Dhanraj") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
+            label = { Text("Add Member") },
+            placeholder = { Text("e.g. Rohit Dhanraj") },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            trailingIcon = {
+                IconButton(
+                    onClick = {
                         if (memberName.isNotBlank()) {
                             onAddMember(memberName)
                             memberName = ""
                             keyboardController?.hide()
                         }
-                    }
-                )
-            )
-
-            IconButton(
-                onClick = {
+                    },
+                    enabled = memberName.isNotBlank() // Visual feedback
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddCircle, // More prominent icon
+                        contentDescription = "Add",
+                        tint = if (memberName.isNotBlank())
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.outline
+                    )
+                }
+            },
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
                     if (memberName.isNotBlank()) {
                         onAddMember(memberName)
                         memberName = ""
                         keyboardController?.hide()
                     }
-                },
-                modifier = Modifier.size(30.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add"
-                )
-            }
-
-
-        }
+                }
+            )
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
 

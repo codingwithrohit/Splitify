@@ -15,8 +15,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,7 +65,9 @@ fun CreateTripScreen(
     viewModel: CreateTripViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val clipboardManager = LocalClipboardManager.current
     var showSuccessToast by remember { mutableStateOf(false) }
+    var showCopyToast by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSaved) {
         if(uiState.isSaved){
@@ -144,6 +150,53 @@ fun CreateTripScreen(
             }
 
             //Invite Code
+//            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+//                Text(
+//                    text = "Invite Members",
+//                    style = MaterialTheme.typography.titleMedium
+//                )
+//
+//                // The Chip
+//                AssistChip(
+//                    onClick = {
+//                        clipboardManager.setText(AnnotatedString(uiState.inviteCode))
+//                        showSuccessToast = true // Using the toast we built earlier!
+//                    },
+//                    label = {
+//                        Text(
+//                            text = "Code: ${uiState.inviteCode}",
+//                            style = MaterialTheme.typography.labelLarge
+//                        )
+//                    },
+//                    leadingIcon = {
+//                        Icon(
+//                            imageVector = Icons.Default.ContentCopy,
+//                            contentDescription = "Copy code",
+//                            modifier = Modifier.size(18.dp)
+//                        )
+//                    },
+//                    trailingIcon = {
+//                        // We can still allow regenerating by clicking the end of the chip
+//                        IconButton(
+//                            onClick = viewModel::regenerateInviteCode,
+//                            modifier = Modifier.size(24.dp)
+//                        ) {
+//                            Icon(
+//                                imageVector = Icons.Default.Refresh,
+//                                contentDescription = "Refresh",
+//                                modifier = Modifier.size(16.dp)
+//                            )
+//                        }
+//                    },
+//                    shape = RoundedCornerShape(12.dp) // Keeps it consistent with your UI
+//                )
+//
+//                Text(
+//                    text = "Share this code with members to join the trip",
+//                    style = MaterialTheme.typography.bodySmall,
+//                    color = MaterialTheme.colorScheme.onSurfaceVariant
+//                )
+//            }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -156,11 +209,31 @@ fun CreateTripScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
+//                        Text(
+//                            text = uiState.inviteCode,
+//                            style = MaterialTheme.typography.headlineMedium,
+//                            color = MaterialTheme.colorScheme.primary
+//                        )
+                        AssistChip(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(uiState.inviteCode))
+                        showSuccessToast = true // Using the toast we built earlier!
+                    },
+                    label = {
                         Text(
-                            text = uiState.inviteCode,
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            text = "Code: ${uiState.inviteCode}",
+                            style = MaterialTheme.typography.labelLarge
                         )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy code",
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    shape = RoundedCornerShape(12.dp) // Keeps it consistent with your UI
+                )
                         IconButton( onClick = viewModel::regenerateInviteCode ) {
                             Icon(Icons.Default.Refresh, contentDescription = "Refresh Button")
                         }
@@ -190,6 +263,11 @@ fun CreateTripScreen(
             message = "Trip created! 🎉",
             visible = showSuccessToast,
             onDismiss = { showSuccessToast = false }
+        )
+        SuccessToast(
+            message = "Code copied! 📋",
+            visible = showCopyToast,
+            onDismiss = { showCopyToast = false }
         )
 
     }

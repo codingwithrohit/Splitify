@@ -64,7 +64,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.TripMember
+import com.example.splitify.presentation.components.FailureToast
 import com.example.splitify.presentation.components.InlineErrorMessage
+import com.example.splitify.presentation.components.LoadingButton
+import com.example.splitify.presentation.components.SuccessToast
 import com.example.splitify.util.CurrencyUtils
 import com.example.splitify.util.SnackbarController
 import kotlinx.coroutines.delay
@@ -87,25 +90,25 @@ fun AddExpenseScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val snackbarController = remember(snackbarHostState, scope) {
-        SnackbarController(snackbarHostState, scope)
+    var showSuccessToast by remember { mutableStateOf(false) }
+    var showFailureToast by remember { mutableStateOf(false) }
+
+    val message = when(viewModel.mode){
+        is ExpenseFormMode.Add -> "Expense added Successfully"
+        is ExpenseFormMode.Edit -> "Expense updated Successfully"
     }
 
     LaunchedEffect(uiState.isSaved) {
         if(uiState.isSaved){
-            val message = when(viewModel.mode){
-                is ExpenseFormMode.Add -> "Expense added Successfully"
-                is ExpenseFormMode.Edit -> "Expense updated Successfully"
-            }
-            snackbarController.showSuccess(message)
-            delay(500)
+            showSuccessToast = true
+            delay(1500)
             onNavigationBack()
         }
     }
     LaunchedEffect(uiState.amountError) {
         uiState.amountError?.let { error ->
             if (error.isNotBlank()) {
-                snackbarController.showError(error)
+                showFailureToast = true
             }
         }
     }
@@ -321,30 +324,30 @@ fun AddExpenseScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Save Button
-                Button(
+                LoadingButton(
+                    text = when (viewModel.mode) {
+                        is ExpenseFormMode.Add -> "Add Expense"
+                        is ExpenseFormMode.Edit -> "Update Expense"
+                    },
+                    isLoading = uiState.isLoading,
                     onClick = viewModel::saveExpense,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !uiState.isLoading
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Saving...")
-                    } else {
-                        Text(
-                            when (viewModel.mode) {
-                                is ExpenseFormMode.Add -> "Add Expense"
-                                is ExpenseFormMode.Edit -> "Update Expense"
-                            }
-                        )
-                    }
-                }
+                )
 
             }
         }
+        SuccessToast(
+            message = message,
+            visible = showSuccessToast,
+            onDismiss = { showSuccessToast = false }
+        )
+
+        FailureToast(
+            message = uiState.amountError ?: "An unknown error occurred",
+            visible = showFailureToast,
+            onDismiss = { showFailureToast = false }
+        )
     }
 }
 

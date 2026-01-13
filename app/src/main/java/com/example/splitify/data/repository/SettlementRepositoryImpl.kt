@@ -122,6 +122,7 @@ class SettlementRepositoryImpl @Inject constructor(
     ): Result<Settlement> {
         return try {
             val settlement = settlementDao.getSettlementById(settlementId)
+                ?: return Result.Error(Exception("Settlement not found"))
 
             val updatedSettlement = settlement.copy(
                 status = status.name,
@@ -135,7 +136,7 @@ class SettlementRepositoryImpl @Inject constructor(
             settlementDao.updateSettlement(updatedSettlement)
             Result.Success(updatedSettlement.toDomain())
         }catch (e: Exception){
-            Result.Error(Exception("Failed to update settlement"), e.message.toString())
+            Result.Error(e, "Failed to update settlement: ${e.message}")
         }
     }
 }
