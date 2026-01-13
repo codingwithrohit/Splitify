@@ -43,4 +43,6 @@ interface ExpenseSplitDao {
     """)
     fun getExpensesWithSplitsForTrip(tripId: String): Flow<Map<ExpenseEntity, List<ExpenseSplitEntity>>>
 
+
+
 }

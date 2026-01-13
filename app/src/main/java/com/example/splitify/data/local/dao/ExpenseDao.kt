@@ -48,4 +48,7 @@ interface ExpenseDao {
 
     @Query("Select SUM(amount) from expenses where trip_id = :tripId ")
     suspend fun getTotalExpenses(tripId: String): Double?
+
+    @Query("SELECT * FROM expenses WHERE trip_id = :tripId AND is_synced = 0")
+    suspend fun getUnsyncedExpensesForTrip(tripId: String): List<ExpenseEntity>
 }
