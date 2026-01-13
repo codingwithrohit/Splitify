@@ -34,8 +34,8 @@ interface TripMemberDao {
     @Query("Delete from trip_members where trip_id = :tripId")
     suspend fun deleteAllMembersForTrip(tripId: String)
 
-    @Query("Select * from trip_members where is_synced = 0")
-    suspend fun getUnsyncedMembers(): List<TripMemberEntity>
+    @Query("Select * from trip_members where trip_id = :tripId and is_synced = 0")
+    suspend fun getUnsyncedMembersForTrip(tripId: String): List<TripMemberEntity>
 
     @Query("Update trip_members set is_synced = 1 where id = :memberId")
     suspend fun markedAsSynced(memberId: String)
