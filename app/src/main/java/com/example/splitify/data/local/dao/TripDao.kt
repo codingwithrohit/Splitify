@@ -17,8 +17,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface TripDao {
 
-     /* Get all trips ordered by start date (newest first)
-        Returns Flow - updates automatically when data changes */
+
+    @Query("Select id from trips")
+    suspend fun getAllTripsId(): List<String>
     @Query("Select * from trips ORDER BY start_date DESC")
     fun getAllTrips(): Flow<List<TripEntity>>
 
@@ -34,7 +35,7 @@ interface TripDao {
     fun getTripsByUser(userId: String): Flow<List<TripEntity>>
 
     // Get trips that haven't been synced to Supabase yet
-    @Query("Select * From trips WHERE is_local = 1")
+    @Query("Select * From trips WHERE is_synced = 0")
     suspend fun getUnsyncedTrips(): List<TripEntity>
 
     // Insert a new trip, If trip with same Id exists, replace it

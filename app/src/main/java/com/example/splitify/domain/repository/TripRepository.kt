@@ -24,5 +24,7 @@ interface TripRepository {
 
     suspend fun clearLocalTrips(): Result<Unit>
 
+    suspend fun downloadTripsFromSupabase(): Result<Unit>
+
 
 }

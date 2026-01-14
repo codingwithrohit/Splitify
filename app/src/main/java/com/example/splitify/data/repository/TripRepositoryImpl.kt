@@ -1,10 +1,15 @@
 package com.example.splitify.data.repository
 
 import android.annotation.SuppressLint
+import android.util.Log
 import com.example.splitify.data.local.dao.TripDao
 import com.example.splitify.data.local.toDomain
 import com.example.splitify.data.local.toDomainModels
 import com.example.splitify.data.local.toEntity
+import com.example.splitify.data.remote.dto.TripDto
+import com.example.splitify.data.remote.toDto
+import com.example.splitify.data.remote.toEntity
+import com.example.splitify.data.sync.SyncManager
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.util.Result
@@ -31,11 +36,14 @@ import javax.inject.Inject
 
 class TripRepositoryImpl @Inject constructor(
     private val tripDao: TripDao,
-    private val supabase: SupabaseClient
+    private val supabase: SupabaseClient,
+    private val syncManager: SyncManager
 ): TripRepository {
 
-    //Get all trips from local database
-    //Converts entities to domain models automatically
+    suspend fun getAllTripsId(): List<String>{
+        return tripDao.getAllTripsId()
+    }
+
     override fun getAllTrips(): Flow<List<Trip>> {
         return tripDao.getAllTrips()
             .map { entities ->
@@ -78,7 +86,7 @@ class TripRepositoryImpl @Inject constructor(
         return try {
             //1. Save to local database first
             println("Creating trip in Room: ${trip.name}")
-            val entity = trip.toEntity()
+            val entity = trip.toEntity().copy(isLocal = true, isSynced = false)
             tripDao.insertTrip(entity)
             println("Created trip in Room: ${trip.name}")
 
@@ -103,12 +111,17 @@ class TripRepositoryImpl @Inject constructor(
                 )
                 supabase.from("trips").insert(tripDto)
                 println("✅ Trip synced to Supabase: ${trip.name}")
+
                 // Mark as synced in local DB
                 tripDao.insertTrip(entity.copy(isLocal = false, isSynced = true))
+
             }catch (syncError: Exception){
                 println("⚠️ Failed to sync to Supabase: ${syncError.message}")
                 syncError.printStackTrace()
             }
+
+            //Trigger immediate sync
+            syncManager.triggerImmediateSync()
 
             trip.asSuccess()
         }
@@ -120,29 +133,27 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun updateTrip(trip: Trip): Result<Unit> {
         return try {
-            val entity = trip.toEntity()
+            //1. Save to local database first
+            val entity = trip.toEntity().copy(isLocal = false, isSynced = false)
             tripDao.updateTrip(entity)
 
+
+            //2. Try to sync to supabase
             try {
-                val tripDto = TripDto(
-                    id = trip.id,
-                    name = trip.name,
-                    description = trip.description,
-                    createdBy = trip.createdBy,
-                    inviteCode = trip.inviteCode,
-                    startDate = trip.startDate,
-                    endDate = trip.endDate
-                )
+                val tripDto = trip.toEntity().toDto()
                 supabase.from("trips").update(tripDto) {
                     filter {
                         eq("id", trip.id)
                     }
                 }
+                tripDao.updateTrip(entity.copy(isSynced = true))
                 println("✅ Trip update synced to Supabase")
             }catch (syncError: Exception) {
                 println("⚠️ Failed to sync update: ${syncError.message}")
             }
 
+            //Trigger immediate sync
+            syncManager.triggerImmediateSync()
             Unit.asSuccess()
         }
         catch (e: Exception){
@@ -175,6 +186,9 @@ class TripRepositoryImpl @Inject constructor(
                 syncError.printStackTrace()
             }
 
+            //Trigger immediate sync
+            syncManager.triggerImmediateSync()
+
             Unit.asSuccess()
         } catch (e: Exception) {
             println("❌ Delete failed: ${e.message}")
@@ -185,13 +199,66 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun syncTrips(): Result<Unit> {
         return try {
-            // TODO: Implement Supabase sync
             // 1. Get unsynced trips (isLocal = true)
+            val unsyncedTrips = tripDao.getUnsyncedTrips()
             // 2. Upload to Supabase
+            unsyncedTrips.forEach { entity ->
+                try {
+                    supabase.from("trips").insert(entity.toDto())
+                    // MUST save the update back to the database
+                    tripDao.updateTrip(entity.copy(isLocal = false, isSynced = true))
+                } catch (e: Exception) {
+                    println("❌ Failed to sync individual trip ${entity.id}")
+                }
+            }
             // 3. Mark as synced
+            unsyncedTrips.forEach {tripEntity ->
+                tripEntity.copy(
+                    isSynced = true,
+                    isLocal = false
+                )
+            }
             Unit.asSuccess()
         } catch (e: Exception) {
             e.asError()
+        }
+    }
+
+
+    override suspend fun downloadTripsFromSupabase(): Result<Unit> {
+        return try {
+            Log.d("TripRepo", "📥 Downloading trips from Supabase...")
+
+            val session = supabase.auth.currentSessionOrNull()
+            if (session == null) {
+                Log.w("TripRepo", "⚠️ No session")
+                return Result.Success(Unit)
+            }
+
+            val userId = session.user?.id ?: return Result.Success(Unit)
+
+            // Fetch trips from Supabase
+            val tripDtos = supabase.from("trips")
+                .select()
+                .decodeList<TripDto>()
+
+            Log.d("TripRepo", "📊 Found ${tripDtos.size} trips on server")
+
+            // Save to Room
+            tripDtos.forEach { dto ->
+                val entity = dto.toEntity(createdAt = System.currentTimeMillis()).copy(
+                    isLocal = false,
+                    isSynced = true
+                )
+                tripDao.insertTrip(entity)
+            }
+
+            Log.d("TripRepo", "✅ Downloaded ${tripDtos.size} trips")
+            Result.Success(Unit)
+
+        } catch (e: Exception) {
+            Log.e("TripRepo", "❌ Download failed", e)
+            Result.Error(e)
         }
     }
 
@@ -205,36 +272,3 @@ class TripRepositoryImpl @Inject constructor(
     }
 }
 
-//DTO for supabase trips table
-@SuppressLint("UnsafeOptInUsageError")
-@Serializable
-data class TripDto(
-    val id: String,
-    val name: String,
-    val description: String?,
-
-    @SerialName("created_by")  // Maps to 'created_by' column
-    val createdBy: String,
-
-    @SerialName("invite_code")  // Maps to 'invite_code' column
-    val inviteCode: String,
-    @Serializable(with = LocalDateSerializer::class)
-    @SerialName("start_date")  // Maps to 'start_date' column
-    val startDate: LocalDate,
-    @Serializable(with = LocalDateSerializer::class)
-    @SerialName("end_date")  // Maps to 'end_date' column
-    val endDate: LocalDate?
-
-)
-object LocalDateSerializer : KSerializer<LocalDate> {
-    override val descriptor: SerialDescriptor =
-        PrimitiveSerialDescriptor("LocalDate", PrimitiveKind.STRING)
-
-    override fun serialize(encoder: Encoder, value: LocalDate) {
-        encoder.encodeString(value.toString()) // yyyy-MM-dd
-    }
-
-    override fun deserialize(decoder: Decoder): LocalDate {
-        return LocalDate.parse(decoder.decodeString())
-    }
-}

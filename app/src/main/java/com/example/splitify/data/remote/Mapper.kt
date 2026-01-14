@@ -3,11 +3,19 @@ package com.example.splitify.data.remote
 import com.example.splitify.data.local.entity.ExpenseEntity
 import com.example.splitify.data.local.entity.ExpenseSplitEntity
 import com.example.splitify.data.local.entity.SettlementEntity
+import com.example.splitify.data.local.entity.TripEntity
 import com.example.splitify.data.local.entity.TripMemberEntity
 import com.example.splitify.data.remote.dto.ExpenseDto
 import com.example.splitify.data.remote.dto.ExpenseSplitDto
+import com.example.splitify.data.remote.dto.ExpenseUpdateDto
 import com.example.splitify.data.remote.dto.SettlementDto
+import com.example.splitify.data.remote.dto.TripDto
 import com.example.splitify.data.remote.dto.TripMemberDto
+import com.example.splitify.domain.model.Category
+import com.example.splitify.domain.model.Expense
+import com.example.splitify.domain.model.Trip
+import com.example.splitify.util.formatDate
+import com.example.splitify.util.formatDateTime
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -16,6 +24,44 @@ import java.time.ZoneOffset
  * Convert Room entity to Supabase DTO
  * Used when uploading to Supabase
  */
+
+fun Trip.toDto() = TripDto(
+    id = id,
+    name = name,
+    description = description,
+    createdBy = createdBy,
+    inviteCode = inviteCode,
+    startDate = startDate,
+    endDate = endDate
+)
+
+fun TripEntity.toDto(): TripDto {
+    return TripDto(
+        id = this.id,
+        name = this.name,
+        description = this.description,
+        createdBy = this.createdBy,
+        inviteCode = this.inviteCode,
+        startDate = this.startDate,
+        endDate = this.endDate
+    )
+}
+fun TripDto.toEntity(createdAt: Long): TripEntity {
+    return TripEntity(
+        id = this.id,
+        name = this.name,
+        description = this.description,
+        startDate = this.startDate,
+        endDate = this.endDate,
+        inviteCode = this.inviteCode,
+        createdBy = this.createdBy,
+        createdAt = createdAt,
+        // Logic: Since it's coming FROM the server, these must be:
+        isLocal = false,
+        isSynced = true,
+        lastModified = System.currentTimeMillis()
+    )
+}
 
 fun TripMemberEntity.toDto(): TripMemberDto {
     return TripMemberDto(
@@ -93,6 +139,80 @@ fun ExpenseDto.toEntity(): ExpenseEntity {
         lastModified = System.currentTimeMillis()
     )
 }
+
+fun ExpenseEntity.toDomain(): Expense {
+    return Expense(
+        id = id,
+        tripId = tripId,
+        description = description,
+        amount = amount,
+        category = Category.valueOf(category),
+        expenseDate = expenseDate,
+        paidBy = paidBy,
+        createdBy = createdBy,
+        paidByName = paidByName,
+        isGroupExpense = isGroupExpense,
+        createdAt = createdAt,
+        updatedAt = updatedAt
+    )
+}
+
+fun Expense.toEntity(
+    isLocal: Boolean = true,
+    isSynced: Boolean = false
+): ExpenseEntity {
+    return ExpenseEntity(
+        id = id,
+        tripId = tripId,
+        description = description,
+        amount = amount,
+        category = category.name,
+        expenseDate = expenseDate,
+        paidBy = paidBy,
+        createdBy = createdBy,
+        paidByName = paidByName,
+        isGroupExpense = isGroupExpense,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        isLocal = isLocal,
+        isSynced = isSynced,
+        lastModified = System.currentTimeMillis()
+    )
+}
+
+fun Expense.toDto(): ExpenseDto {
+    return ExpenseDto(
+        id = id,
+        tripId = tripId,
+        description = description,
+        amount = amount,
+        category = category.name,
+        expenseDate = expenseDate,
+        paidBy = paidBy,
+        createdBy = createdBy,
+        paidByName = paidByName,
+        isGroupExpense = isGroupExpense,
+        createdAt = null,
+        updatedAt = null
+    )
+}
+
+fun Expense.toUpdateDto(): ExpenseUpdateDto {
+    return ExpenseUpdateDto(
+        tripId = tripId,
+        description = description,
+        amount = amount,
+        category = category.name,
+        expenseDate = expenseDate,
+        paidBy = paidBy,
+        createdBy = createdBy,
+        paidByName = paidByName,
+        isGroupExpense = isGroupExpense,
+        createdAt = null,
+        updatedAt = null
+    )
+}
+
 
 
 fun ExpenseSplitEntity.toDto(): ExpenseSplitDto {

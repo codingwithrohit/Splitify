@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.domain.repository.AuthRepository
+import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val tripRepository: TripRepository
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -64,6 +66,7 @@ class LoginViewModel @Inject constructor(
             val result = authRepository.signIn(state.email, state.password)
             when(result){
                 is Result.Success -> {
+                    tripRepository.downloadTripsFromSupabase()
                     _uiState.update { it.copy(
                         isLoading = false,
                         isLoggedIn = true

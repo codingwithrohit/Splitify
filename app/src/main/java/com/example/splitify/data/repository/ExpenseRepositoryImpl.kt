@@ -11,6 +11,8 @@ import com.example.splitify.data.local.toDomain
 import com.example.splitify.data.local.toEntity
 import com.example.splitify.data.local.toExpenseDomainModels
 import com.example.splitify.data.remote.toDto
+import com.example.splitify.data.remote.toUpdateDto
+import com.example.splitify.data.sync.SyncManager
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.ExpenseSplit
 import com.example.splitify.domain.model.TripMember
@@ -31,7 +33,8 @@ class ExpenseRepositoryImpl @Inject constructor(
     private val expenseDao: ExpenseDao,
     private val expenseSplitDao: ExpenseSplitDao,
     private val supabase: SupabaseClient,
-    private val database: AppDatabase
+    private val database: AppDatabase,
+    private val syncManager: SyncManager
 ): ExpenseRepository{
 
     override suspend fun addExpenseWithSplits(
@@ -45,7 +48,7 @@ class ExpenseRepositoryImpl @Inject constructor(
             //1. Insert expense to Room,
             database.withTransaction {
                 val expenseEntity = expense.toEntity().copy(
-                    isLocal = false,
+                    isLocal = true,
                     isSynced = false,
                     lastModified = System.currentTimeMillis()
                 )
@@ -91,6 +94,9 @@ class ExpenseRepositoryImpl @Inject constructor(
                 Log.e("ExpenseRepository", "⚠️ Sync failed: ${e.message}")
             }
 
+            //Trigger Immediate Sync
+            syncManager.triggerImmediateSync()
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Log.e("ExpenseRepository", "❌ Error saving expense", e)
@@ -101,13 +107,13 @@ class ExpenseRepositoryImpl @Inject constructor(
     override suspend fun updateExpenseWithSplits(expense: Expense, splits: List<ExpenseSplit>): Result<Expense> {
         return try {
             //1. Update expense to room
+            val expenseEntity = expense.toEntity().copy(
+                isSynced = false,
+                lastModified = System.currentTimeMillis()
+            )
             database.withTransaction {
                 Log.d("ExpenseRepository", "💾 Updating expense: ${expense.description}")
                 Log.d("ExpenseRepository", "💾 Updating expense with ${splits.size} splits")
-                val expenseEntity = expense.toEntity().copy(
-                    isSynced = false,
-                    lastModified = System.currentTimeMillis()
-                )
                 expenseDao.updateExpense(expenseEntity)
                 Log.d("ExpenseRepository", "✅ Expense updated in Room")
 
@@ -131,9 +137,13 @@ class ExpenseRepositoryImpl @Inject constructor(
                 }
 
                 Log.d("ExpenseRepository", "📤 Syncing to Supabase...")
-                supabase.from("expenses").update(expense.toEntity().toDto()){
-                    filter { eq("id", expense.id) }
-                }
+
+                //Update expense
+                supabase.from("expenses")
+                    .upsert(
+                        expense.toDto(),
+                        onConflict = "id"
+                    )
 
                 //Delete old splits
                 supabase.from("expense_splits").delete {
@@ -148,12 +158,15 @@ class ExpenseRepositoryImpl @Inject constructor(
 
                 //3. Mark as synced
                 database.withTransaction {
-                    expenseDao.updateExpense(expense.toEntity().copy(isSynced = true))
+                    expenseDao.updateExpense(expense.toEntity().copy(isSynced = true, isLocal = false))
                 }
                 Log.d("ExpenseRepository", "✅ Synced to Supabase")
             }catch (e: Exception){
                 Log.e("ExpenseRepository", "⚠️ Sync failed: ${e.message}")
             }
+
+            //Trigger Immediate Sync
+            syncManager.triggerImmediateSync()
 
             Result.Success(expense)
         }
@@ -163,18 +176,6 @@ class ExpenseRepositoryImpl @Inject constructor(
         }
     }
 
-
-    override fun getExpenseWithSplitsById(expenseId: String): Flow<Result<ExpenseWithSplits>> = flow {
-        try {
-            emit(Result.Loading)
-            expenseDao.getExpenseWithSplitsById(expenseId).collect { expenseWithSplits ->
-                emit(Result.Success(expenseWithSplits.toDomain()))
-            }
-        } catch (e: Exception) {
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            emit(Result.Error(e, "Failed to load expenses with Splits"))
-        }
-    }
 
     override suspend fun deleteExpense(expenseId: String): Result<Unit> {
         return try {
@@ -205,10 +206,26 @@ class ExpenseRepositoryImpl @Inject constructor(
             }catch (e: Exception){
                 Log.e("ExpenseRepository", "⚠️ Sync failed: ${e.message}")
             }
+
+            //Trigger Immediate Sync
+            syncManager.triggerImmediateSync()
+
             Unit.asSuccess()
         }
         catch (e: Exception){
             e.asError()
+        }
+    }
+
+    override fun getExpenseWithSplitsById(expenseId: String): Flow<Result<ExpenseWithSplits>> = flow {
+        try {
+            emit(Result.Loading)
+            expenseDao.getExpenseWithSplitsById(expenseId).collect { expenseWithSplits ->
+                emit(Result.Success(expenseWithSplits.toDomain()))
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            emit(Result.Error(e, "Failed to load expenses with Splits"))
         }
     }
 
@@ -260,42 +277,84 @@ class ExpenseRepositoryImpl @Inject constructor(
             }
     }
 
-    suspend fun syncUnsyncedExpenses(tripId: String): Result<Unit>{
+    suspend fun syncUnsyncedExpenses(tripId: String): Result<Unit> {
         return try {
             Log.d("ExpenseRepository", "📤 Syncing unsynced expenses")
-            val session = supabase.auth.currentSessionOrNull()
 
-            if(session == null){
+            val session = supabase.auth.currentSessionOrNull()
+            if (session == null) {
                 Log.d("ExpenseRepository", "⚠️ No session, skipping sync")
                 return Result.Success(Unit)
             }
 
             val unsyncedExpenses = expenseDao.getUnsyncedExpensesForTrip(tripId)
+
             unsyncedExpenses.forEach { expenseEntity ->
                 try {
-                    supabase.from("expenses").insert(expenseEntity.toDto())
+                    Log.d("ExpenseRepo", "🔄 Syncing expense ${expenseEntity.id}")
 
-                    val splits = expenseSplitDao.getSplitsForExpenseSync(tripId)
-                    splits.map {
-                        it.toDto()
-                    }.also {
-                        supabase.from("expense_splits").insert(it)
+                    // 1️⃣ UPSERT expense (safe)
+                    supabase
+                        .from("expenses")
+                        .upsert(
+                            expenseEntity.toDto(),
+                            onConflict = "id"
+                        )
+
+                    // 2️⃣ DELETE old splits (CRITICAL FIX)
+                    supabase
+                        .from("expense_splits")
+                        .delete {
+                            filter { eq("expense_id", expenseEntity.id) }
+                        }
+
+                    // 3️⃣ INSERT fresh splits
+                    val splits = expenseSplitDao
+                        .getSplitsForExpenseSync(expenseEntity.id)
+                        .distinctBy { it.memberId }
+                    Log.d("ExpenseRepo", "📊 Re-inserting ${splits.size} splits")
+
+                    splits.forEach {
+                        Log.d(
+                            "ExpenseRepo",
+                            "➡️ split member=${it.memberId} amount=${it.amountOwed}"
+                        )
                     }
 
-                    // Mark as synced
-                    expenseDao.updateExpense(expenseEntity.copy(isSynced = true))
+
+                    if (splits.isNotEmpty()) {
+                        supabase
+                            .from("expense_splits")
+                            .upsert(
+                                splits.map { it.toDto() },
+                                onConflict = "expense_id, member_id")
+                    }
+
+                    // 4️⃣ Mark expense as synced ONLY after success
+                    expenseDao.updateExpense(
+                        expenseEntity.copy(isSynced = true)
+                    )
+
                     Log.d("ExpenseRepo", "✅ Synced expense: ${expenseEntity.description}")
-                }catch (e: Exception){
-                    Log.e("ExpenseRepo", "❌ Failed to sync expense: $e")
+
+                } catch (e: Exception) {
+                    Log.e(
+                        "ExpenseRepo",
+                        "❌ Failed to sync expense ${expenseEntity.id}",
+                        e
+                    )
+                    // Do NOT mark as synced
                 }
             }
 
             Result.Success(Unit)
-        }catch (e: Exception) {
+
+        } catch (e: Exception) {
             Log.e("ExpenseRepo", "❌ Sync failed", e)
             Result.Error(e)
         }
     }
+
 
     override suspend fun createExpenseWithSplits(
         expense: Expense,

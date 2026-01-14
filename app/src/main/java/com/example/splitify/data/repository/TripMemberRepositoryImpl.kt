@@ -7,6 +7,7 @@ import com.example.splitify.data.local.toDomain
 import com.example.splitify.data.local.toEntity
 import com.example.splitify.data.remote.dto.TripMemberDto
 import com.example.splitify.data.remote.toDto
+import com.example.splitify.data.sync.SyncManager
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.repository.TripMemberRepository
 import com.example.splitify.util.Result
@@ -21,7 +22,8 @@ import javax.inject.Inject
 
 class TripMemberRepositoryImpl @Inject constructor(
     private val tripMemberDao: TripMemberDao,
-    private val supabase: SupabaseClient
+    private val supabase: SupabaseClient,
+    private val syncManager: SyncManager
 ) : TripMemberRepository {
 
     override fun getMembersForTrip(tripId: String): Flow<Result<List<TripMember>>> {
@@ -101,6 +103,10 @@ class TripMemberRepositoryImpl @Inject constructor(
             }catch (e: Exception){
                 Log.e("TripMemberRepo", "⚠️ Sync failed: ${e.message}")
             }
+
+            //Trigger Immediate Sync
+            syncManager.triggerImmediateSync()
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -138,6 +144,9 @@ class TripMemberRepositoryImpl @Inject constructor(
             }catch (syncError: Exception){
                 Log.e("TripMemberRepo", "⚠️ Sync failed: ${syncError.message}")
             }
+
+            //Trigger Immediate Sync
+            syncManager.triggerImmediateSync()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -193,7 +202,8 @@ class TripMemberRepositoryImpl @Inject constructor(
             }catch (syncError: Exception){
                 Log.e("TripMemberRepo", "⚠️ Sync failed: ${syncError.message}")
             }
-
+            //Trigger Immediate Sync
+            syncManager.triggerImmediateSync()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)

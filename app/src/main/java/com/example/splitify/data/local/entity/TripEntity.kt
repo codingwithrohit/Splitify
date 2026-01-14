@@ -25,9 +25,9 @@ data class TripEntity(
 
     //Sync related fields
     @ColumnInfo("is_local")
-    val isLocal: Boolean = false,  // Not yet synced to Supabase
+    val isLocal: Boolean = true,  // Indicates if the trip is stored locally on the device
     @ColumnInfo("is_synced")
-    val isSynced: Boolean = true,
+    val isSynced: Boolean = false,  // Indicates if the trip is synced to the server
     @ColumnInfo("last_modified")
     val lastModified: Long = System.currentTimeMillis()
 )
