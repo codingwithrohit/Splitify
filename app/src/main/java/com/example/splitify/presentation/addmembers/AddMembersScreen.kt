@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -60,10 +61,12 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.TripMember
+import com.example.splitify.domain.model.User
 import com.example.splitify.presentation.components.SuccessToast
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,9 +110,12 @@ fun AddMemberScreen(
                     members = state.members,
                     onAddMember = viewModel::addMemberByName,
                     onRemoveMember = viewModel::removeMember,
-                    onSearch = viewModel::searchUsers,
+                    onSearchQueryChange = viewModel::onSearchQueryChange,
+                    onClearSearch = viewModel::clearSearch,
                     searchResults = state.searchResults,
-                    isSearching = state.isSearching
+                    isSearching = state.isSearching,
+                    searchQuery = state.searchQuery,
+                    hasSearched = state.hasSearched
                 )
             }
             is AddMembersUiState.Error -> {
@@ -141,22 +147,27 @@ fun AddMemberScreen(
 fun AddMemberContent(
     modifier: Modifier,
     members: List<TripMember>,
+    searchQuery: String,
+    searchResults: List<User>,
+    isSearching: Boolean,
+    hasSearched: Boolean,  // ✨ NEW
     onAddMember: (String) -> Unit,
     onRemoveMember: (String, String) -> Unit,
-    onSearch: (String) -> Unit,
-    searchResults: List<TripMember>,
-    isSearching: Boolean
-){
+    onSearchQueryChange: (String) -> Unit,
+    onClearSearch: () -> Unit
+) {
     var memberName by remember { mutableStateOf("") }
-    var searchQuery by remember { mutableStateOf("") }
     var showRemoveDialog by remember { mutableStateOf<TripMember?>(null) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
             .padding(16.dp)
-    )
-    {
+    ) {
+        // =====================================================
+        // ADD MEMBER BY NAME SECTION
+        // =====================================================
         Text(
             text = "Add Member by Name",
             style = MaterialTheme.typography.titleMedium,
@@ -169,8 +180,8 @@ fun AddMemberContent(
             value = memberName,
             onValueChange = { memberName = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Add Member") },
-            placeholder = { Text("e.g. Rohit Dhanraj") },
+            label = { Text("Member Name") },
+            placeholder = { Text("e.g., John Doe") },
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
             trailingIcon = {
@@ -182,10 +193,10 @@ fun AddMemberContent(
                             keyboardController?.hide()
                         }
                     },
-                    enabled = memberName.isNotBlank() // Visual feedback
+                    enabled = memberName.isNotBlank()
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AddCircle, // More prominent icon
+                        imageVector = Icons.Default.AddCircle,
                         contentDescription = "Add",
                         tint = if (memberName.isNotBlank())
                             MaterialTheme.colorScheme.primary
@@ -211,78 +222,137 @@ fun AddMemberContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // =====================================================
+        // SEARCH EXISTING USERS SECTION
+        // =====================================================
         Text(
             text = "Search Existing Users",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
 
+        Spacer(modifier = Modifier.height(8.dp))
+
         OutlinedTextField(
             value = searchQuery,
-            onValueChange = {
-                searchQuery = it
-                onSearch(it)
-            },
+            onValueChange = onSearchQueryChange,
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Search by username") },
-            leadingIcon = { Icon(Icons.Default.Search, "Search")},
+            placeholder = { Text("Type to search...") },
+            leadingIcon = {
+                Icon(Icons.Default.Search, "Search")
+            },
             trailingIcon = {
-                if(searchQuery.isNotEmpty()){
-                    IconButton(
-                        onClick = {
-                            searchQuery = ""
-                            onSearch("")
-                        }
-                    ) {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = onClearSearch) {
                         Icon(Icons.Default.Clear, "Clear")
                     }
                 }
             },
             singleLine = true,
-
+            shape = RoundedCornerShape(12.dp)
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // =====================================================
+        // SEARCH RESULTS SECTION
+        // =====================================================
         when {
+            // CASE 1: Currently searching
             isSearching -> {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.Center
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 ) {
-                    CircularProgressIndicator()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            "Searching...",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
 
-            searchQuery.isNotBlank() && searchResults.isEmpty() -> {
-                Text(
-                    text = "No users found",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(8.dp)
-                )
+            // CASE 2: Search completed, no results
+            hasSearched && searchResults.isEmpty() && searchQuery.isNotBlank() -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "No users found for \"$searchQuery\"",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
 
+            // CASE 3: Search completed, results found
             searchResults.isNotEmpty() -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 220.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
                 ) {
-                    items(searchResults, key = { it.id }) { user ->
-                        MemberItem(
-                            member = user,
-                            onRemove = null, // ❗ reuse UI, disable remove
-                            onClick = {
-                                onAddMember(user.displayName)
-                                searchQuery = ""
-                                onSearch("")
-                                keyboardController?.hide()
-                            }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            "Found ${searchResults.size} user(s)",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 220.dp),
+                            contentPadding = PaddingValues(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(searchResults, key = { it.id }) { user ->
+                                SearchResultUserItem(
+                                    user = user,
+                                    onClick = {
+                                        onAddMember(user.userName)
+                                        onClearSearch()
+                                        keyboardController?.hide()
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -290,6 +360,9 @@ fun AddMemberContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // =====================================================
+        // CURRENT MEMBERS SECTION
+        // =====================================================
         Text(
             text = "Current Members (${members.size})",
             style = MaterialTheme.typography.titleMedium,
@@ -298,18 +371,17 @@ fun AddMemberContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        if(members.isEmpty()){
+        if (members.isEmpty()) {
             EmptyState(
                 message = "No members yet",
                 icon = Icons.Default.Person
             )
-        }
-        else{
+        } else {
             LazyColumn(
-                Modifier.fillMaxHeight(),
+                modifier = Modifier.fillMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(members, key = {it.id}){ member ->
+                items(members, key = { it.id }) { member ->
                     MemberItem(
                         member = member,
                         onRemove = { showRemoveDialog = member }
@@ -318,6 +390,8 @@ fun AddMemberContent(
             }
         }
     }
+
+    // Remove dialog
     showRemoveDialog?.let { member ->
         AlertDialog(
             onDismissRequest = { showRemoveDialog = null },
@@ -428,6 +502,75 @@ fun MemberItem(
                     )
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun SearchResultUserItem(
+    user: User,  // ← Takes User, not TripMember
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                // Avatar
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = user.userName.firstOrNull()?.uppercase() ?: "?",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = user.userName,  // ← User's username
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    if (user.fullName != null) {
+                        Text(
+                            text = user.fullName,  // ← User's full name
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // Add icon
+            Icon(
+                imageVector = Icons.Default.AddCircle,
+                contentDescription = "Add user",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }

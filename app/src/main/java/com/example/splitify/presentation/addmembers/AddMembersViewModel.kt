@@ -16,8 +16,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.example.splitify.util.Result
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.time.debounce
 import javax.inject.Inject
 @HiltViewModel
 class AddMembersViewModel @Inject constructor(
@@ -35,8 +39,11 @@ class AddMembersViewModel @Inject constructor(
     private val _toastMessage = MutableStateFlow("")
     val toastMessage: StateFlow<String> = _toastMessage.asStateFlow()
 
+    private val searchQueryFlow = MutableStateFlow("")
+
     init {
         loadMembers()
+        setUpSearchDebouncing()
     }
 
     private fun loadMembers() {
@@ -146,40 +153,104 @@ class AddMembersViewModel @Inject constructor(
         }
     }
 
-    fun searchUsers(query: String) {
+    @OptIn(FlowPreview::class)
+    private fun setUpSearchDebouncing(){
+        viewModelScope.launch {
+            searchQueryFlow
+                .debounce(500) // Wait 500ms after last keystroke
+                .distinctUntilChanged()
+                .collect { query ->
+                    performSearch(query)
+                }
+        }
+    }
+
+    fun onSearchQueryChange(query: String) {
+        searchQueryFlow.value = query
+
+        // Update UI state immediately to show query
+        val currentState = _uiState.value
+        if (currentState is AddMembersUiState.Success) {
+            _uiState.value = currentState.copy(
+                searchQuery = query,
+                isSearching = query.isNotBlank(), // Show loading if typing
+                hasSearched = false
+            )
+        }
+    }
+
+    fun clearSearch() {
+        searchQueryFlow.value = ""
+        val currentState = _uiState.value
+        if (currentState is AddMembersUiState.Success) {
+            _uiState.value = currentState.copy(
+                searchQuery = "",
+                searchResults = emptyList(),
+                isSearching = false,
+                hasSearched = false
+            )
+        }
+    }
+
+    private suspend fun performSearch(query: String) {
         if (query.isBlank()) {
-            // Reset search results
+            // Clear results
             val currentState = _uiState.value
             if (currentState is AddMembersUiState.Success) {
                 _uiState.value = currentState.copy(
+                    searchQuery = "",
                     searchResults = emptyList(),
-                    isSearching = false
+                    isSearching = false,
+                    hasSearched = false
                 )
             }
             return
         }
 
-        viewModelScope.launch {
-            val currentState = _uiState.value
-            if (currentState is AddMembersUiState.Success) {
-                _uiState.value = currentState.copy(isSearching = true)
-            }
+        Log.d("AddMembersVM", "🔍 Searching for: $query")
 
-            searchUsersUseCase(query).collect { result ->
-                val state = _uiState.value
-                if (state is AddMembersUiState.Success) {
-                    when (result) {
-                        is Result.Success -> {
-                            _uiState.value = state.copy(
-                                searchResults = result.data,
-                                isSearching = false
-                            )
+        val currentState = _uiState.value
+        if (currentState !is AddMembersUiState.Success) return
+
+        // Set searching state
+        _uiState.value = currentState.copy(
+            isSearching = true,
+            hasSearched = false
+        )
+
+        // Perform search
+        searchUsersUseCase(query).collect { result ->
+            val state = _uiState.value
+            if (state is AddMembersUiState.Success) {
+                when (result) {
+                    is Result.Success -> {
+                        Log.d("AddMembersVM", "✅ Found ${result.data.size} users")
+
+                        // ✨ Filter out users already in trip
+                        val existingUserIds = state.members
+                            .mapNotNull { it.userId }  // Get user IDs of existing members
+                            .toSet()
+
+                        val filteredResults = result.data.filter { user ->
+                            user.id !in existingUserIds
                         }
-                        is Result.Error -> {
-                            _uiState.value = state.copy(isSearching = false)
-                            _toastMessage.value = result.message
-                        }
-                        else -> {}
+
+                        _uiState.value = state.copy(
+                            searchResults = filteredResults,
+                            isSearching = false,
+                            hasSearched = true // ✨ Mark as searched
+                        )
+                    }
+                    is Result.Error -> {
+                        Log.e("AddMembersVM", "❌ Search failed: ${result.message}")
+                        _uiState.value = state.copy(
+                            isSearching = false,
+                            hasSearched = true
+                        )
+                        _toastMessage.value = "Search failed: ${result.message}"
+                    }
+                    is Result.Loading -> {
+                        // Keep searching state
                     }
                 }
             }

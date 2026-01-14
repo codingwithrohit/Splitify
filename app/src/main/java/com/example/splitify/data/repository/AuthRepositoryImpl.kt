@@ -153,4 +153,26 @@ class AuthRepositoryImpl @Inject constructor(
         )
     }
 
+    override fun searchUsersByUsername(query: String): Flow<Result<List<User>>> = flow {
+        try {
+            emit(Result.Loading)
+
+            val users = supabase.from("users")
+                .select {
+                    filter {
+                        or {
+                            ilike("username", "%$query%")
+                            ilike("full_name", "%$query%")
+                        }
+                    }
+                }
+                .decodeList<UserDto>()
+                .take(20)  // Limit results
+
+            emit(Result.Success(users.map { it.toDomainModel() }))
+        } catch (e: Exception) {
+            emit(Result.Error(e, "Search failed: ${e.message}"))
+        }
+    }
+
 }
