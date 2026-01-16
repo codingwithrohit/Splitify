@@ -22,7 +22,11 @@ data class TripDto(
     val startDate: LocalDate,
     @Serializable(with = LocalDateSerializer::class)
     @SerialName("end_date")  // Maps to 'end_date' column
-    val endDate: LocalDate?
+    val endDate: LocalDate?,
+    @SerialName("created_at")
+    val createdAt: String? = null, // Format: "2026-01-13T13:22:45.123Z"
+    @SerialName("updated_at")
+    val updatedAt: String? = null
 
 )
 

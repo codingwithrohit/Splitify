@@ -4,14 +4,19 @@ import com.example.splitify.domain.model.Trip
 
 sealed interface TripsUiState {
 
-    data object Loading: TripsUiState
+    data object InitialLoading : TripsUiState   // app start only
 
-    data class Success(
+    data class Content(
         val trips: List<Trip>,
-        val isRefreshing: Boolean = false  // for pull-to-refresh later
-    ): TripsUiState
+        val isSyncing: Boolean
+    ) : TripsUiState
+
+    data class Empty(
+        val isSyncing: Boolean
+    ) : TripsUiState
 
     data class Error(
-        val message: String
-    ): TripsUiState
+        val message: String,
+        val trips: List<Trip> = emptyList()
+    ) : TripsUiState
 }

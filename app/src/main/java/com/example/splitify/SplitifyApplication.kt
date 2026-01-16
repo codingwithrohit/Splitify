@@ -1,6 +1,9 @@
 package com.example.splitify
 
 import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
@@ -20,6 +23,23 @@ class SplitifyApplication: Application(), Configuration.Provider {
         super.onCreate()
 
         syncManager.schedulePeriodicSync()
+
+        registerNetworkCallback()
+    }
+
+    private fun registerNetworkCallback() {
+        val connectivityManager =
+            getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        connectivityManager.registerDefaultNetworkCallback(
+            object : ConnectivityManager.NetworkCallback() {
+
+                override fun onAvailable(network: Network) {
+                    Log.d("SplitifyApp", "🌐 Network available → trigger immediate sync")
+                    syncManager.triggerImmediateSync()
+                }
+            }
+        )
     }
 
     override val workManagerConfiguration: Configuration
@@ -30,5 +50,6 @@ class SplitifyApplication: Application(), Configuration.Provider {
                 .setWorkerFactory(workerFactory)
                 .build()
         }
+
 
 }

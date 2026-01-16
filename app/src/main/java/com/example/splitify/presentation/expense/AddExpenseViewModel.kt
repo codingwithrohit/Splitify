@@ -32,6 +32,7 @@ import com.example.splitify.util.ValidationUtils
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -359,13 +360,9 @@ class AddExpenseViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
-            val currentUserId = authRepository.getCurrentUser().firstOrNull()?.id
-            if (currentUserId == null) {
-                _uiState.update {
-                    it.copy(amountError = "User not authenticated", isLoading = false)
-                }
-                return@launch
-            }
+            val currentUser = authRepository.getCurrentUser()
+                .filterNotNull()
+                .first()
 
             val result = when (mode) {
                 is ExpenseFormMode.Add -> {
@@ -376,7 +373,7 @@ class AddExpenseViewModel @Inject constructor(
                         category = state.category,
                         date = state.expenseDate,
                         paidBy = paidByMemberId, // Passing the Member ID
-                        createdBy = currentUserId,
+                        createdBy = currentUser.id,
                         isGroupExpense = _isGroupExpense.value,
                         participatingMemberIds = participants
                     )
@@ -394,7 +391,7 @@ class AddExpenseViewModel @Inject constructor(
                         category = state.category,
                         expenseDate = state.expenseDate,
                         paidBy = paidByMemberId,
-                        createdBy = currentUserId,
+                        createdBy = currentUser.id,
                         isGroupExpense = _isGroupExpense.value,
                         paidByName = state.members.find { it.id == paidByMemberId }?.displayName ?: "",
                         createdAt = System.currentTimeMillis(),
@@ -417,6 +414,7 @@ class AddExpenseViewModel @Inject constructor(
             // 5. Handle Result
             when (result) {
                 is Result.Success -> {
+                    Log.d("AddExpenseVM", "💾 Saving expense for user: ${currentUser.userName}")
                     _uiState.update { it.copy(isSaved = true, isLoading = false) }
                 }
                 is Result.Error -> {

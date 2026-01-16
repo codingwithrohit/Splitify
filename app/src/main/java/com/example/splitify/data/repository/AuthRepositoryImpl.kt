@@ -1,6 +1,8 @@
 package com.example.splitify.data.repository
 
 import android.annotation.SuppressLint
+import android.util.Log
+import com.example.splitify.data.local.SessionManager
 import com.example.splitify.domain.model.User
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.util.asError
@@ -17,35 +19,32 @@ import com.example.splitify.util.Result
 
 @SuppressLint("UnsafeOptInUsageError")
 class AuthRepositoryImpl @Inject constructor(
-    private val supabase: SupabaseClient
+    private val supabase: SupabaseClient,
+    private val sessionManager: SessionManager
 ): AuthRepository {
 
-    override fun getCurrentUser(): Flow<User?> =
-        flow {
-            emit(
-                runCatching {
-                    val session = supabase.auth.currentSessionOrNull()
-                        ?: return@runCatching null
-
-                    val userId = session.user?.id ?: return@runCatching null
-
-                    supabase.from("users")
-                        .select()
-                        .decodeList<UserDto>()
-                        .firstOrNull { it.id == userId }
-                        ?.toDomainModel()
-                }.getOrNull()
-            )
+    override fun getCurrentUser(): Flow<User?> = flow {
+        val session = sessionManager.getCurrentUserFlow()
+        session.collect { userSession ->
+            if (userSession != null) {
+                emit(User(
+                    id = userSession.userId,
+                    email = userSession.email,
+                    userName = userSession.userName,
+                    fullName = userSession.fullName,
+                    avatarUrl = userSession.avatarUrl,
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = null
+                ))
+            } else {
+                emit(null)
+            }
         }
+    }
 
 
     override suspend fun isLoggedIn(): Boolean {
-        return try {
-            supabase.auth.currentSessionOrNull() != null
-        }
-        catch (e: Exception){
-            false
-        }
+        return sessionManager.hasValidSession()
     }
 
     override suspend fun signUp(
@@ -60,9 +59,12 @@ class AuthRepositoryImpl @Inject constructor(
                 this.email = email
                 this.password = password
             }
-            //2.  Get current user (session is created immediately if email confirmation is OFF)
-            val userId = supabase.auth.currentUserOrNull()?.id ?:
-            return Exception("Failed to get user id").asError()
+            //2. Get current session (contain tokens)
+            val session = supabase.auth.currentSessionOrNull() ?:
+            return Exception("Failed to get session").asError()
+
+            val userId = session.user?.id
+                ?: return Exception("Failed to get user id").asError()
 
             //3. Create user profile in database
             val userDto = UserDto(
@@ -72,6 +74,20 @@ class AuthRepositoryImpl @Inject constructor(
                 full_name = fullName
             )
             supabase.from("users").insert(userDto)
+
+            //4. Save session token
+            sessionManager.saveSession(
+                accessToken = session.accessToken,
+                refreshToken = session.refreshToken,
+                userId = userId,
+                userName = userName,
+                userEmail = email,
+                fullName = fullName,
+                avatarUrl = null
+            )
+
+            Log.d("AuthRepo", "✅ Sign up successful, session saved")
+
             userDto.toDomainModel().asSuccess()
         }
         catch (e: Exception){
@@ -89,7 +105,10 @@ class AuthRepositoryImpl @Inject constructor(
                 this.email = email
                 this.password = password
             }
-            val userId = supabase.auth.currentUserOrNull()?.id
+            val session = supabase.auth.currentSessionOrNull()
+                ?: return Exception("Failed to get session").asError()
+
+            val userId = session.user?.id
                 ?: return Exception("Failed to get user ID").asError()
 
             val userProfile = supabase.from("users")
@@ -97,6 +116,25 @@ class AuthRepositoryImpl @Inject constructor(
                 .decodeList<UserDto>()
                 .firstOrNull{it.id == userId}
                 ?: return Exception("User profile not found").asError()
+
+            sessionManager.saveSession(
+                accessToken = session.accessToken,
+                refreshToken = session.refreshToken,
+                userId = userId,
+                userEmail = userProfile.email,
+                userName = userProfile.username,
+                fullName = userProfile.full_name,
+                avatarUrl = userProfile.avatar_url
+            )
+            Log.d("AuthRepo:", "Saved Session detail: " +
+                    "accessToken = ${session.accessToken} " +
+                    "refreshToken = ${session.refreshToken} " +
+                    "userId = ${session.user?.id}" +
+                    "userName = ${userProfile.username}" +
+                    "userEmail = ${userProfile.email}" +
+                    "fullName = ${userProfile.full_name}"
+            )
+            Log.d("AuthRepo", "✅ Sign in successful, session saved")
             userProfile.toDomainModel().asSuccess()
         }
         catch (e: Exception){
@@ -121,9 +159,13 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun signOut(): Result<Unit> {
         return try {
             supabase.auth.signOut()
+
+            sessionManager.clearSession()
+            Log.d("AuthRepo", "✅ Signed out successfully")
             Unit.asSuccess()
         }
         catch (e: Exception){
+            Log.e("AuthRepo", "❌ Sign out failed: ${e.message}")
             e.asError()
         }
     }

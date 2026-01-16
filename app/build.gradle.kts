@@ -9,8 +9,8 @@ plugins {
 }
 
 val localProps = gradleLocalProperties(rootProject.projectDir)
-println("SUPABASE_URL from local.properties = ${localProps.getProperty("SUPABASE_URL")}")
-println("SUPABASE_KEY from local.properties = ${localProps.getProperty("SUPABASE_KEY")}")
+//println("SUPABASE_URL from local.properties = ${localProps.getProperty("SUPABASE_URL")}")
+//println("SUPABASE_KEY from local.properties = ${localProps.getProperty("SUPABASE_KEY")}")
 
 
 val supabaseUrl = localProps.getProperty("SUPABASE_URL")

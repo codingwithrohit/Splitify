@@ -94,9 +94,6 @@ class ExpenseRepositoryImpl @Inject constructor(
                 Log.e("ExpenseRepository", "⚠️ Sync failed: ${e.message}")
             }
 
-            //Trigger Immediate Sync
-            syncManager.triggerImmediateSync()
-
             Result.Success(Unit)
         } catch (e: Exception) {
             Log.e("ExpenseRepository", "❌ Error saving expense", e)
@@ -165,9 +162,6 @@ class ExpenseRepositoryImpl @Inject constructor(
                 Log.e("ExpenseRepository", "⚠️ Sync failed: ${e.message}")
             }
 
-            //Trigger Immediate Sync
-            syncManager.triggerImmediateSync()
-
             Result.Success(expense)
         }
         catch (e: Exception){
@@ -206,9 +200,6 @@ class ExpenseRepositoryImpl @Inject constructor(
             }catch (e: Exception){
                 Log.e("ExpenseRepository", "⚠️ Sync failed: ${e.message}")
             }
-
-            //Trigger Immediate Sync
-            syncManager.triggerImmediateSync()
 
             Unit.asSuccess()
         }

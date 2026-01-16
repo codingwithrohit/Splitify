@@ -62,14 +62,7 @@ fun TripsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var isRefreshing by remember { mutableStateOf(false) }
 
-//    LaunchedEffect(uiState) {
-//        isRefreshing = false
-//    }
-    LaunchedEffect(uiState) {
-        if (uiState is TripsUiState.Success || uiState is TripsUiState.Error) {
-            isRefreshing = false
-        }
-    }
+
 
 
     Scaffold(
@@ -97,54 +90,40 @@ fun TripsScreen(
         }
     ){paddingValues ->
 
-        when(uiState){
-            is TripsUiState.Loading -> {
-                if(!isRefreshing){
-                    LoadingScreen(
-                        message = "Loading your trips...",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
+        when (uiState) {
+
+            TripsUiState.InitialLoading -> {
+                LoadingScreen("Preparing your trips…")
+            }
+
+            is TripsUiState.Empty -> {
+                EmptyTripsState(
+                    onCreateTripClick,
+                    modifier = Modifier.padding(paddingValues)
+                )
+            }
+
+            is TripsUiState.Content -> {
+                val state = uiState as TripsUiState.Content
+
+                PullToRefreshBox(
+                    isRefreshing = state.isSyncing,
+                    onRefresh = viewModel::refresh,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    TripsList(
+                        trips = state.trips,
+                        onTripClick = onTripClick,
+                        onDeleteTrip = viewModel::deleteTrip,
+                        modifier = Modifier.padding(paddingValues)
                     )
                 }
             }
-            is TripsUiState.Success -> {
-                val trips = (uiState as TripsUiState.Success).trips
-                if(trips.isEmpty()){
-                    EmptyTripsState(
-                        onCreateTripClick,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                    )
-                }
-                else{
-                    PullToRefreshBox(
-                        isRefreshing = isRefreshing,
-                        onRefresh = {
-                            isRefreshing = true
-                            viewModel.refresh()
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        TripsList(
-                            trips = trips,
-                            onTripClick = onTripClick,
-                            onDeleteTrip = { tripId -> viewModel.deleteTrip(tripId) },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(paddingValues)
-                        )
-                    }
-                }
-            }
+
             is TripsUiState.Error -> {
                 ErrorStateWithRetry(
                     message = (uiState as TripsUiState.Error).message,
-                    onRetry = { viewModel.refresh() },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
+                    onRetry = viewModel::refresh
                 )
             }
         }
@@ -179,71 +158,6 @@ fun TripsList(
 
 }
 
-@Composable
-fun TripCard(
-    trip: Trip,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth(),
-            //.clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = trip.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                if (trip.description != null) {
-                    Text(
-                        text = trip.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Text(
-                    text = formatDateRange(trip.startDate.toString(), trip.endDate?.toString()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = "Code: ${trip.inviteCode}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Delete trip",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-
-    }
-
-}
 private fun formatDateRange(startDate: String, endDate: String?): String {
     return if (endDate != null) {
         "$startDate → $endDate"
@@ -251,80 +165,7 @@ private fun formatDateRange(startDate: String, endDate: String?): String {
         startDate
     }
 }
-@Composable
-fun TripCardWithActions(
-    trip: Trip,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // ✨ Wrap in AnimatedCard for press animation
-    AnimatedCard(
-        onClick = onClick,
-        modifier = modifier
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Trip info (takes most space)
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = trip.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
 
-                if (trip.description != null && trip.description.isNotBlank()) {
-                    Text(
-                        text = trip.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Text(
-                    text = formatDateRange(
-                        trip.startDate.toString(),
-                        trip.endDate?.toString()
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = "Code: ${trip.inviteCode}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            // Delete button (stops click propagation)
-            IconButton(
-                onClick = onDelete // This won't trigger the card onClick
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete trip",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-    }
-}
-
-/**
- * ALTERNATIVE: With confirmation dialog
- */
 @Composable
 fun TripCardWithDeleteConfirmation(
     trip: Trip,

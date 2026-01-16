@@ -67,7 +67,9 @@ class RealtimeManager @Inject constructor(
                             handleExpenseDelete(oldRecord)
                         }
 
-                        is PostgresAction.Select -> TODO()
+                        is PostgresAction.Select -> {
+                            Log.d(TAG, "ℹ️ SELECT event received (ignored)")
+                        }
                     }
                 }.launchIn(scope)
 
@@ -76,10 +78,23 @@ class RealtimeManager @Inject constructor(
                     table = "trip_members"
                     filter = "trip_id=eq.$tripId"
                 }.onEach { action ->
-                    if (action is PostgresAction.Insert) {
-                        handleMemberInsert(action.decodeRecord<TripMemberDto>())
+                    when (action) {
+                        is PostgresAction.Insert -> {
+                            val record = action.decodeRecord<TripMemberDto>()
+                            handleMemberInsert(record)
+                        }
+                        is PostgresAction.Delete -> {
+                            val oldRecord = action.decodeOldRecord<TripMemberDto>()
+                            handleMemberDelete(oldRecord)
+                        }
+                        is PostgresAction.Update -> {
+                            val record = action.decodeRecord<TripMemberDto>()
+                            handleMemberUpdate(record)
+                        }
+                        is PostgresAction.Select -> {
+                            Log.d(TAG, "ℹ️ SELECT event received (ignored)")
+                        }
                     }
-                    // Add Delete handler if needed
                 }.launchIn(scope)
 
                 channel.subscribe()
@@ -132,6 +147,16 @@ class RealtimeManager @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to insert member", e)
+        }
+    }
+
+    private suspend fun handleMemberUpdate(memberDto: TripMemberDto) {
+        try {
+            val entity = memberDto.toEntity().copy(isSynced = true)
+            tripMemberDao.updateMember(entity)
+            Log.d(TAG, "✅ Member updated: ${entity.displayName}")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to update member", e)
         }
     }
 

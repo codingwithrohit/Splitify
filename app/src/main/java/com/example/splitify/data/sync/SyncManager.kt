@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.*
+import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.repository.ExpenseRepositoryImpl
 import com.example.splitify.data.repository.TripMemberRepositoryImpl
 import com.example.splitify.data.repository.TripRepositoryImpl
@@ -92,11 +93,7 @@ class SyncManager @Inject constructor(
     }
 }
 
-/**
- * HiltWorker for dependency injection
- *
- * LEARNING: @HiltWorker + @AssistedInject allows Hilt to inject dependencies
- */
+
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
     @Assisted context: Context,
@@ -104,7 +101,8 @@ class SyncWorker @AssistedInject constructor(
     private val tripRepository: TripRepositoryImpl,
     private val tripMemberRepository: TripMemberRepositoryImpl,
     private val expenseRepository: ExpenseRepositoryImpl,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val sessionManager: SessionManager
 ) : CoroutineWorker(context, params) {
 
     companion object {
@@ -114,18 +112,23 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         Log.d(TAG, "🔄 Starting sync...")
 
-        if (!syncManager.isAuthenticated()) {
-            Log.w(TAG, "⚠️ Not authenticated, skipping sync")
+        if (!sessionManager.hasValidSession()) {
+            Log.d(TAG, "❌ No session, skipping sync")
             return Result.success()
         }
 
         return try {
-            val trips = tripRepository.getAllTripsId()
-            Log.d(TAG, "📊 Found ${trips.size} trips to sync")
+            // 1. Sync all trips first
+            tripRepository.syncTrips()
+            Log.d(TAG, "✅ Trips synced")
 
-            trips.forEach { tripId ->
+            // 2. Get all trip IDs to sync their data
+            val tripIds = tripRepository.getAllTripsId()
+            Log.d(TAG, "📊 Found ${tripIds.size} trips to sync")
+
+            // 3. Sync members and expenses for each trip
+            tripIds.forEach { tripId ->
                 syncTripData(tripId)
-                delay(500)
             }
 
             Log.d(TAG, "✅ Sync completed successfully")

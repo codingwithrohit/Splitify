@@ -104,9 +104,6 @@ class TripMemberRepositoryImpl @Inject constructor(
                 Log.e("TripMemberRepo", "⚠️ Sync failed: ${e.message}")
             }
 
-            //Trigger Immediate Sync
-            syncManager.triggerImmediateSync()
-
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -145,8 +142,6 @@ class TripMemberRepositoryImpl @Inject constructor(
                 Log.e("TripMemberRepo", "⚠️ Sync failed: ${syncError.message}")
             }
 
-            //Trigger Immediate Sync
-            syncManager.triggerImmediateSync()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -202,8 +197,7 @@ class TripMemberRepositoryImpl @Inject constructor(
             }catch (syncError: Exception){
                 Log.e("TripMemberRepo", "⚠️ Sync failed: ${syncError.message}")
             }
-            //Trigger Immediate Sync
-            syncManager.triggerImmediateSync()
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error(e)
@@ -227,7 +221,7 @@ class TripMemberRepositoryImpl @Inject constructor(
                 try {
                     Log.d("TripMemberRepo", "📤 Syncing member: ${memberEntity.displayName}")
                     //Upload
-                    supabase.from("trip_members").insert(memberEntity.toDto())
+                    supabase.from("trip_members").upsert(memberEntity.toDto(), "id")
 
                     //Mark as synced
                     tripMemberDao.markedAsSynced(memberEntity.id)

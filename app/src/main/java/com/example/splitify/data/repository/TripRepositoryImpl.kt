@@ -2,11 +2,17 @@ package com.example.splitify.data.repository
 
 import android.annotation.SuppressLint
 import android.util.Log
+import com.example.splitify.data.local.dao.ExpenseDao
+import com.example.splitify.data.local.dao.ExpenseSplitDao
 import com.example.splitify.data.local.dao.TripDao
+import com.example.splitify.data.local.dao.TripMemberDao
 import com.example.splitify.data.local.toDomain
 import com.example.splitify.data.local.toDomainModels
 import com.example.splitify.data.local.toEntity
+import com.example.splitify.data.remote.dto.ExpenseDto
+import com.example.splitify.data.remote.dto.ExpenseSplitDto
 import com.example.splitify.data.remote.dto.TripDto
+import com.example.splitify.data.remote.dto.TripMemberDto
 import com.example.splitify.data.remote.toDto
 import com.example.splitify.data.remote.toEntity
 import com.example.splitify.data.sync.SyncManager
@@ -36,6 +42,9 @@ import javax.inject.Inject
 
 class TripRepositoryImpl @Inject constructor(
     private val tripDao: TripDao,
+    private val tripMemberDao: TripMemberDao,
+    private val expenseDao: ExpenseDao,
+    private val expenseSplitDao: ExpenseSplitDao,
     private val supabase: SupabaseClient,
     private val syncManager: SyncManager
 ): TripRepository {
@@ -152,8 +161,6 @@ class TripRepositoryImpl @Inject constructor(
                 println("⚠️ Failed to sync update: ${syncError.message}")
             }
 
-            //Trigger immediate sync
-            syncManager.triggerImmediateSync()
             Unit.asSuccess()
         }
         catch (e: Exception){
@@ -186,9 +193,6 @@ class TripRepositoryImpl @Inject constructor(
                 syncError.printStackTrace()
             }
 
-            //Trigger immediate sync
-            syncManager.triggerImmediateSync()
-
             Unit.asSuccess()
         } catch (e: Exception) {
             println("❌ Delete failed: ${e.message}")
@@ -199,25 +203,22 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun syncTrips(): Result<Unit> {
         return try {
-            // 1. Get unsynced trips (isLocal = true)
             val unsyncedTrips = tripDao.getUnsyncedTrips()
-            // 2. Upload to Supabase
+
             unsyncedTrips.forEach { entity ->
                 try {
                     supabase.from("trips").insert(entity.toDto())
-                    // MUST save the update back to the database
-                    tripDao.updateTrip(entity.copy(isLocal = false, isSynced = true))
+                    tripDao.updateTrip(
+                        entity.copy(
+                            isLocal = false,
+                            isSynced = true
+                        )
+                    )
                 } catch (e: Exception) {
-                    println("❌ Failed to sync individual trip ${entity.id}")
+                    Log.e("TripRepo", "❌ Failed to sync trip ${entity.id}", e)
                 }
             }
-            // 3. Mark as synced
-            unsyncedTrips.forEach {tripEntity ->
-                tripEntity.copy(
-                    isSynced = true,
-                    isLocal = false
-                )
-            }
+
             Unit.asSuccess()
         } catch (e: Exception) {
             e.asError()
@@ -227,42 +228,206 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun downloadTripsFromSupabase(): Result<Unit> {
         return try {
-            Log.d("TripRepo", "📥 Downloading trips from Supabase...")
+            Log.d("TripRepo", "📥 Starting download from Supabase...")
 
+            // 1. Check if user is logged in
             val session = supabase.auth.currentSessionOrNull()
             if (session == null) {
-                Log.w("TripRepo", "⚠️ No session")
+                Log.d("TripRepo", "⚠️ No session, skipping download")
                 return Result.Success(Unit)
             }
 
-            val userId = session.user?.id ?: return Result.Success(Unit)
-
-            // Fetch trips from Supabase
-            val tripDtos = supabase.from("trips")
-                .select()
-                .decodeList<TripDto>()
-
-            Log.d("TripRepo", "📊 Found ${tripDtos.size} trips on server")
-
-            // Save to Room
-            tripDtos.forEach { dto ->
-                val entity = dto.toEntity(createdAt = System.currentTimeMillis()).copy(
-                    isLocal = false,
-                    isSynced = true
-                )
-                tripDao.insertTrip(entity)
+            val userId = session.user?.id
+            if (userId == null) {
+                Log.e("TripRepo", "❌ No user ID in session")
+                return Result.Success(Unit)
             }
 
-            Log.d("TripRepo", "✅ Downloaded ${tripDtos.size} trips")
+            Log.d("TripRepo", "👤 Downloading trips for user: $userId")
+
+            // 2. Fetch trips where user is a MEMBER (not just creator)
+            // This includes trips created by user AND trips they were added to
+            val memberTrips = supabase.from("trip_members")
+                .select {
+                    filter {
+                        eq("user_id", userId)
+                    }
+                }
+                .decodeList<TripMemberDto>()
+
+            if (memberTrips.isEmpty()) {
+                Log.d("TripRepo", "ℹ️ No trips found for this user (first-time user)")
+                return Result.Success(Unit)
+            }
+
+            val tripIds = memberTrips.map { it.tripId }.distinct()
+            Log.d("TripRepo", "📊 User is member of ${tripIds.size} trips")
+
+            // 3. Download those trips
+            val tripDtos = supabase.from("trips")
+                .select {
+                    filter {
+                        isIn("id", tripIds)
+                    }
+                }
+                .decodeList<TripDto>()
+
+            Log.d("TripRepo", "📦 Downloaded ${tripDtos.size} trips")
+
+            // 4. Insert trips into Room (one by one to handle errors)
+            var successCount = 0
+            var errorCount = 0
+
+            tripDtos.forEach { dto ->
+                try {
+                    val entity = dto.toEntity(
+                        createdAt = System.currentTimeMillis()
+                    ).copy(
+                        isLocal = false,
+                        isSynced = true
+                    )
+
+                    // Check if trip already exists
+                    val existing = tripDao.getTripById(entity.id)
+                    if (existing == null) {
+                        tripDao.insertTrip(entity)
+                        Log.d("TripRepo", "✅ Inserted: ${entity.name}")
+                    } else {
+                        // Update if server version is newer
+                        tripDao.updateTrip(entity)
+                        Log.d("TripRepo", "🔄 Updated: ${entity.name}")
+                    }
+                    successCount++
+                } catch (e: Exception) {
+                    errorCount++
+                    Log.e("TripRepo", "❌ Failed to save trip ${dto.name}: ${e.message}")
+                }
+            }
+
+            Log.d("TripRepo", "✅ Download complete: $successCount success, $errorCount errors")
+
+            // 5. Download members for these trips
+            downloadMembersForTrips(tripIds)
+
+            // 6. Download expenses for these trips
+            downloadExpensesForTrips(tripIds)
+
             Result.Success(Unit)
 
         } catch (e: Exception) {
             Log.e("TripRepo", "❌ Download failed", e)
-            Result.Error(e)
+            // ✅ Return success anyway - don't block app
+            Result.Success(Unit)
         }
     }
 
-     override suspend fun clearLocalTrips(): Result<Unit> {
+    private suspend fun downloadMembersForTrips(tripIds: List<String>) {
+        if (tripIds.isEmpty()) return
+
+        try {
+            Log.d("TripRepo", "👥 Downloading members for ${tripIds.size} trips...")
+
+            val memberDtos = supabase.from("trip_members")
+                .select {
+                    filter {
+                        isIn("trip_id", tripIds)
+                    }
+                }
+                .decodeList<TripMemberDto>()
+
+            Log.d("TripRepo", "📊 Downloaded ${memberDtos.size} members")
+
+            memberDtos.forEach { dto ->
+                try {
+                    val entity = dto.toEntity().copy(isSynced = true)
+
+                    val existing = tripMemberDao.getMemberById(entity.id)
+                    if (existing == null) {
+                        tripMemberDao.insertMember(entity)
+                    } else {
+                        tripMemberDao.updateMember(entity)
+                    }
+                } catch (e: Exception) {
+                    Log.e("TripRepo", "❌ Failed to save member: ${e.message}")
+                }
+            }
+
+            Log.d("TripRepo", "✅ Members saved to Room")
+        } catch (e: Exception) {
+            Log.e("TripRepo", "❌ Failed to download members", e)
+        }
+    }
+
+    private suspend fun downloadExpensesForTrips(tripIds: List<String>) {
+        if (tripIds.isEmpty()) return
+
+        try {
+            Log.d("TripRepo", "💰 Downloading expenses for ${tripIds.size} trips...")
+
+            val expenseDtos = supabase.from("expenses")
+                .select {
+                    filter {
+                        isIn("trip_id", tripIds)
+                    }
+                }
+                .decodeList<ExpenseDto>()
+
+            Log.d("TripRepo", "📊 Downloaded ${expenseDtos.size} expenses")
+
+            if (expenseDtos.isEmpty()) {
+                Log.d("TripRepo", "ℹ️ No expenses found")
+                return
+            }
+
+            // Download splits for these expenses
+            val expenseIds = expenseDtos.map { it.id }
+            val splitDtos = supabase.from("expense_splits")
+                .select {
+                    filter {
+                        isIn("expense_id", expenseIds)
+                    }
+                }
+                .decodeList<ExpenseSplitDto>()
+
+            Log.d("TripRepo", "📊 Downloaded ${splitDtos.size} splits")
+
+            // Save expenses
+            expenseDtos.forEach { dto ->
+                try {
+                    val entity = dto.toEntity().copy(
+                        isLocal = false,
+                        isSynced = true
+                    )
+
+                    val existing = expenseDao.getExpenseById(entity.id)
+                    if (existing == null) {
+                        expenseDao.insertAnExpense(entity)
+                    } else {
+                        expenseDao.updateExpense(entity)
+                    }
+                } catch (e: Exception) {
+                    Log.e("TripRepo", "❌ Failed to save expense: ${e.message}")
+                }
+            }
+
+            // Save splits
+            splitDtos.forEach { dto ->
+                try {
+                    val entity = dto.toEntity()
+                    expenseSplitDao.insertSplit(entity)
+                } catch (e: Exception) {
+                    Log.e("TripRepo", "❌ Failed to save split: ${e.message}")
+                }
+            }
+
+            Log.d("TripRepo", "✅ Expenses and splits saved to Room")
+        } catch (e: Exception) {
+            Log.e("TripRepo", "❌ Failed to download expenses", e)
+        }
+    }
+
+
+    override suspend fun clearLocalTrips(): Result<Unit> {
         return try {
             tripDao.deleteAllTrips()
             Unit.asSuccess()

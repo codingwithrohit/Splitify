@@ -2,7 +2,6 @@ package com.example.splitify
 
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -11,16 +10,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.example.splitify.data.local.SessionManager
+import com.example.splitify.data.sync.SyncManager
 import com.example.splitify.presentation.navigation.SplitifyNavGraph
 import com.example.splitify.presentation.theme.SplitifyTheme
 import dagger.hilt.android.AndroidEntryPoint
-import io.github.jan.supabase.SupabaseClient
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject
-    lateinit var supabase: SupabaseClient
+    lateinit var sessionManager: SessionManager
+    @Inject
+    lateinit var syncManager: SyncManager
+
+
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,9 +36,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    Log.d("MainActivity Url", BuildConfig.SUPABASE_URL)
-                    Log.d("MainActivity, Key", BuildConfig.SUPABASE_KEY)
-                    SplitifyNavGraph(supabase = supabase)
+                    SplitifyNavGraph(sessionManager = sessionManager)
                 }
             }
         }
