@@ -1,6 +1,7 @@
 package com.example.splitify.data.repository
 
 import android.util.Log
+import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.local.dao.TripMemberDao
 import com.example.splitify.data.local.entity.TripMemberEntity
 import com.example.splitify.data.local.toDomain
@@ -23,7 +24,7 @@ import javax.inject.Inject
 class TripMemberRepositoryImpl @Inject constructor(
     private val tripMemberDao: TripMemberDao,
     private val supabase: SupabaseClient,
-    private val syncManager: SyncManager
+    private val sessionManager: SessionManager
 ) : TripMemberRepository {
 
     override fun getMembersForTrip(tripId: String): Flow<Result<List<TripMember>>> {
@@ -208,8 +209,7 @@ class TripMemberRepositoryImpl @Inject constructor(
         return try {
             Log.d("TripMemberRepo", "🔄 Syncing unsynced members for trip: $tripId")
 
-            val session = supabase.auth.currentSessionOrNull()
-            if (session == null) {
+            if (!sessionManager.hasValidSession()) {
                 Log.w("TripMemberRepo", "⚠️ No session, aborting sync")
                 return Result.Success(Unit)
             }
@@ -217,18 +217,47 @@ class TripMemberRepositoryImpl @Inject constructor(
             val unsyncedMembers = tripMemberDao.getUnsyncedMembersForTrip(tripId)
             Log.d("TripMemberRepo", "📊 Found ${unsyncedMembers.size} unsynced members")
 
-            unsyncedMembers.forEach { memberEntity ->
-                try {
-                    Log.d("TripMemberRepo", "📤 Syncing member: ${memberEntity.displayName}")
-                    //Upload
-                    supabase.from("trip_members").upsert(memberEntity.toDto(), "id")
+            if (unsyncedMembers.isEmpty()) {
+                Log.d("TripMemberRepo", "✅ No members to sync")
+                return Result.Success(Unit)
+            }
 
-                    //Mark as synced
-                    tripMemberDao.markedAsSynced(memberEntity.id)
-                    Log.d("TripMemberRepo", "✅ Synced member: ${memberEntity.displayName}")
-                }
-                catch (e: Exception){
-                    Log.e("TripMemberRepo", "⚠️ Sync failed for member: ${memberEntity.displayName}")
+            unsyncedMembers.forEach { entity ->
+                try {
+                    val dto = entity.toDto()
+
+                    // Check if member already exists on server
+                    val existing = supabase.from("trip_members")
+                        .select {
+                            filter {
+                                eq("id", entity.id)
+                            }
+                        }
+                        .decodeSingleOrNull<TripMemberDto>()
+
+                    if (existing == null) {
+                        // Insert new member
+                        supabase.from("trip_members").insert(dto)
+                        Log.d("TripMemberRepo", "  ✅ Inserted: ${entity.displayName}")
+                    } else {
+                        // Update existing member
+                        supabase.from("trip_members").update(dto) {
+                            filter {
+                                eq("id", entity.id)
+                            }
+                        }
+                        Log.d("TripMemberRepo", "  🔄 Updated: ${entity.displayName}")
+                    }
+
+                    tripMemberDao.updateMember(
+                        entity.copy(
+                            isSynced = true,
+                            lastModified = System.currentTimeMillis()
+                        )
+                    )
+
+                } catch (e: Exception) {
+                    Log.e("TripMemberRepo", "  ❌ Failed to sync member ${entity.displayName}", e)
                 }
             }
 

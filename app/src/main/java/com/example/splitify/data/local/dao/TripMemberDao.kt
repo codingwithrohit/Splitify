@@ -40,6 +40,10 @@ interface TripMemberDao {
     @Query("Update trip_members set is_synced = 1 where id = :memberId")
     suspend fun markedAsSynced(memberId: String)
 
+    @Query("DELETE FROM trip_members WHERE user_id = :userId")
+    suspend fun deleteAllMembersForUser(userId: String)
+
+
     @Query("""
         SELECT * FROM trip_members 
         WHERE user_id IS NOT NULL 

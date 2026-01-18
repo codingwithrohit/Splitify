@@ -12,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.sync.SyncManager
+import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.presentation.navigation.SplitifyNavGraph
 import com.example.splitify.presentation.theme.SplitifyTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -23,6 +24,8 @@ class MainActivity : ComponentActivity() {
     lateinit var sessionManager: SessionManager
     @Inject
     lateinit var syncManager: SyncManager
+    @Inject
+    lateinit var authRepository: AuthRepository
 
 
 
@@ -36,7 +39,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    SplitifyNavGraph(sessionManager = sessionManager)
+                    SplitifyNavGraph(sessionManager = sessionManager,
+                        authRepository = authRepository)
                 }
             }
         }

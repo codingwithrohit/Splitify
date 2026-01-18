@@ -14,8 +14,6 @@ import com.example.splitify.data.remote.dto.TripMemberDto
 import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.Trip
-import com.example.splitify.util.formatDate
-import com.example.splitify.util.formatDateTime
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -87,9 +85,13 @@ fun TripMemberDto.toEntity(): TripMemberEntity {
         role = role,
         avatarUrl = avatarUrl,
         joinedAt = joinedAt?.let {
-            Instant.parse(it).toEpochMilli()
+            try {
+                java.time.Instant.parse(it).toEpochMilli()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
         } ?: System.currentTimeMillis(),
-        isSynced = true,  // Just downloaded from server
+        isSynced = true,
         lastModified = System.currentTimeMillis()
     )
 }
@@ -129,11 +131,19 @@ fun ExpenseDto.toEntity(): ExpenseEntity {
         paidByName = paidByName,
         isGroupExpense = isGroupExpense,
         createdAt = createdAt?.let {
-            Instant.parse(it).toEpochMilli()
+            try {
+                java.time.Instant.parse(it).toEpochMilli()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
         } ?: System.currentTimeMillis(),
         updatedAt = updatedAt?.let {
-            Instant.parse(it).toEpochMilli()
-        },
+            try {
+                java.time.Instant.parse(it).toEpochMilli()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
+        } ?: System.currentTimeMillis(),
         isLocal = false,
         isSynced = true,
         lastModified = System.currentTimeMillis()
@@ -236,8 +246,12 @@ fun ExpenseSplitDto.toEntity(): ExpenseSplitEntity {
         memberName = memberName,
         amountOwed = amountOwed,
         createdAt = createdAt?.let {
-            Instant.parse(it).toEpochMilli()
-        } ?: System.currentTimeMillis()
+            try {
+                java.time.Instant.parse(it).toEpochMilli()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
+        } ?: System.currentTimeMillis(),
     )
 }
 
@@ -270,10 +284,18 @@ fun SettlementDto.toEntity(): SettlementEntity {
         status = status,
         notes = notes,
         createdAt = createdAt?.let {
-            Instant.parse(it).toEpochMilli()
+            try {
+                java.time.Instant.parse(it).toEpochMilli()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
         } ?: System.currentTimeMillis(),
         settledAt = settledAt?.let {
-            Instant.parse(it).toEpochMilli()
-        }
+            try {
+                java.time.Instant.parse(it).toEpochMilli()
+            } catch (e: Exception) {
+                System.currentTimeMillis()
+            }
+        } ?: System.currentTimeMillis(),
     )
 }

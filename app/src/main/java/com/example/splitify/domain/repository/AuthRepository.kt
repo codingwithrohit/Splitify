@@ -6,6 +6,7 @@ import com.example.splitify.util.Result
 
 interface AuthRepository {
 
+    suspend fun initializeSession(): Boolean
     fun getCurrentUser(): Flow<User?>
 
     suspend fun isLoggedIn(): Boolean

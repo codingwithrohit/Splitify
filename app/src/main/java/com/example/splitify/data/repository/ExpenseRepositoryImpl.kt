@@ -3,16 +3,14 @@ package com.example.splitify.data.repository
 import android.util.Log
 import androidx.room.withTransaction
 import com.example.splitify.data.local.AppDatabase
+import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.local.dao.ExpenseDao
 import com.example.splitify.data.local.dao.ExpenseSplitDao
-import com.example.splitify.data.local.entity.ExpenseEntity
 import com.example.splitify.data.local.entity.relations.ExpenseWithSplits
 import com.example.splitify.data.local.toDomain
 import com.example.splitify.data.local.toEntity
 import com.example.splitify.data.local.toExpenseDomainModels
 import com.example.splitify.data.remote.toDto
-import com.example.splitify.data.remote.toUpdateDto
-import com.example.splitify.data.sync.SyncManager
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.ExpenseSplit
 import com.example.splitify.domain.model.TripMember
@@ -34,7 +32,7 @@ class ExpenseRepositoryImpl @Inject constructor(
     private val expenseSplitDao: ExpenseSplitDao,
     private val supabase: SupabaseClient,
     private val database: AppDatabase,
-    private val syncManager: SyncManager
+    private val sessionManager: SessionManager
 ): ExpenseRepository{
 
     override suspend fun addExpenseWithSplits(
@@ -272,8 +270,7 @@ class ExpenseRepositoryImpl @Inject constructor(
         return try {
             Log.d("ExpenseRepository", "📤 Syncing unsynced expenses")
 
-            val session = supabase.auth.currentSessionOrNull()
-            if (session == null) {
+            if (!sessionManager.hasValidSession()) {
                 Log.d("ExpenseRepository", "⚠️ No session, skipping sync")
                 return Result.Success(Unit)
             }
@@ -334,7 +331,6 @@ class ExpenseRepositoryImpl @Inject constructor(
                         "❌ Failed to sync expense ${expenseEntity.id}",
                         e
                     )
-                    // Do NOT mark as synced
                 }
             }
 

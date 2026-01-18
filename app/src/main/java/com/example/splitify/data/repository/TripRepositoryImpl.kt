@@ -49,8 +49,8 @@ class TripRepositoryImpl @Inject constructor(
     private val syncManager: SyncManager
 ): TripRepository {
 
-    suspend fun getAllTripsId(): List<String>{
-        return tripDao.getAllTripsId()
+    override suspend fun getUserTripIds(userId: String): List<String> {
+        return tripDao.getTripIdsByUser(userId)
     }
 
     override fun getAllTrips(): Flow<List<Trip>> {
@@ -203,19 +203,62 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun syncTrips(): Result<Unit> {
         return try {
-            val unsyncedTrips = tripDao.getUnsyncedTrips()
+            Log.d("TripRepo", "🔄 Starting trip sync...")
+
+            val session = supabase.auth.currentSessionOrNull()
+            val currentUserId = session?.user?.id ?: ""
+            val unsyncedTrips = tripDao.getUnsyncedTrips(currentUserId)
+
+            Log.d("TripRepo", "📊 Found ${unsyncedTrips.size} unsynced trips")
+
+            if (unsyncedTrips.isEmpty()) {
+                Log.d("TripRepo", "✅ No trips to sync")
+                return Unit.asSuccess()
+            }
+
+            if (session == null) {
+                Log.w("TripRepo", "⚠️ No session, skipping sync")
+                return Unit.asSuccess()
+            }
 
             unsyncedTrips.forEach { entity ->
                 try {
-                    supabase.from("trips").insert(entity.toDto())
+                    val dto = entity.toDto()
+
+                    // Check if trip already exists on server
+                    val existing = supabase.from("trips")
+                        .select {
+                            filter {
+                                eq("id", entity.id)
+                            }
+                        }
+                        .decodeSingleOrNull<TripDto>()
+
+                    if (existing == null) {
+                        // Insert new trip
+                        supabase.from("trips").insert(dto)
+                        Log.d("TripRepo", "  ✅ Inserted: ${entity.name}")
+                    } else {
+                        // Update existing trip
+                        supabase.from("trips").update(dto) {
+                            filter {
+                                eq("id", entity.id)
+                            }
+                        }
+                        Log.d("TripRepo", "  🔄 Updated: ${entity.name}")
+                    }
+
                     tripDao.updateTrip(
                         entity.copy(
                             isLocal = false,
-                            isSynced = true
+                            isSynced = true,
+                            lastModified = System.currentTimeMillis()
                         )
                     )
+
                 } catch (e: Exception) {
-                    Log.e("TripRepo", "❌ Failed to sync trip ${entity.id}", e)
+                    Log.e("TripRepo", "  ❌ Failed to sync trip ${entity.name}", e)
+                    // Continue with other trips
                 }
             }
 
@@ -259,8 +302,11 @@ class TripRepositoryImpl @Inject constructor(
                 Log.d("TripRepo", "ℹ️ No trips found for this user (first-time user)")
                 return Result.Success(Unit)
             }
-
-            val tripIds = memberTrips.map { it.tripId }.distinct()
+            Log.d("TripRepo", "📊 Found ${memberTrips.size} trip memberships")
+            val tripIds = memberTrips.map {
+                Log.d("TripRepo", "  - Trip: ${it.tripId}, Member: ${it.displayName}")
+                it.tripId
+            }.distinct()
             Log.d("TripRepo", "📊 User is member of ${tripIds.size} trips")
 
             // 3. Download those trips
@@ -275,9 +321,6 @@ class TripRepositoryImpl @Inject constructor(
             Log.d("TripRepo", "📦 Downloaded ${tripDtos.size} trips")
 
             // 4. Insert trips into Room (one by one to handle errors)
-            var successCount = 0
-            var errorCount = 0
-
             tripDtos.forEach { dto ->
                 try {
                     val entity = dto.toEntity(
@@ -297,14 +340,11 @@ class TripRepositoryImpl @Inject constructor(
                         tripDao.updateTrip(entity)
                         Log.d("TripRepo", "🔄 Updated: ${entity.name}")
                     }
-                    successCount++
                 } catch (e: Exception) {
-                    errorCount++
                     Log.e("TripRepo", "❌ Failed to save trip ${dto.name}: ${e.message}")
                 }
             }
 
-            Log.d("TripRepo", "✅ Download complete: $successCount success, $errorCount errors")
 
             // 5. Download members for these trips
             downloadMembersForTrips(tripIds)

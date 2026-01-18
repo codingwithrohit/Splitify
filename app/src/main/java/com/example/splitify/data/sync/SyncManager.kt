@@ -18,9 +18,6 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Manages sync operations
- */
 @Singleton
 class SyncManager @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -118,12 +115,26 @@ class SyncWorker @AssistedInject constructor(
         }
 
         return try {
+            val currentUserId = sessionManager.getCurrentUserId()
+            if (currentUserId == null) {
+                Log.e(TAG, " No user ID, aborting sync")
+                return Result.success()
+            }
+
             // 1. Sync all trips first
-            tripRepository.syncTrips()
-            Log.d(TAG, "✅ Trips synced")
+            when (val result = tripRepository.syncTrips()) {
+                is com.example.splitify.util.Result.Success -> {
+                    Log.d("SyncWorker", "✅ Trips synced")
+                }
+                is com.example.splitify.util.Result.Error -> {
+                    Log.e("SyncWorker", "❌ Trip sync failed: ${result.message}")
+                    return Result.retry()
+                }
+                else -> Unit
+            }
 
             // 2. Get all trip IDs to sync their data
-            val tripIds = tripRepository.getAllTripsId()
+            val tripIds = tripRepository.getUserTripIds(currentUserId)
             Log.d(TAG, "📊 Found ${tripIds.size} trips to sync")
 
             // 3. Sync members and expenses for each trip
@@ -152,12 +163,26 @@ class SyncWorker @AssistedInject constructor(
             Log.d(TAG, "🔄 Syncing trip: $tripId")
 
             // Sync members first (expenses reference them)
-            tripMemberRepository.syncUnsyncedMembers(tripId)
-            Log.d(TAG, "  ✅ Members synced")
+            when (val memberResult = tripMemberRepository.syncUnsyncedMembers(tripId)) {
+                is com.example.splitify.util.Result.Success -> {
+                    Log.d("SyncWorker", "  ✅ Members synced")
+                }
+                is com.example.splitify.util.Result.Error -> {
+                    Log.e("SyncWorker", "  ❌ Members sync failed: ${memberResult.message}")
+                }
+                else -> Unit
+            }
 
             // Sync expenses
-            expenseRepository.syncUnsyncedExpenses(tripId)
-            Log.d(TAG, "  ✅ Expenses synced")
+            when (val expenseResult = expenseRepository.syncUnsyncedExpenses(tripId)) {
+                is com.example.splitify.util.Result.Success -> {
+                    Log.d("SyncWorker", "  ✅ Expenses synced")
+                }
+                is com.example.splitify.util.Result.Error -> {
+                    Log.e("SyncWorker", "  ❌ Expenses sync failed: ${expenseResult.message}")
+                }
+                else -> Unit
+            }
 
             Log.d(TAG, "✅ Trip $tripId fully synced")
 

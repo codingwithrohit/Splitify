@@ -60,17 +60,19 @@ fun TripsScreen(
     viewModel: TripsViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var isRefreshing by remember { mutableStateOf(false) }
 
-
-
+    LaunchedEffect(Unit) {
+        viewModel.logoutEvent.collect {
+            onLogOut()
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("My Trips") },
                 actions = {
-                    TextButton(onClick = onLogOut)  {
+                    TextButton(onClick = {viewModel.logout()})  {
                     Text("Logout", color = MaterialTheme.colorScheme.onPrimary)
                 } },
                 colors = TopAppBarDefaults.topAppBarColors(

@@ -10,10 +10,12 @@ import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,10 +31,13 @@ class TripsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<TripsUiState>(TripsUiState.InitialLoading)
     val uiState: StateFlow<TripsUiState> = _uiState.asStateFlow()
 
+    private val _logoutEvent = Channel<Unit>()
+    val logoutEvent = _logoutEvent.receiveAsFlow()
+
     private val currentUserId = MutableStateFlow<String?>(null)
 
     init {
-        // ✅ CRITICAL: This MUST run on init!
+
         loadCurrentUser()
     }
 
@@ -155,12 +160,8 @@ class TripsViewModel @Inject constructor(
         viewModelScope.launch {
             Log.d("TripsVM", "🚪 Logging out...")
 
-            // 1. Clear local trips
-            tripRepository.clearLocalTrips()
-
-            // 2. Sign out (clears session)
             authRepository.signOut()
-
+            _logoutEvent.send(Unit)
             Log.d("TripsVM", "✅ Logout complete")
         }
     }

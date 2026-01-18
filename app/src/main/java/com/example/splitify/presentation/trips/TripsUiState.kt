@@ -4,7 +4,7 @@ import com.example.splitify.domain.model.Trip
 
 sealed interface TripsUiState {
 
-    data object InitialLoading : TripsUiState   // app start only
+    data object InitialLoading : TripsUiState
 
     data class Content(
         val trips: List<Trip>,

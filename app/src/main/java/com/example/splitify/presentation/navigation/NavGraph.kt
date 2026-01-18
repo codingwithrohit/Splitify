@@ -16,6 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.splitify.data.local.SessionManager
+import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.presentation.addmembers.AddMemberScreen
 import com.example.splitify.presentation.addmembers.MembersScreen
 import com.example.splitify.presentation.auth.LoginScreen
@@ -28,26 +29,52 @@ import com.example.splitify.presentation.settlement.SettlementHistoryScreen
 import com.example.splitify.presentation.tripdetail.TripDetailScreen
 import com.example.splitify.presentation.trips.CreateTripScreen
 import com.example.splitify.presentation.trips.TripsScreen
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun SplitifyNavGraph(
     navController: NavHostController = rememberNavController(),
+    authRepository: AuthRepository,
     sessionManager: SessionManager
 ) {
     var isCheckingSession by remember { mutableStateOf(true) }
     var startDestination by remember { mutableStateOf(Screen.Login.route) }
 
     LaunchedEffect(Unit) {
-        val hasSession = sessionManager.hasValidSession()
-        startDestination = if (hasSession)
-            Screen.Trips.route
-        else
-            Screen.Login.route
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d("NavGraph", "🔄 Checking session...")
 
-        isCheckingSession = false
+                // Check if session exists
+                val hasSession = sessionManager.hasValidSession()
+
+                if (hasSession) {
+                    Log.d("NavGraph", "✅ Session found, initializing...")
+
+                    // Try to restore/refresh session
+                    val sessionValid = authRepository.initializeSession()
+
+                    if (sessionValid) {
+                        Log.d("NavGraph", "✅ Session valid → Trips screen")
+                        startDestination = Screen.Trips.route
+                    } else {
+                        Log.d("NavGraph", "❌ Session invalid → Login screen")
+                        startDestination = Screen.Login.route
+                    }
+                } else {
+                    Log.d("NavGraph", "❌ No session → Login screen")
+                    startDestination = Screen.Login.route
+                }
+
+            } catch (e: Exception) {
+                Log.e("NavGraph", "❌ Session check failed", e)
+                startDestination = Screen.Login.route
+            } finally {
+                isCheckingSession = false
+            }
+        }
     }
 
     if (!isCheckingSession) {

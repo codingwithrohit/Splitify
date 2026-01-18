@@ -51,4 +51,12 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM expenses WHERE trip_id = :tripId AND is_synced = 0")
     suspend fun getUnsyncedExpensesForTrip(tripId: String): List<ExpenseEntity>
+
+    @Query("""
+    DELETE FROM expenses 
+    WHERE trip_id IN (
+        SELECT trip_id FROM trip_members WHERE user_id = :userId
+    )
+""")
+    suspend fun deleteAllExpensesForUser(userId: String)
 }

@@ -1,6 +1,7 @@
 package com.example.splitify.data.local
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.Preferences
@@ -32,12 +33,27 @@ class SessionManager @Inject constructor(
         val USER_NAME = stringPreferencesKey("user_name")
         val FULL_NAME = stringPreferencesKey("full_name")
         val AVATAR_URL = stringPreferencesKey("avatar_url")
+        val TOKEN_EXPIRY = stringPreferencesKey("token_expiry")
     }
 
     suspend fun hasValidSession(): Boolean{
         val prefs = context.sessionDataStore.data.first()
-        val token = prefs[Keys.ACCESS_TOKEN]
-        return !token.isNullOrBlank()
+        val accessToken = prefs[Keys.ACCESS_TOKEN]
+        val refreshToken = prefs[Keys.REFRESH_TOKEN]
+
+        if (accessToken.isNullOrBlank() || refreshToken.isNullOrBlank()) {
+            Log.d("SessionManager", "❌ No tokens found")
+            return false
+        }
+        val expiry = prefs[Keys.TOKEN_EXPIRY]?.toLongOrNull() ?: return false
+        val now = System.currentTimeMillis()
+
+        if (now >= expiry) {
+            Log.d("SessionManager", "❌ Session expired")
+            clearSession()
+            return false
+        }
+        return true
     }
 
     suspend fun saveSession(
@@ -52,6 +68,7 @@ class SessionManager @Inject constructor(
         context.sessionDataStore.edit { prefs ->
             prefs[Keys.ACCESS_TOKEN] = accessToken
             prefs[Keys.REFRESH_TOKEN] = refreshToken
+            prefs[Keys.TOKEN_EXPIRY] = (System.currentTimeMillis() + 36000000).toString()
             prefs[Keys.USER_ID] = userId
             prefs[Keys.USER_NAME] = userName
             prefs[Keys.USER_EMAIL] = userEmail
@@ -96,6 +113,11 @@ class SessionManager @Inject constructor(
         return prefs[Keys.ACCESS_TOKEN]
     }
 
+    suspend fun getRefreshToken(): String? {
+        val prefs = context.sessionDataStore.data.first()
+        return prefs[Keys.REFRESH_TOKEN]
+    }
+
     suspend fun clearSession() {
         context.sessionDataStore.edit { prefs ->
             prefs.clear()
@@ -106,7 +128,20 @@ class SessionManager @Inject constructor(
         context.sessionDataStore.edit { prefs ->
             prefs[Keys.ACCESS_TOKEN] = accessToken
             prefs[Keys.REFRESH_TOKEN] = refreshToken
+            prefs[Keys.TOKEN_EXPIRY] = (System.currentTimeMillis() + 3600000).toString()
         }
+        Log.d("SessionManager", "✅ Tokens updated")
+    }
+
+    suspend fun needsTokenRefresh(): Boolean {
+        val prefs = context.sessionDataStore.data.first()
+        val expiryStr = prefs[Keys.TOKEN_EXPIRY] ?: return true
+
+        val expiry = expiryStr.toLongOrNull() ?: return true
+        val now = System.currentTimeMillis()
+
+        // Refresh if expiring in next 5 minutes (300000 ms)
+        return (expiry - now) < 300000
     }
 
     data class UserSession(

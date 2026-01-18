@@ -3,6 +3,10 @@ package com.example.splitify.data.repository
 import android.annotation.SuppressLint
 import android.util.Log
 import com.example.splitify.data.local.SessionManager
+import com.example.splitify.data.local.dao.ExpenseDao
+import com.example.splitify.data.local.dao.ExpenseSplitDao
+import com.example.splitify.data.local.dao.TripDao
+import com.example.splitify.data.local.dao.TripMemberDao
 import com.example.splitify.domain.model.User
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.util.asError
@@ -20,8 +24,78 @@ import com.example.splitify.util.Result
 @SuppressLint("UnsafeOptInUsageError")
 class AuthRepositoryImpl @Inject constructor(
     private val supabase: SupabaseClient,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val tripDao: TripDao,
+    private val tripMemberDao: TripMemberDao,
+    private val expenseDao: ExpenseDao,
+    private val expenseSplitDao: ExpenseSplitDao
 ): AuthRepository {
+
+    override suspend fun initializeSession(): Boolean {
+        return try {
+            Log.d("AuthRepo", "Initializing session...")
+            val accessToken = sessionManager.getAccessToken()
+            val refreshToken = sessionManager.getRefreshToken()
+            if (accessToken.isNullOrBlank() || refreshToken.isNullOrBlank()) {
+                Log.d("AuthRepo", "No stored tokens")
+                return false
+            }
+            try {
+                supabase.auth.retrieveUser(accessToken)
+                Log.d("AuthRepo", "✅ Session restored successfully")
+
+                // Check if token needs refresh
+                if (sessionManager.needsTokenRefresh()) {
+                    Log.d("AuthRepo", "🔄 Token expiring soon, refreshing...")
+                    refreshTokens()
+                }
+
+                true
+            } catch (e: Exception) {
+                Log.e("AuthRepo", " Session restore failed, trying refresh...", e)
+                // Try to refresh with refresh token
+                refreshTokens()
+            }
+
+        }catch (e: Exception) {
+            Log.e("AuthRepo", " Session initialization failed", e)
+            false
+        }
+    }
+
+    private suspend fun refreshTokens(): Boolean {
+        return try {
+            Log.d("AuthRepo", "🔄 Refreshing tokens...")
+
+            val refreshToken = sessionManager.getRefreshToken()
+            if (refreshToken.isNullOrBlank()) {
+                Log.e("AuthRepo", "❌ No refresh token available")
+                return false
+            }
+
+            supabase.auth.refreshSession(refreshToken)
+            val session = supabase.auth.currentSessionOrNull()
+                ?: return false
+
+            if (session != null) {
+                sessionManager.updateTokens(
+                    accessToken = session.accessToken,
+                    refreshToken = session.refreshToken ?: ""
+                )
+                Log.d("AuthRepo", "✅ Tokens refreshed successfully")
+                true
+            } else {
+                Log.e("AuthRepo", "❌ Refresh returned null session")
+                false
+            }
+
+        } catch (e: Exception) {
+            Log.e("AuthRepo", "❌ Token refresh failed", e)
+            // Clear invalid session
+            sessionManager.clearSession()
+            false
+        }
+    }
 
     override fun getCurrentUser(): Flow<User?> = flow {
         val session = sessionManager.getCurrentUserFlow()
@@ -158,17 +232,34 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signOut(): Result<Unit> {
         return try {
-            supabase.auth.signOut()
+            val userId = sessionManager.getCurrentUserId()?: ""
 
+            // 1️. Remote logout (optional but correct)
+            supabase.auth.signOut()
+            val tripsBefore = tripDao.getTripIdsByUser(userId).size
+            Log.d("Logout", "📊 Trips before: $tripsBefore")
+            // 2.  Clear local DB data
+            if (userId != null) {
+                expenseSplitDao.deleteAllSplitsForUser(userId)
+                expenseDao.deleteAllExpensesForUser(userId)
+                tripMemberDao.deleteAllMembersForUser(userId)
+                tripDao.deleteAllTripsForUser(userId)
+                val tripsAfter = tripDao.getTripIdsByUser(userId).size
+                Log.d("Logout", "📊 Trips after: $tripsAfter (should be 0)")
+            }
+
+            // 3.  Clear session LAST
             sessionManager.clearSession()
-            Log.d("AuthRepo", "✅ Signed out successfully")
+
+            Log.d("AuthRepo", "✅ Signed out & local data cleared")
             Unit.asSuccess()
-        }
-        catch (e: Exception){
-            Log.e("AuthRepo", "❌ Sign out failed: ${e.message}")
+
+        } catch (e: Exception) {
+            Log.e("AuthRepo", " Sign out failed", e)
             e.asError()
         }
     }
+
 
     //Data Transfer Object for User (matches Supabase schema)
     @Serializable
