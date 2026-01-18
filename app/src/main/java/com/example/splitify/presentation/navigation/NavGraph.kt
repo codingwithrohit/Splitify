@@ -126,9 +126,26 @@ fun SplitifyNavGraph(
             // Create Trip Screen
             composable(route = Screen.CreateTrip.route) {
                 CreateTripScreen(
+                    tripId = null,
                     onNavigateBack = {
                         navController.popBackStack()
                     }
+                )
+            }
+
+            //Edit Trip
+            composable(route = Screen.EditTrip.route,
+                arguments = listOf(
+                    navArgument(Screen.EditTrip.ARG_TRIP_ID){
+                        type = NavType.StringType
+                    }
+                )){
+                val tripId = it.arguments?.getString(Screen.EditTrip.ARG_TRIP_ID)
+                CreateTripScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    tripId = tripId
                 )
             }
 
@@ -150,19 +167,19 @@ fun SplitifyNavGraph(
                     tripId = tripId,
                     onNavigateBack = { navController.popBackStack() },
 
-                    // ✅ FIX 1: Add Expense
+                    // 1: Add Expense
                     onAddExpense = {
                         Log.d("NavGraph", "🧭 Navigating to AddExpense with tripId: $tripId")
                         navController.navigate(Screen.AddExpense.createRoute(tripId))
                     },
 
-                    // ✅ FIX 2: Add Members
+                    // 2: Add Members
                     onAddMembers = {
                         Log.d("NavGraph", "🧭 Navigating to AddMember with tripId: $tripId")
                         navController.navigate(Screen.AddMember.createRoute(tripId))
                     },
 
-                    // ✅ FIX 3: Navigate to Expenses Screen
+                    //  3: Navigate to Expenses Screen
                     onNavigateToExpense = { _, userId, memberId ->
                         Log.d("NavGraph", "🧭 Navigating to ExpensesScreen")
                         navController.navigate(
@@ -170,13 +187,13 @@ fun SplitifyNavGraph(
                         )
                     },
 
-                    // ✅ FIX 4: Navigate to Members Screen (was missing tripId!)
+                    // 4: Navigate to Members Screen (was missing tripId!)
                     onNavigateToMembers = {
                         Log.d("NavGraph", "🧭 Navigating to MembersScreen with tripId: $tripId")
                         navController.navigate(Screen.MembersScreen.createRoute(tripId))
                     },
 
-                    // ✅ FIX 5: Navigate to Balances Screen
+                    // 5: Navigate to Balances Screen
                     onNavigateToBalances = { memberId ->
                         Log.d("NavGraph", "🧭 Navigating to BalancesScreen")
                         navController.navigate(
@@ -184,18 +201,23 @@ fun SplitifyNavGraph(
                         )
                     },
 
-                    // ✅ FIX 6: Navigate to Insights (was going to CreateTrip!)
+                    // 6: Navigate to Insights (was going to CreateTrip!)
                     onNavigateToInsights = {
                         Log.d("NavGraph", "🧭 Navigating to TripInsights with tripId: $tripId")
                         navController.navigate(Screen.InsightsScreen.createRoute(tripId))
                     },
 
-                    // ✅ FIX 7: Navigate to Settlement
+                    // 7: Navigate to Settlement
                     onNavigateToSettlement = { _, memberId ->
                         Log.d("NavGraph", "🧭 Navigating to SettlementHistory")
                         navController.navigate(
                             Screen.SettlementHistory.createRoute(tripId, memberId)
                         )
+                    },
+                    // 8. Edit Trip
+                    onNavigateToEditTrip = { tripId ->
+                        Log.d("NavGraph", "🧭 Navigating to EditTrip with tripId: $tripId")
+                        navController.navigate(Screen.EditTrip.createRoute(tripId))
                     }
                 )
             }

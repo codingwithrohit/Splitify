@@ -50,6 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.presentation.components.LoadingButton
 import com.example.splitify.presentation.components.SuccessToast
+import com.example.splitify.presentation.expense.ExpenseFormMode
 import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.LocalDate
@@ -61,6 +62,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateTripScreen(
+    tripId: String?,
     onNavigateBack: () -> Unit,
     viewModel: CreateTripViewModel = hiltViewModel()
 ){
@@ -80,7 +82,12 @@ fun CreateTripScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Create Trip") },
+                title ={
+                    Text( when(viewModel.mode){
+                        is CreateTripFormMode.CreateTrip -> "Create Trip"
+                        is CreateTripFormMode.EditTrip -> "Edit Trip"
+                    } )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back Button")
@@ -249,7 +256,10 @@ fun CreateTripScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             LoadingButton(
-                text = "Create Trip",
+                text = when(viewModel.mode){
+                    is CreateTripFormMode.CreateTrip -> "Create Trip"
+                    is CreateTripFormMode.EditTrip -> "Save Changes"
+                },
                 onClick = viewModel::saveTrip,
                 isLoading = uiState.isLoading,
                 icon = Icons.Default.Save,
@@ -260,7 +270,10 @@ fun CreateTripScreen(
         }
 
         SuccessToast(
-            message = "Trip created! 🎉",
+            message = when(viewModel.mode){
+                is CreateTripFormMode.CreateTrip -> "Trip created successfully!"
+                is CreateTripFormMode.EditTrip -> "Trip updated successfully"
+            },
             visible = showSuccessToast,
             onDismiss = { showSuccessToast = false }
         )

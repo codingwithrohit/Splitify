@@ -51,6 +51,7 @@ fun TripDetailScreen(
     onNavigateToSettlement: (String, String) -> Unit,
     onAddExpense: () -> Unit,
     onAddMembers: () -> Unit,
+    onNavigateToEditTrip: (String) -> Unit,
     viewModel: TripDetailViewModel = hiltViewModel()
 ){
     LaunchedEffect(tripId) {
@@ -124,6 +125,7 @@ fun TripDetailScreen(
                     onNavigateToBalances = onNavigateToBalances,
                     onNavigateToInsights = onNavigateToInsights,
                     onNavigateToSettlement = onNavigateToSettlement,
+                    onNavigateToEditTrip = onNavigateToEditTrip,
                     onAddMembers = onAddMembers,
                     modifier = Modifier
                         .fillMaxSize()
@@ -182,19 +184,23 @@ fun TripDashboard(
     onNavigateToMembers: () -> Unit,
     onNavigateToInsights: () -> Unit,
     onNavigateToSettlement: (tripId: String, currentMemberId: String) -> Unit,
+    onNavigateToEditTrip: (String) -> Unit,
     onAddMembers: () -> Unit,
     modifier: Modifier = Modifier
 ){
     val currentUserId = state.currentUserId
     val currentMemberId = state.members.firstOrNull(){it.userId == currentUserId}?.id
 
-    LazyColumn(modifier = modifier.fillMaxSize().padding(16.dp)) {
+    LazyColumn(modifier = modifier
+        .fillMaxSize()
+        .padding(16.dp)) {
 
 
         item{
             TripInfoCard(
                 trip = state.trip,
-                memberCount = state.members.size
+                memberCount = state.members.size,
+                onClick = { state.trip.id.let { onNavigateToEditTrip(it) }}
             )
         }
 
