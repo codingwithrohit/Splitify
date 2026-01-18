@@ -32,6 +32,7 @@ import com.example.splitify.util.ValidationUtils
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -229,12 +230,19 @@ class AddExpenseViewModel @Inject constructor(
 
         val members = _uiState.value.members
 
-        _selectedMemberIds.value =
-            if (isGroup) {
-                members.map { it.id }.toSet()
+        if (isGroup) {
+            // Only select everyone if there's more than just the current user
+            if (members.size > 1) {
+                _selectedMemberIds.value = members.map { it.id }.toSet()
             } else {
-                currentUserMemberId?.let { setOf(it) }.orEmpty()
+                // If only current user exists, don't auto-select as a "group"
+                _selectedMemberIds.value = emptySet()
+                _uiState.update { it.copy(amountError = "Add more members to the trip to create a group expense") }
             }
+        } else {
+            // Personal expense: strictly only the current user
+            _selectedMemberIds.value = currentUserMemberId?.let { setOf(it) }.orEmpty()
+        }
 
         Log.d("AddExpenseVM", "🔄 Split type changed to: ${if (isGroup) "Group" else "Personal"}")
 
@@ -306,150 +314,115 @@ class AddExpenseViewModel @Inject constructor(
 
     fun saveExpense() {
         val state = uiState.value
-        var hasError = false
-        val amountValue = state.amount.toDouble()
-        // Validations
+
+        // 1. Basic Validations
         val amountValidation = ValidationUtils.validAmount(state.amount)
-        if(!amountValidation.isValid){
-            _uiState.update {
-                it.copy(amountError = amountValidation.errorMessage)
-            }
-            hasError = true
+        if (!amountValidation.isValid) {
+            _uiState.update { it.copy(amountError = amountValidation.errorMessage) }
+            return
         }
 
         val descriptionValidation = ValidationUtils.validateDescription(state.description)
         if (!descriptionValidation.isValid) {
-            _uiState.update {
-                it.copy(descriptionError = descriptionValidation.errorMessage)
-            }
-            hasError = true
+            _uiState.update { it.copy(descriptionError = descriptionValidation.errorMessage) }
+            return
         }
 
         val paidByMemberId = state.paidByMemberId
         if (paidByMemberId == null) {
-            _uiState.update {
-                it.copy(amountError = "Select who paid for this expense")
-            }
-            Log.e("AddExpenseVM", "❌ Current user is not a member of this trip!")
-            hasError = true
-        }
-
-        val participants =
-            if (_isGroupExpense.value) {
-                _selectedMemberIds.value.toList()
-            } else {
-                listOf(paidByMemberId ?: "")
-            }
-
-        if(participants.isEmpty()){
-            _uiState.update {
-                it.copy(amountError = "Select at least one participant")
-            }
-            hasError = true
-        }
-
-        Log.d("AddExpenseVM", "💾 Saving expense with ${participants.size} participants")
-
-
-        Log.d("AddExpenseVM", "💾 Saving expense:")
-        Log.d("AddExpenseVM", "  Amount: ₹$amountValidation")
-        Log.d("AddExpenseVM", "  Description: ${state.description}")
-        Log.d("AddExpenseVM", "  Paid by (memberId): $paidByMemberId")
-        Log.d("AddExpenseVM", "  Is group: ${_isGroupExpense.value}")
-        Log.d("AddExpenseVM", "  Participants (${participants.size}): $participants")
-
-
-        if (hasError) {
-            Log.e("AddExpenseVM", "❌ Validation failed")
+            _uiState.update { it.copy(amountError = "Select who paid for this expense") }
             return
         }
 
+        // 2. STRICT Participant Logic
+        // If it's personal, only the payer is in the list.
+        // If it's group, we take the selected members from the checkboxes.
+        val participants = if (_isGroupExpense.value) {
+            _selectedMemberIds.value.toList()
+        } else {
+            listOf(paidByMemberId)
+        }
+
+        // 3. Group Validation: Prevent group expenses with 0 or 1 person
+        if (_isGroupExpense.value && participants.size < 2) {
+            _uiState.update {
+                it.copy(amountError = "Select at least one other member to split a group expense")
+            }
+            return
+        }
+
+        if (participants.isEmpty()) {
+            _uiState.update { it.copy(amountError = "Select at least one participant") }
+            return
+        }
+
+        // 4. Start Saving
         _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
-            val currentUserId = authRepository.getCurrentUser().firstOrNull()?.id
+            val currentUser = authRepository.getCurrentUser()
+                .filterNotNull()
+                .first()
 
-            if (currentUserId == null) {
-                _uiState.update {
-                    it.copy(
-                        amountError = "User not authenticated",
-                        isLoading = false
-                    )
-                }
-                return@launch
-            }
-            val result = when(mode){
+            val result = when (mode) {
                 is ExpenseFormMode.Add -> {
                     addExpenseUseCase(
                         tripId = tripId,
                         amount = state.amount.toDouble(),
                         description = state.description.trim(),
                         category = state.category,
-                        date = state.expenseDate, // Convert to millis
-                        paidBy = paidByMemberId.toString(),
-                        createdBy = currentUserId,
+                        date = state.expenseDate,
+                        paidBy = paidByMemberId, // Passing the Member ID
+                        createdBy = currentUser.id,
                         isGroupExpense = _isGroupExpense.value,
                         participatingMemberIds = participants
                     )
                 }
                 is ExpenseFormMode.Edit -> {
-                    val expenseIdToUpdate = mode.expenseId
+                    // In Edit mode, we manually calculate splits to pass to the update use case
+                    val amountValue = state.amount.toDouble()
+                    val splitAmount = amountValue / participants.size
 
                     val expense = Expense(
-                        id = expenseIdToUpdate,
+                        id = mode.expenseId,
                         tripId = tripId,
-                        amount = state.amount.toDouble(),
+                        amount = amountValue,
                         description = state.description.trim(),
                         category = state.category,
                         expenseDate = state.expenseDate,
-                        paidBy = paidByMemberId.toString(),
-                        createdBy = currentUserId,
+                        paidBy = paidByMemberId,
+                        createdBy = currentUser.id,
                         isGroupExpense = _isGroupExpense.value,
-                        paidByName = state.paidByMemberId.toString(),
+                        paidByName = state.members.find { it.id == paidByMemberId }?.displayName ?: "",
                         createdAt = System.currentTimeMillis(),
                         updatedAt = System.currentTimeMillis()
                     )
 
-                    val splitAmount = amountValue / participants.size
                     val splits = participants.map { participantId ->
                         ExpenseSplit(
                             id = UUID.randomUUID().toString(),
-                            expenseId = expenseIdToUpdate,
+                            expenseId = mode.expenseId,
                             memberId = participantId,
                             amountOwed = splitAmount,
-                            memberName = state.paidByMemberId.toString()
+                            memberName = state.members.find { it.id == participantId }?.displayName ?: ""
                         )
                     }
-
                     updateExpenseUseCase(expense, splits)
                 }
             }
 
-
+            // 5. Handle Result
             when (result) {
-                is Result.Error -> {
-                    Log.e("AddExpenseVM", "❌ Failed to save: ${result.message}")
-                    _uiState.update {
-                        it.copy(
-                            amountError = result.message,
-                            isLoading = false
-                        )
-                    }
-                }
                 is Result.Success -> {
-                    Log.d("AddExpenseVM", "✅ Expense saved successfully!")
+                    Log.d("AddExpenseVM", "💾 Saving expense for user: ${currentUser.userName}")
+                    _uiState.update { it.copy(isSaved = true, isLoading = false) }
+                }
+                is Result.Error -> {
                     _uiState.update {
-                        it.copy(
-                            isSaved = true,
-                            isLoading = false
-                        )
+                        it.copy(amountError = result.message, isLoading = false)
                     }
-                    // Emit navigation event
-
                 }
-                Result.Loading -> {
-                    // Already handling loading state
-                }
+                Result.Loading -> Unit
             }
         }
     }

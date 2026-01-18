@@ -62,12 +62,12 @@ data class ExpenseEntity(
 
     //Sync fields
     @ColumnInfo("is_local")
-    val isLocal: Boolean = false,
+    val isLocal: Boolean = true,
     /* isLocal = true, it means the expense is stored locally only on the device and not synced to supabase
     isLocal = false it means the expense is synced to supabase and is stored locally
      */
     @ColumnInfo("is_synced")
-    val isSynced: Boolean = true,
+    val isSynced: Boolean = false,
     /* isSynced = true, i.e. the local row matches with server row,
     isSynced = false, i.e. the local row has changes not yet uploaded to database
      */
