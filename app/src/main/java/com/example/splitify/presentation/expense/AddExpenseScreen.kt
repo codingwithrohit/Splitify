@@ -673,65 +673,65 @@ private fun AmountInputCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-//                Row(
-//                    modifier = Modifier.fillMaxWidth(),
-//                    horizontalArrangement = Arrangement.Center,
-//                    verticalAlignment = Alignment.CenterVertically
-//                ) {
-//                    Text(
-//                        text = "₹",
-//                        style = MaterialTheme.typography.displaySmall,
-//                        fontWeight = FontWeight.Bold,
-//                        color = if (hasError)
-//                            MaterialTheme.colorScheme.error
-//                        else
-//                            PrimaryColors.Primary700
-//                    )
-//
-//                    Spacer(modifier = Modifier.width(4.dp))
-//
-//                    BasicTextField(
-//                        value = amount,
-//                        onValueChange = onAmountChange,
-//                        textStyle = MaterialTheme.typography.displaySmall.copy(
-//                            fontWeight = FontWeight.Bold,
-//                            color = if (hasError)
-//                                MaterialTheme.colorScheme.error
-//                            else
-//                                PrimaryColors.Primary700,
-//                            textAlign = TextAlign.Center
-//                        ),
-//                        modifier = Modifier.wrapContentWidth()
-//                            .background(PrimaryColors.Primary500.copy(alpha = 0.3f)),
-//                        singleLine = true,
-//                        enabled = enabled,
-//                        keyboardOptions = KeyboardOptions(
-//                            keyboardType = KeyboardType.Decimal
-//                        ),
-//                        decorationBox = { innerTextField ->
-//                            Box(
-//                                contentAlignment = Alignment.Center
-//                            ) {
-//                                if (amount.isEmpty()) {
-//                                    Text(
-//                                        text = "0",
-//                                        style = MaterialTheme.typography.displaySmall,
-//                                        fontWeight = FontWeight.Bold,
-//                                        color = PrimaryColors.Primary300,
-//                                        textAlign = TextAlign.Center
-//                                    )
-//                                }
-//                                innerTextField()
-//                            }
-//                        }
-//                    )
-//                }
-                CenteredAmountInput(
-                    amount = amount,
-                    onAmountChange = onAmountChange,
-                    hasError = hasError,
-                    enabled = enabled
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "₹",
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (hasError)
+                            MaterialTheme.colorScheme.error
+                        else
+                            PrimaryColors.Primary700
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    BasicTextField(
+                        value = amount,
+                        onValueChange = onAmountChange,
+                        textStyle = MaterialTheme.typography.displaySmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = if (hasError)
+                                MaterialTheme.colorScheme.error
+                            else
+                                PrimaryColors.Primary700,
+                            textAlign = TextAlign.Center
+                        ),
+                        modifier = Modifier.wrapContentWidth()
+                            .background(PrimaryColors.Primary500.copy(alpha = 0.3f)),
+                        singleLine = true,
+                        enabled = enabled,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal
+                        ),
+                        decorationBox = { innerTextField ->
+                            Box(
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (amount.isEmpty()) {
+                                    Text(
+                                        text = "0",
+                                        style = MaterialTheme.typography.displaySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PrimaryColors.Primary300,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        }
+                    )
+                }
+//                CenteredAmountInput(
+//                    amount = amount,
+//                    onAmountChange = onAmountChange,
+//                    hasError = hasError,
+//                    enabled = enabled
+//                )
             }
         }
 

@@ -330,6 +330,7 @@ fun SplitifyNavGraph(
                             Screen.SettlementHistory.createRoute(tripId, memberId)
                         )
                     }
+
                 )
             }
 
