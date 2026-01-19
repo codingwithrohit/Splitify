@@ -101,20 +101,6 @@ fun EmptyState(
     }
 }
 
-@Composable
-fun EmptyTripsState(
-    onCreateTrip: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    EmptyState(
-        icon = Icons.Default.CardTravel,
-        title = "No Trips Yet",
-        description = "Create your first trip to start tracking expenses with friends and family.",
-        actionLabel = "Create Trip",
-        onAction = onCreateTrip,
-        modifier = modifier
-    )
-}
 
 @Composable
 fun EmptyExpensesState(
@@ -213,14 +199,4 @@ fun AllSettledState(
     }
 }
 
-@Composable
-fun EmptySettlementsState(
-    modifier: Modifier = Modifier
-) {
-    EmptyState(
-        icon = Icons.Default.ReceiptLong,
-        title = "No Settlements Yet",
-        description = "When members settle their debts, the payment history will appear here.",
-        modifier = modifier
-    )
-}
+

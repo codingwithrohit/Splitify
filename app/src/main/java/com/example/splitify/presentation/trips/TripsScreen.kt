@@ -132,14 +132,22 @@ fun TripsScreen(
             }
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onCreateTripClick,
-                icon = { Icon(Icons.Default.Add, "Add trip") },
-                text = { Text("New Trip", fontWeight = FontWeight.Bold) },
-                containerColor = PrimaryColors.Primary600,
-                contentColor = Color.White,
-                shape = CircleShape
-            )
+            when(uiState){
+                is TripsUiState.Content -> {
+                    ExtendedFloatingActionButton(
+                        onClick = onCreateTripClick,
+                        icon = { Icon(Icons.Default.Add, "Add trip") },
+                        text = { Text("New Trip", fontWeight = FontWeight.Bold) },
+                        containerColor = PrimaryColors.Primary600,
+                        contentColor = Color.White,
+                        shape = CircleShape
+                    )
+                }
+
+                is TripsUiState.Empty -> {}
+                is TripsUiState.Error -> {}
+                TripsUiState.InitialLoading -> {}
+            }
         }
     ){paddingValues ->
         when (uiState) {
@@ -148,9 +156,9 @@ fun TripsScreen(
             }
 
             is TripsUiState.Empty -> {
-                EmptyTripsState(
-                    onCreateTripClick,
-                    modifier = Modifier.padding(paddingValues)
+                EmptyTripScreen(
+                    onCreateTripClick = onCreateTripClick,
+                    onLogoutClick = { viewModel.logout() }
                 )
             }
 
