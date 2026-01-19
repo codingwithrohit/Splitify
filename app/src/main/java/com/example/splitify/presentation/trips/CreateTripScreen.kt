@@ -77,6 +77,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.SemanticsProperties.ImeAction
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -183,7 +184,7 @@ fun CreateTripScreen(
                     supportingText = uiState.nameError?.let { { Text(it) } },
                     leadingIcon = { Icon(Icons.Default.TravelExplore, null, tint = PrimaryColors.Primary500) },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    keyboardOptions = KeyboardOptions(KeyboardCapitalization.Words),
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = CustomShapes.TextFieldShape,
                     colors = premiumTextFieldColors(),

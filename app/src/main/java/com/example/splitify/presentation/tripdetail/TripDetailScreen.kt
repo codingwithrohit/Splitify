@@ -46,10 +46,10 @@ import com.example.splitify.presentation.components.LoadingScreen
 import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.tripdetail.cards.InsightsPreviewCard
 import com.example.splitify.presentation.tripdetail.cards.MembersCard
-import com.example.splitify.presentation.tripdetail.cards.PremiumTripCard
 import com.example.splitify.presentation.tripdetail.cards.QuickBalanceCard
 import com.example.splitify.presentation.tripdetail.cards.RecentExpensesCard
 import com.example.splitify.presentation.tripdetail.cards.SettlementsCard
+import com.example.splitify.presentation.tripdetail.cards.TripInfoCard
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -261,7 +261,7 @@ fun TripDashboard(
         item { Spacer(modifier = Modifier.height(20.dp)) }
 
         item {
-            PremiumTripCard(
+            TripInfoCard(
                 trip = state.trip,
                 memberCount = state.members.size,
                 totalAmount = state.totalAmount,

@@ -80,11 +80,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -261,7 +264,7 @@ fun AddExpenseScreen(
                                 }
                             },
                             keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Text,
+                                capitalization = KeyboardCapitalization.Words,
                                 imeAction = ImeAction.Done
                             ),
                             keyboardActions = KeyboardActions(
@@ -670,57 +673,65 @@ private fun AmountInputCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "₹",
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = if (hasError)
-                            MaterialTheme.colorScheme.error
-                        else
-                            PrimaryColors.Primary700
-                    )
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    BasicTextField(
-                        value = amount,
-                        onValueChange = onAmountChange,
-                        textStyle = MaterialTheme.typography.displaySmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = if (hasError)
-                                MaterialTheme.colorScheme.error
-                            else
-                                PrimaryColors.Primary700,
-                            textAlign = TextAlign.Center
-                        ),
-                        singleLine = true,
-                        enabled = enabled,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Decimal
-                        ),
-                        decorationBox = { innerTextField ->
-                            Box(
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (amount.isEmpty()) {
-                                    Text(
-                                        text = "0",
-                                        style = MaterialTheme.typography.displaySmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = PrimaryColors.Primary300,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        }
-                    )
-                }
+//                Row(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    horizontalArrangement = Arrangement.Center,
+//                    verticalAlignment = Alignment.CenterVertically
+//                ) {
+//                    Text(
+//                        text = "₹",
+//                        style = MaterialTheme.typography.displaySmall,
+//                        fontWeight = FontWeight.Bold,
+//                        color = if (hasError)
+//                            MaterialTheme.colorScheme.error
+//                        else
+//                            PrimaryColors.Primary700
+//                    )
+//
+//                    Spacer(modifier = Modifier.width(4.dp))
+//
+//                    BasicTextField(
+//                        value = amount,
+//                        onValueChange = onAmountChange,
+//                        textStyle = MaterialTheme.typography.displaySmall.copy(
+//                            fontWeight = FontWeight.Bold,
+//                            color = if (hasError)
+//                                MaterialTheme.colorScheme.error
+//                            else
+//                                PrimaryColors.Primary700,
+//                            textAlign = TextAlign.Center
+//                        ),
+//                        modifier = Modifier.wrapContentWidth()
+//                            .background(PrimaryColors.Primary500.copy(alpha = 0.3f)),
+//                        singleLine = true,
+//                        enabled = enabled,
+//                        keyboardOptions = KeyboardOptions(
+//                            keyboardType = KeyboardType.Decimal
+//                        ),
+//                        decorationBox = { innerTextField ->
+//                            Box(
+//                                contentAlignment = Alignment.Center
+//                            ) {
+//                                if (amount.isEmpty()) {
+//                                    Text(
+//                                        text = "0",
+//                                        style = MaterialTheme.typography.displaySmall,
+//                                        fontWeight = FontWeight.Bold,
+//                                        color = PrimaryColors.Primary300,
+//                                        textAlign = TextAlign.Center
+//                                    )
+//                                }
+//                                innerTextField()
+//                            }
+//                        }
+//                    )
+//                }
+                CenteredAmountInput(
+                    amount = amount,
+                    onAmountChange = onAmountChange,
+                    hasError = hasError,
+                    enabled = enabled
+                )
             }
         }
 
@@ -998,3 +1009,91 @@ private fun PaidBySelector(
     }
 }
 
+@Composable
+private fun CenteredAmountInput(
+    amount: String,
+    onAmountChange: (String) -> Unit,
+    hasError: Boolean,
+    enabled: Boolean
+) {
+    SubcomposeLayout { constraints ->
+
+        val rupeePlaceable = subcompose("rupee") {
+            Text(
+                text = "₹",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = if (hasError)
+                    MaterialTheme.colorScheme.error
+                else
+                    PrimaryColors.Primary700
+            )
+        }[0].measure(constraints)
+
+        val textFieldPlaceable = subcompose("textfield") {
+            BasicTextField(
+                value = amount,
+                onValueChange = onAmountChange,
+                textStyle = MaterialTheme.typography.displaySmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = if (hasError)
+                        MaterialTheme.colorScheme.error
+                    else
+                        PrimaryColors.Primary700,
+                    textAlign = TextAlign.Start
+                ),
+                singleLine = true,
+                enabled = enabled,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal
+                ),
+                decorationBox = { inner ->
+                    if (amount.isEmpty()) {
+                        Text(
+                            text = "0",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryColors.Primary300
+                        )
+                    }
+                    inner()
+                }
+            )
+        }[0].measure(constraints)
+
+        val totalWidth = rupeePlaceable.width + 4.dp.roundToPx() + textFieldPlaceable.width
+        val startX = (constraints.maxWidth - totalWidth) / 2
+
+        layout(
+            width = constraints.maxWidth,
+            height = maxOf(rupeePlaceable.height, textFieldPlaceable.height)
+        ) {
+            var x = startX
+            rupeePlaceable.placeRelative(x, 0)
+            x += rupeePlaceable.width + 4.dp.roundToPx()
+            textFieldPlaceable.placeRelative(x, 0)
+        }
+    }
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun Card(){
+    AmountInputCard(
+        amount = "",
+        onAmountChange = {},
+        hasError = false,
+        errorMessage = null,
+        enabled = true
+    )
+}
+
+//@Composable
+//private fun AmountInputCard(
+//    amount: String,
+//    onAmountChange: (String) -> Unit,
+//    hasError: Boolean,
+//    errorMessage: String?,
+//    enabled: Boolean
+//)

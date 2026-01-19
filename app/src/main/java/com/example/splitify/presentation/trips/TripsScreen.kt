@@ -53,7 +53,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.presentation.components.AnimatedCard
-import com.example.splitify.presentation.components.EmptyTripsState
 import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.LoadingScreen
 import com.example.splitify.presentation.theme.CustomShapes

@@ -23,73 +23,16 @@ import com.example.splitify.presentation.theme.CustomTextStyles
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.theme.SecondaryColors
+import com.example.splitify.util.formatToIndianCurrency
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.*
 
 @OptIn(ExperimentalLayoutApi::class)
+
 @Composable
 fun TripInfoCard(
-    trip: Trip,
-    memberCount: Int,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        onClick = onClick
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Text(
-                text = trip.name,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                maxLines = 2
-            )
-
-            if (trip.description?.isNotBlank() == true) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = trip.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    maxLines = 3
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                InfoChip(
-                    icon = Icons.Default.CalendarToday,
-                    text = formatSmartDateRange(trip.startDate,trip.endDate )
-                )
-
-                InfoChip(
-                    icon = Icons.Default.People,
-                    text = "$memberCount members"
-                )
-            }
-        }
-    }
-}
-
-// TripCard.kt - Premium version
-@Composable
-fun PremiumTripCard(
     trip: Trip,
     memberCount: Int,
     totalAmount: Double,
@@ -154,7 +97,7 @@ fun PremiumTripCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "₹${totalAmount}",
+                        text = formatToIndianCurrency(totalAmount),
                         style = CustomTextStyles.CurrencyMedium,
                         color = NeutralColors.Neutral900
                     )
