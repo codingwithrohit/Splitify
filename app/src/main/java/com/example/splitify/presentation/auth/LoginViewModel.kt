@@ -75,7 +75,7 @@ class LoginViewModel @Inject constructor(
                 is Result.Success -> {
                     Log.d("LoginVM", "✅ Login successful")
 
-                    // ✅ SMART DOWNLOAD LOGIC
+                    // SMART DOWNLOAD LOGIC
                     handlePostLoginDataSync()
 
                     // ✅ Complete login (UI navigates away)

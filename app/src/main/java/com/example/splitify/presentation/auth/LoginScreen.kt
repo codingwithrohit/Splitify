@@ -343,7 +343,7 @@ fun LoginScreen(
                 onPasswordVisibilityToggle = { passwordVisible = !passwordVisible },
                 onLoginClick = {
                     focusManager.clearFocus()
-                    viewModel::login
+                    viewModel.login()
                 },
                 focusManager = focusManager
             )
@@ -542,7 +542,7 @@ private fun LoginCard(
                 },
                 singleLine = true,
                 isError = uiState.emailError != null,
-                supportingText = uiState.errorMessage?.let { {Text(it)} },
+                supportingText = uiState.emailError?.let { {Text(it)} },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
@@ -589,7 +589,7 @@ private fun LoginCard(
                     PasswordVisualTransformation(),
                 singleLine = true,
                 isError = uiState.passwordError != null,
-                supportingText = uiState.errorMessage?.let { {Text(it)} },
+                supportingText = uiState.passwordError?.let { {Text(it)} },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
@@ -621,24 +621,6 @@ private fun LoginCard(
                 color = PrimaryColors.Primary600,
                 fontWeight = FontWeight.Medium
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
-            //Error message card
-            if (uiState.errorMessage != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text(
-                        text = uiState.errorMessage!!,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

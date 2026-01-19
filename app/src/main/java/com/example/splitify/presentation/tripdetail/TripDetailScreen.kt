@@ -33,6 +33,7 @@ import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.LoadingScreen
 import com.example.splitify.presentation.tripdetail.cards.InsightsPreviewCard
 import com.example.splitify.presentation.tripdetail.cards.MembersCard
+import com.example.splitify.presentation.tripdetail.cards.PremiumTripCard
 import com.example.splitify.presentation.tripdetail.cards.QuickBalanceCard
 import com.example.splitify.presentation.tripdetail.cards.RecentExpensesCard
 import com.example.splitify.presentation.tripdetail.cards.SettlementsCard
@@ -197,9 +198,10 @@ fun TripDashboard(
 
 
         item{
-            TripInfoCard(
+            PremiumTripCard(
                 trip = state.trip,
                 memberCount = state.members.size,
+                totalAmount = state.totalAmount,
                 onClick = { state.trip.id.let { onNavigateToEditTrip(it) }}
             )
         }

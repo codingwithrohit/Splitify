@@ -1,34 +1,58 @@
 package com.example.splitify.presentation.trips
 
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Luggage
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,14 +67,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.SemanticsProperties.ImeAction
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.splitify.presentation.components.LoadingButton
-import com.example.splitify.presentation.components.SuccessToast
-import com.example.splitify.presentation.expense.ExpenseFormMode
+import com.example.splitify.presentation.theme.CustomShapes
+import com.example.splitify.presentation.theme.CustomTextStyles
+import com.example.splitify.presentation.theme.NeutralColors
+import com.example.splitify.presentation.theme.PrimaryColors
+import com.example.splitify.presentation.theme.SecondaryColors
 import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.LocalDate
@@ -65,293 +101,518 @@ fun CreateTripScreen(
     tripId: String?,
     onNavigateBack: () -> Unit,
     viewModel: CreateTripViewModel = hiltViewModel()
-){
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val focusManager = LocalFocusManager.current
     val clipboardManager = LocalClipboardManager.current
-    var showSuccessToast by remember { mutableStateOf(false) }
-    var showCopyToast by remember { mutableStateOf(false) }
+    var showCopiedMessage by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.isSaved) {
-        if(uiState.isSaved){
-            showSuccessToast = true
-            delay(1500)
-            onNavigateBack()
+        if (uiState.isSaved) onNavigateBack()
+    }
+
+    LaunchedEffect(showCopiedMessage) {
+        if (showCopiedMessage) {
+            delay(2000)
+            showCopiedMessage = false
         }
     }
 
+    val startDateText = uiState.startDate.format(DateTimeFormatter.ofPattern("MMM, dd, yyyy"))
+    val endDateText = uiState.endDate?.format(DateTimeFormatter.ofPattern("MMM, dd, yyyy")) ?: "Not Set"
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title ={
-                    Text( when(viewModel.mode){
-                        is CreateTripFormMode.CreateTrip -> "Create Trip"
-                        is CreateTripFormMode.EditTrip -> "Edit Trip"
-                    } )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back Button")
+            PremiumHeader(
+                title = if (viewModel.mode is CreateTripFormMode.CreateTrip) "Create Trip" else "Edit Trip",
+                onBackClick = onNavigateBack
+            )
+        },
+        bottomBar = {
+            // This ensures the button is always visible and handles system nav padding
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding() // FIX: Keeps button above system nav
+                    .padding(20.dp),
+                color = Color.Transparent // Let the background show through
+            ) {
+                Button(
+                    onClick = viewModel::saveTrip,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = CustomShapes.ButtonLargeShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColors.Primary600),
+                    enabled = !uiState.isLoading && uiState.name.isNotBlank(),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                ) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        val isCreate = viewModel.mode is CreateTripFormMode.CreateTrip
+                        Icon(if (isCreate) Icons.Default.Add else Icons.Default.Save, null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (isCreate) "Create Trip" else "Save Changes", style = CustomTextStyles.ButtonLarge)
                     }
                 }
-            )
+            }
         }
-    ) {paddingValues ->
-
-        Column(
+    ) { paddingValues ->
+        // The Box contains the scrollable content and the floating "Copied" feedback
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-            )
-        {
-            //Trip Name
-            OutlinedTextField(
-                value = uiState.name,
-                onValueChange = viewModel::onNameChange,
-                label = { Text("Trip Name *") },
-                placeholder = { Text("e.g. Goa Trip 2025") },
-                isError = uiState.nameError != null,
-                supportingText = uiState.nameError?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+                .padding(paddingValues) // FIX: Prevents content hiding behind Top/Bottom bars
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 24.dp, bottom = 16.dp) // Regular padding
+            ) {
+                TripPlanHeader()
+                Spacer(modifier = Modifier.height(32.dp))
 
-            //Trip Description
-            OutlinedTextField(
-                value = uiState.description,
-                onValueChange = viewModel::onDescriptionChange,
-                label = { Text("Description(Optional)") },
-                placeholder = { Text("Add details about your trip..") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                maxLines = 5
-            )
+                InputFieldLabel("Trip Name")
+                OutlinedTextField(
+                    value = uiState.name,
+                    onValueChange = viewModel::onNameChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = uiState.nameError != null,
+                    supportingText = uiState.nameError?.let { { Text(it) } },
+                    leadingIcon = { Icon(Icons.Default.TravelExplore, null, tint = PrimaryColors.Primary500) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    shape = CustomShapes.TextFieldShape,
+                    colors = premiumTextFieldColors(),
+                    enabled = !uiState.isLoading
+                )
 
-            //Start Date
-            DatePickerField(
-                label = "Start Date *",
-                date = uiState.startDate,
-                onDateChange = viewModel::onStartDateChange,
-                modifier = Modifier.fillMaxWidth()
-            )
+                Spacer(modifier = Modifier.height(24.dp))
 
-            //End Date
-            DatePickerField(
-                label = "End Date",
-                date = uiState.endDate,
-                onDateChange = viewModel::onEndDateChange,
-                modifier = Modifier.fillMaxWidth(),
-                allowNull = true
-            )
+                InputFieldLabel("Description (Optional)")
+                OutlinedTextField(
+                    value = uiState.description,
+                    onValueChange = viewModel::onDescriptionChange,
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    shape = CustomShapes.TextFieldShape,
+                    colors = premiumTextFieldColors(),
+                    enabled = !uiState.isLoading
+                )
 
-            // Date error
-            if (uiState.dateError != null) {
-                Text(
-                    text = uiState.dateError!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    PremiumDatePickerField(
+                        label = "Start Date",
+                        dateText = startDateText,
+                        currentDate = uiState.startDate,
+                        onDateChange = viewModel::onStartDateChange,
+                        modifier = Modifier.weight(1f)
+                    )
+                    PremiumDatePickerField(
+                        label = "End Date",
+                        dateText = endDateText,
+                        currentDate = uiState.endDate,
+                        onDateChange = viewModel::onEndDateChange,
+                        modifier = Modifier.weight(1f),
+                        allowNull = true
+                    )
+                }
+
+                if (uiState.dateError != null) {
+                    Text(
+                        text = uiState.dateError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                PremiumInviteCodeCard(
+                    inviteCode = uiState.inviteCode,
+                    onCopyClick = {
+                        clipboardManager.setText(AnnotatedString(uiState.inviteCode))
+                        showCopiedMessage = true
+                    },
+                    onRegenerateClick = viewModel::regenerateInviteCode
                 )
             }
 
-            //Invite Code
-//            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-//                Text(
-//                    text = "Invite Members",
-//                    style = MaterialTheme.typography.titleMedium
-//                )
-//
-//                // The Chip
-//                AssistChip(
-//                    onClick = {
-//                        clipboardManager.setText(AnnotatedString(uiState.inviteCode))
-//                        showSuccessToast = true // Using the toast we built earlier!
-//                    },
-//                    label = {
-//                        Text(
-//                            text = "Code: ${uiState.inviteCode}",
-//                            style = MaterialTheme.typography.labelLarge
-//                        )
-//                    },
-//                    leadingIcon = {
-//                        Icon(
-//                            imageVector = Icons.Default.ContentCopy,
-//                            contentDescription = "Copy code",
-//                            modifier = Modifier.size(18.dp)
-//                        )
-//                    },
-//                    trailingIcon = {
-//                        // We can still allow regenerating by clicking the end of the chip
-//                        IconButton(
-//                            onClick = viewModel::regenerateInviteCode,
-//                            modifier = Modifier.size(24.dp)
-//                        ) {
-//                            Icon(
-//                                imageVector = Icons.Default.Refresh,
-//                                contentDescription = "Refresh",
-//                                modifier = Modifier.size(16.dp)
-//                            )
-//                        }
-//                    },
-//                    shape = RoundedCornerShape(12.dp) // Keeps it consistent with your UI
-//                )
-//
-//                Text(
-//                    text = "Share this code with members to join the trip",
-//                    style = MaterialTheme.typography.bodySmall,
-//                    color = MaterialTheme.colorScheme.onSurfaceVariant
-//                )
-//            }
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text( text = "Invite Code",
-                        style = MaterialTheme.typography.titleMedium)
+            // Floating feedback Snackbar stays inside the Box
+            AnimatedVisibility(
+                visible = showCopiedMessage,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
+            ) {
+                CopyFeedbackBar()
+            }
+        }
+    }
+}
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-//                        Text(
-//                            text = uiState.inviteCode,
-//                            style = MaterialTheme.typography.headlineMedium,
-//                            color = MaterialTheme.colorScheme.primary
-//                        )
-                        AssistChip(
-                    onClick = {
-                        clipboardManager.setText(AnnotatedString(uiState.inviteCode))
-                        showSuccessToast = true // Using the toast we built earlier!
-                    },
-                    label = {
-                        Text(
-                            text = "Code: ${uiState.inviteCode}",
-                            style = MaterialTheme.typography.labelLarge
+@Composable
+private fun PremiumHeader(
+    title: String,
+    onBackClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 4.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            PrimaryColors.Primary500,
+                            PrimaryColors.Primary700
                         )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "Copy code",
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    shape = RoundedCornerShape(12.dp) // Keeps it consistent with your UI
+                    )
                 )
-                        IconButton( onClick = viewModel::regenerateInviteCode ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh Button")
-                        }
-                    }
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(Color.White.copy(alpha = 0.2f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumInviteCodeCard(
+    inviteCode: String,
+    onCopyClick: () -> Unit,
+    onRegenerateClick: () -> Unit
+) {
+    // Shimmer animation for the card
+    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+    val shimmerAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shimmer"
+    )
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = CustomShapes.CardShape,
+        color = SecondaryColors.Secondary50,
+        shadowElevation = 4.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.QrCode2,
+                        contentDescription = null,
+                        tint = SecondaryColors.Secondary600,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Share this code with members to join the trip",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Invite Code",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = SecondaryColors.Secondary900
+                    )
+                }
+
+                IconButton(
+                    onClick = onRegenerateClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Regenerate",
+                        tint = SecondaryColors.Secondary600
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            LoadingButton(
-                text = when(viewModel.mode){
-                    is CreateTripFormMode.CreateTrip -> "Create Trip"
-                    is CreateTripFormMode.EditTrip -> "Save Changes"
-                },
-                onClick = viewModel::saveTrip,
-                isLoading = uiState.isLoading,
-                icon = Icons.Default.Save,
-                modifier = Modifier.fillMaxWidth()
+            // Invite Code Display
+            Surface(
+                onClick = onCopyClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
+                color = Color.White,
+                shadowElevation = 2.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = null,
+                            tint = PrimaryColors.Primary600,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = inviteCode,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryColors.Primary700,
+                            letterSpacing = 2.sp
+                        )
+                    }
+
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = PrimaryColors.Primary100.copy(alpha = shimmerAlpha)
+                    ) {
+                        Text(
+                            text = "TAP TO COPY",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryColors.Primary700,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "Share this code with members to join the trip",
+                style = MaterialTheme.typography.bodySmall,
+                color = NeutralColors.Neutral600
             )
-
-
         }
+    }
+}
+@Composable
+private fun PremiumDatePickerField(
+    label: String,
+    dateText: String,
+    currentDate: LocalDate?,
+    onDateChange: (LocalDate?) -> Unit,
+    modifier: Modifier = Modifier,
+    allowNull: Boolean = false
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
 
-        SuccessToast(
-            message = when(viewModel.mode){
-                is CreateTripFormMode.CreateTrip -> "Trip created successfully!"
-                is CreateTripFormMode.EditTrip -> "Trip updated successfully"
-            },
-            visible = showSuccessToast,
-            onDismiss = { showSuccessToast = false }
-        )
-        SuccessToast(
-            message = "Code copied! 📋",
-            visible = showCopyToast,
-            onDismiss = { showCopyToast = false }
-        )
-
+    Column(modifier = modifier) {
+        InputFieldLabel(label)
+        Surface(
+            onClick = { showDatePicker = true },
+            modifier = Modifier.fillMaxWidth(),
+            shape = CustomShapes.TextFieldShape,
+            color = Color.White,
+            border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(NeutralColors.Neutral300))
+        ) {
+            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.CalendarToday, null, tint = PrimaryColors.Primary500, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(text = dateText, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 
+    if (showDatePicker) {
+        // Reuse your existing DatePickerDialog logic here
+        SplitifyDatePickerDialog(
+            initialDate = currentDate ?: LocalDate.now(),
+            allowNull = allowNull,
+            onDismiss = { showDatePicker = false },
+            onDateSelected = { onDateChange(it) }
+        )
+    }
+}
+
+@Composable
+private fun TripPlanHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            modifier = Modifier.size(56.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = PrimaryColors.Primary100,
+            shadowElevation = 2.dp
+        ) {
+            Icon(
+                imageVector = Icons.Default.Luggage,
+                contentDescription = null,
+                modifier = Modifier.padding(14.dp),
+                tint = PrimaryColors.Primary600
+            )
+        }
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column {
+            Text(
+                text = "Plan Your Trip",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Set up the basics to get started",
+                style = MaterialTheme.typography.bodyMedium,
+                color = NeutralColors.Neutral600
+            )
+        }
+    }
+}
+
+@Composable
+private fun CopyFeedbackBar() {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = SecondaryColors.Secondary600,
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Invite code copied!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DatePickerField(
-    label: String,
-    date: LocalDate?,
-    onDateChange: (LocalDate?) -> Unit,
-    modifier: Modifier = Modifier,
-    allowNull: Boolean = false
-    )
-{
-    var showDatePicker by remember { mutableStateOf(false) }
-    OutlinedTextField(
-        value = date?.format(DateTimeFormatter.ofPattern("MMM,dd,yyyy")) ?: "Not Set",
-        onValueChange = {},
-        label = { Text(label) },
-        modifier = modifier,
-        readOnly = true,
-        trailingIcon = {
-            TextButton( onClick = { showDatePicker = true } ) {
-                Text("Pick")
-            }
-        }
+fun SplitifyDatePickerDialog(
+    initialDate: LocalDate,
+    allowNull: Boolean = false,
+    onDismiss: () -> Unit,
+    onDateSelected: (LocalDate?) -> Unit
+) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialDate
+            .atStartOfDay()
+            .toInstant(ZoneOffset.UTC)
+            .toEpochMilli()
     )
 
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = (date ?: LocalDate.now())
-                .atStartOfDay()
-                .toInstant(ZoneOffset.UTC)
-                .toEpochMilli()
-        )
-
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val selectedDate = Instant
-                                .ofEpochMilli(millis)
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate()
-                            onDateChange(selectedDate)
-                        }
-                        showDatePicker = false
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val selectedDate = Instant
+                            .ofEpochMilli(millis)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate()
+                        onDateSelected(selectedDate)
                     }
-                ) {
-                    Text("OK")
+                    onDismiss()
                 }
-            },
-            dismissButton = {
+            ) {
+                Text("OK", color = PrimaryColors.Primary600, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            Row {
                 if (allowNull) {
                     TextButton(onClick = {
-                        onDateChange(null)
-                        showDatePicker = false
+                        onDateSelected(null)
+                        onDismiss()
                     }) {
-                        Text("Clear")
+                        Text("Clear", color = MaterialTheme.colorScheme.error)
                     }
                 }
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel", color = NeutralColors.Neutral600)
                 }
             }
-        ) {
-            DatePicker(state = datePickerState)
         }
+    ) {
+        DatePicker(
+            state = datePickerState,
+            colors = DatePickerDefaults.colors(
+                selectedDayContainerColor = PrimaryColors.Primary600,
+                todayContentColor = PrimaryColors.Primary600,
+                todayDateBorderColor = PrimaryColors.Primary600
+            )
+        )
     }
+}
+
+@Composable
+fun premiumTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = PrimaryColors.Primary500,
+    unfocusedBorderColor = NeutralColors.Neutral300,
+    focusedContainerColor = PrimaryColors.Primary50,
+    unfocusedContainerColor = Color.White
+)
+
+@Composable
+private fun InputFieldLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
 }

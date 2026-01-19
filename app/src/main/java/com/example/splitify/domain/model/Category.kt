@@ -1,5 +1,8 @@
 package com.example.splitify.domain.model
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+
 enum class Category (
     val displayName: String,
     val icon: String,

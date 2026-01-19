@@ -96,3 +96,102 @@ private fun ExpensePreviewItem(expense: Expense) {
         )
     }
 }
+
+// ExpenseCard.kt - Premium version
+//@Composable
+//fun PremiumExpenseCard(
+//    expense: Expense,
+//    modifier: Modifier = Modifier
+//) {
+//    Card(
+//        modifier = modifier.fillMaxWidth(),
+//        shape = CustomShapes.CardShape,
+//        colors = CardDefaults.cardColors(
+//            containerColor = MaterialTheme.colorScheme.surface
+//        )
+//    ) {
+//        Row(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(16.dp),
+//            verticalAlignment = Alignment.CenterVertically
+//        ) {
+//            // Category icon with color
+//            Surface(
+//                modifier = Modifier.size(48.dp),
+//                shape = CircleShape,
+//                color = getCategoryColor(expense.category).copy(alpha = 0.2f)
+//            ) {
+//                Icon(
+//                    imageVector = getCategoryIcon(expense.category),
+//                    contentDescription = null,
+//                    tint = getCategoryColor(expense.category),
+//                    modifier = Modifier.padding(12.dp)
+//                )
+//            }
+//
+//            Spacer(modifier = Modifier.width(16.dp))
+//
+//            // Content
+//            Column(modifier = Modifier.weight(1f)) {
+//                Text(
+//                    text = expense.description,
+//                    style = MaterialTheme.typography.titleMedium,
+//                    fontWeight = FontWeight.SemiBold,
+//                    color = NeutralColors.Neutral900
+//                )
+//                Row(
+//                    verticalAlignment = Alignment.CenterVertically
+//                ) {
+//                    Text(
+//                        text = "Paid by ${expense.paidByName}",
+//                        style = MaterialTheme.typography.bodySmall,
+//                        color = NeutralColors.Neutral600
+//                    )
+//                    Spacer(modifier = Modifier.width(8.dp))
+//                    Text(
+//                        text = "•",
+//                        style = MaterialTheme.typography.bodySmall,
+//                        color = NeutralColors.Neutral400
+//                    )
+//                    Spacer(modifier = Modifier.width(8.dp))
+//                    Text(
+//                        text = expense.date.format(),
+//                        style = MaterialTheme.typography.bodySmall,
+//                        color = NeutralColors.Neutral600
+//                    )
+//                }
+//            }
+//
+//            // Amount
+//            Text(
+//                text = "₹${expense.amount}",
+//                style = MaterialTheme.typography.titleLarge,
+//                fontWeight = FontWeight.Bold,
+//                color = PrimaryColors.Primary600
+//            )
+//        }
+//    }
+//}
+//
+//fun getCategoryColor(category: ExpenseCategory): Color {
+//    return when (category) {
+//        ExpenseCategory.FOOD -> CategoryColors.Food
+//        ExpenseCategory.TRANSPORT -> CategoryColors.Transport
+//        ExpenseCategory.ACCOMMODATION -> CategoryColors.Accommodation
+//        ExpenseCategory.ENTERTAINMENT -> CategoryColors.Entertainment
+//        ExpenseCategory.SHOPPING -> CategoryColors.Shopping
+//        ExpenseCategory.OTHER -> CategoryColors.Other
+//    }
+//}
+//
+//fun getCategoryIcon(category: ExpenseCategory): ImageVector {
+//    return when (category) {
+//        ExpenseCategory.FOOD -> Icons.Default.Restaurant
+//        ExpenseCategory.TRANSPORT -> Icons.Default.DirectionsCar
+//        ExpenseCategory.ACCOMMODATION -> Icons.Default.Hotel
+//        ExpenseCategory.ENTERTAINMENT -> Icons.Default.TheaterComedy
+//        ExpenseCategory.SHOPPING -> Icons.Default.ShoppingCart
+//        ExpenseCategory.OTHER -> Icons.Default.MoreHoriz
+//    }
+//}
