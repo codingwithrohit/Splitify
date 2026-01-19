@@ -203,50 +203,23 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun syncTrips(): Result<Unit> {
         return try {
-            Log.d("TripRepo", "🔄 Starting trip sync...")
+            val session = supabase.auth.currentSessionOrNull() ?: return Unit.asSuccess()
+            val userId = session.user?.id ?: ""
 
-            val session = supabase.auth.currentSessionOrNull()
-            val currentUserId = session?.user?.id ?: ""
-            val unsyncedTrips = tripDao.getUnsyncedTrips(currentUserId)
-
-            Log.d("TripRepo", "📊 Found ${unsyncedTrips.size} unsynced trips")
+            val unsyncedTrips = tripDao.getUnsyncedTrips(userId)
 
             if (unsyncedTrips.isEmpty()) {
-                Log.d("TripRepo", "✅ No trips to sync")
                 return Unit.asSuccess()
             }
 
-            if (session == null) {
-                Log.w("TripRepo", "⚠️ No session, skipping sync")
-                return Unit.asSuccess()
-            }
+            Log.d("TripRepo", "🔄 Syncing ${unsyncedTrips.size} pending trips...")
 
             unsyncedTrips.forEach { entity ->
                 try {
                     val dto = entity.toDto()
 
-                    // Check if trip already exists on server
-                    val existing = supabase.from("trips")
-                        .select {
-                            filter {
-                                eq("id", entity.id)
-                            }
-                        }
-                        .decodeSingleOrNull<TripDto>()
-
-                    if (existing == null) {
-                        // Insert new trip
-                        supabase.from("trips").insert(dto)
-                        Log.d("TripRepo", "  ✅ Inserted: ${entity.name}")
-                    } else {
-                        // Update existing trip
-                        supabase.from("trips").update(dto) {
-                            filter {
-                                eq("id", entity.id)
-                            }
-                        }
-                        Log.d("TripRepo", "  🔄 Updated: ${entity.name}")
-                    }
+                    // Using upsert is safer: it inserts if new, updates if exists
+                    supabase.from("trips").upsert(dto)
 
                     tripDao.updateTrip(
                         entity.copy(
@@ -255,15 +228,14 @@ class TripRepositoryImpl @Inject constructor(
                             lastModified = System.currentTimeMillis()
                         )
                     )
-
+                    Log.d("TripRepo", "  ✅ Synced: ${entity.name}")
                 } catch (e: Exception) {
-                    Log.e("TripRepo", "  ❌ Failed to sync trip ${entity.name}", e)
-                    // Continue with other trips
+                    Log.e("TripRepo", "  ❌ Sync failed for ${entity.name}: ${e.message}")
                 }
             }
-
             Unit.asSuccess()
         } catch (e: Exception) {
+            Log.e("TripRepo", "❌ Sync process interrupted", e)
             e.asError()
         }
     }

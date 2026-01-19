@@ -237,12 +237,13 @@ fun MembersScreen(
 
             is MembersUiState.Success -> {
                 if (state.members.isEmpty()) {
-                    EmptyMembersState(
+                    EmptyMemberScreen(
                         onAddMembers = onAddMembers,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding)
                     )
+
                 } else {
                     LazyColumn(
                         modifier = Modifier

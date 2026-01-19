@@ -72,26 +72,16 @@ class TripsViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = currentUserId.value ?: return@launch
 
-            Log.d("TripsVM", "👀 Observing trips for user: $userId")
-
             tripDao.getTripsByUser(userId).collect { trips ->
-                Log.d("TripsVM", "📦 Got ${trips.size} trips from Room")
-
                 _uiState.update { current ->
-                    when {
-                        trips.isEmpty() -> {
-                            Log.d("TripsVM", "📭 No trips, showing Empty state")
-                            TripsUiState.Empty(
-                                isSyncing = current.isSyncing()
-                            )
-                        }
-                        else -> {
-                            Log.d("TripsVM", "📋 Showing ${trips.size} trips")
-                            TripsUiState.Content(
-                                trips = trips.toDomainModels(),
-                                isSyncing = current.isSyncing()
-                            )
-                        }
+                    if (trips.isEmpty()) {
+                        TripsUiState.Empty(isSyncing = current.isSyncing())
+                    } else {
+                        Log.d("TripsVM", " UI Update: ${trips.size} trips (Syncing: ${current.isSyncing()})")
+                        TripsUiState.Content(
+                            trips = trips.toDomainModels(),
+                            isSyncing = current.isSyncing()
+                        )
                     }
                 }
             }
@@ -134,7 +124,7 @@ class TripsViewModel @Inject constructor(
 
 
     fun refresh() {
-        Log.d("TripsVM", "🔄 Manual refresh requested")
+        Log.d("TripsVM", "Manual refresh requested")
         syncIfNeeded()
     }
 

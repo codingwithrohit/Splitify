@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
 import com.example.splitify.util.Result
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.DurationUnit
 
 @SuppressLint("UnsafeOptInUsageError")
 class AuthRepositoryImpl @Inject constructor(
@@ -32,70 +35,43 @@ class AuthRepositoryImpl @Inject constructor(
 ): AuthRepository {
 
     override suspend fun initializeSession(): Boolean {
-        return try {
-            Log.d("AuthRepo", "Initializing session...")
-            val accessToken = sessionManager.getAccessToken()
-            val refreshToken = sessionManager.getRefreshToken()
-            if (accessToken.isNullOrBlank() || refreshToken.isNullOrBlank()) {
-                Log.d("AuthRepo", "No stored tokens")
-                return false
-            }
+        val hasLocalSession = sessionManager.hasValidSession()
+        if (!hasLocalSession) return false
+
+        // Token refresh is best-effort and must never affect UI state
+        if (sessionManager.needsTokenRefresh()) {
             try {
-                supabase.auth.retrieveUser(accessToken)
-                Log.d("AuthRepo", "✅ Session restored successfully")
-
-                // Check if token needs refresh
-                if (sessionManager.needsTokenRefresh()) {
-                    Log.d("AuthRepo", "🔄 Token expiring soon, refreshing...")
-                    refreshTokens()
-                }
-
-                true
-            } catch (e: Exception) {
-                Log.e("AuthRepo", " Session restore failed, trying refresh...", e)
-                // Try to refresh with refresh token
                 refreshTokens()
+            } catch (_: Exception) {
+                // Ignore refresh failures (offline / timeout)
             }
-
-        }catch (e: Exception) {
-            Log.e("AuthRepo", " Session initialization failed", e)
-            false
         }
+
+        return true
     }
+
 
     private suspend fun refreshTokens(): Boolean {
+        val refreshToken = sessionManager.getRefreshToken() ?: return false
+
         return try {
-            Log.d("AuthRepo", "🔄 Refreshing tokens...")
-
-            val refreshToken = sessionManager.getRefreshToken()
-            if (refreshToken.isNullOrBlank()) {
-                Log.e("AuthRepo", "❌ No refresh token available")
-                return false
-            }
-
             supabase.auth.refreshSession(refreshToken)
-            val session = supabase.auth.currentSessionOrNull()
-                ?: return false
 
-            if (session != null) {
-                sessionManager.updateTokens(
-                    accessToken = session.accessToken,
-                    refreshToken = session.refreshToken ?: ""
-                )
-                Log.d("AuthRepo", "✅ Tokens refreshed successfully")
-                true
-            } else {
-                Log.e("AuthRepo", "❌ Refresh returned null session")
-                false
-            }
+            val session = supabase.auth.currentSessionOrNull() ?: return false
 
+            sessionManager.updateTokens(
+                accessToken = session.accessToken,
+                refreshToken = session.refreshToken ?: "",
+                expiresIn = session.expiresIn
+            )
+
+            true
         } catch (e: Exception) {
-            Log.e("AuthRepo", "❌ Token refresh failed", e)
-            // Clear invalid session
-            sessionManager.clearSession()
+            // Do not clear session here
             false
         }
     }
+
 
     override fun getCurrentUser(): Flow<User?> = flow {
         val session = sessionManager.getCurrentUserFlow()
@@ -153,6 +129,7 @@ class AuthRepositoryImpl @Inject constructor(
             sessionManager.saveSession(
                 accessToken = session.accessToken,
                 refreshToken = session.refreshToken,
+                expiresIn = session.expiresIn,
                 userId = userId,
                 userName = userName,
                 userEmail = email,
@@ -198,7 +175,8 @@ class AuthRepositoryImpl @Inject constructor(
                 userEmail = userProfile.email,
                 userName = userProfile.username,
                 fullName = userProfile.full_name,
-                avatarUrl = userProfile.avatar_url
+                avatarUrl = userProfile.avatar_url,
+                expiresIn = session.expiresIn
             )
             Log.d("AuthRepo:", "Saved Session detail: " +
                     "accessToken = ${session.accessToken} " +
@@ -232,30 +210,23 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signOut(): Result<Unit> {
         return try {
-            val userId = sessionManager.getCurrentUserId()?: ""
-
-            // 1️. Remote logout (optional but correct)
             supabase.auth.signOut()
-            val tripsBefore = tripDao.getTripIdsByUser(userId).size
-            Log.d("Logout", "📊 Trips before: $tripsBefore")
-            // 2.  Clear local DB data
-            if (userId != null) {
-                expenseSplitDao.deleteAllSplitsForUser(userId)
-                expenseDao.deleteAllExpensesForUser(userId)
-                tripMemberDao.deleteAllMembersForUser(userId)
-                tripDao.deleteAllTripsForUser(userId)
-                val tripsAfter = tripDao.getTripIdsByUser(userId).size
-                Log.d("Logout", "📊 Trips after: $tripsAfter (should be 0)")
+
+            val userId = sessionManager.getCurrentUserId() ?: ""
+
+            tripDao.deleteAllTrips()
+
+            val remainingTrips = tripDao.getTripIdsByUser(userId).size
+            if (remainingTrips == 0) {
+                Log.d("AuthRepo", "Database cleared successfully")
+            } else {
+                Log.w("AuthRepo", "Warning: $remainingTrips trips still remain in DB")
             }
 
-            // 3.  Clear session LAST
             sessionManager.clearSession()
 
-            Log.d("AuthRepo", "✅ Signed out & local data cleared")
             Unit.asSuccess()
-
         } catch (e: Exception) {
-            Log.e("AuthRepo", " Sign out failed", e)
             e.asError()
         }
     }
