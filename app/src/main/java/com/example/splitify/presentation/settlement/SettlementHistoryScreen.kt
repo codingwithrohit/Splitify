@@ -65,6 +65,7 @@ import com.example.splitify.domain.model.SettlementStatus
 import com.example.splitify.presentation.balances.BalancesUiState
 import com.example.splitify.presentation.balances.BalancesViewModel
 import com.example.splitify.presentation.components.EmptySettlementsState
+import com.example.splitify.presentation.components.SplitifyAppBar
 import com.example.splitify.presentation.theme.CustomShapes
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
@@ -113,8 +114,9 @@ fun SettlementHistoryScreen(
 
     Scaffold(
         topBar = {
-            SettlementTopBar(
-                onBack = onBack
+            SplitifyAppBar(
+                title = "Settlements History",
+                onBackClick = onBack
             )
         }
     ) { paddingValues ->
@@ -462,62 +464,4 @@ fun SettlementHistoryCard(
         }
     }
 }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SettlementTopBar(
-    onBack: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            PrimaryColors.Primary500,
-                            PrimaryColors.Primary700
-                        )
-                    )
-                )
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(Color.White.copy(alpha = 0.2f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Text(
-                    text = "Settlement History",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.weight(1f)
-                )
-
-            }
-        }
-    }
-}
-
 

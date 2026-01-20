@@ -43,6 +43,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.LoadingScreen
+import com.example.splitify.presentation.components.SplitifyAppBar
+import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.tripdetail.cards.InsightsPreviewCard
 import com.example.splitify.presentation.tripdetail.cards.MembersCard
@@ -98,12 +100,12 @@ fun TripDetailScreen(
 
     Scaffold(
         topBar = {
-            TripDetailTopBar(
-                tripName = when (val state = dashboardState) {
+            SplitifyAppBar(
+                title = when (val state = dashboardState) {
                     is TripDashboardState.Success -> state.trip.name
                     else -> "Trip Details"
                 },
-                onBack = onNavigateBack
+                onBackClick = onNavigateBack
             )
         },
         floatingActionButton = {
@@ -144,93 +146,6 @@ fun TripDetailScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                 )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TripDetailTopBar(
-    tripName: String,
-    onBack: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            PrimaryColors.Primary500,
-                            PrimaryColors.Primary700
-                        )
-                    )
-                )
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(Color.White.copy(alpha = 0.2f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Text(
-                    text = tripName,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.weight(1f)
-                )
-
-//                IconButton(
-//                    onClick = { },
-//                    modifier = Modifier
-//                        .size(40.dp)
-//                        .clip(MaterialTheme.shapes.small)
-//                        .background(Color.White.copy(alpha = 0.2f))
-//                ) {
-//                    Icon(
-//                        imageVector = Icons.Default.Share,
-//                        contentDescription = "Share",
-//                        tint = Color.White
-//                    )
-//                }
-//
-//                Spacer(modifier = Modifier.width(8.dp))
-//
-//                IconButton(
-//                    onClick = { },
-//                    modifier = Modifier
-//                        .size(40.dp)
-//                        .clip(MaterialTheme.shapes.small)
-//                        .background(Color.White.copy(alpha = 0.2f))
-//                ) {
-//                    Icon(
-//                        imageVector = Icons.Default.MoreVert,
-//                        contentDescription = "More options",
-//                        tint = Color.White
-//                    )
-//                }
             }
         }
     }

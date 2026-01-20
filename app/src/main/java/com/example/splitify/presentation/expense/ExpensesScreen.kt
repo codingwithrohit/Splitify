@@ -60,6 +60,7 @@ import com.example.splitify.domain.usecase.expense.CanModifyExpenseUseCase
 import com.example.splitify.presentation.components.EmptyExpensesState
 import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.ExpensesLoadingSkeleton
+import com.example.splitify.presentation.components.SplitifyAppBar
 import com.example.splitify.presentation.components.SuccessToast
 import com.example.splitify.presentation.theme.CategoryColors
 import com.example.splitify.presentation.theme.CustomShapes
@@ -99,39 +100,10 @@ fun ExpensesScreen(
 
     Scaffold(
         topBar = {
-            Surface(
-                shadowElevation = 2.dp,
-                color = Color.White
-            ) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Expenses",
-                            fontWeight = FontWeight.Bold,
-                            color = NeutralColors.Neutral900
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(NeutralColors.Neutral100)
-                        ) {
-                            Icon(
-                                Icons.Default.ArrowBack,
-                                contentDescription = "Back",
-                                tint = NeutralColors.Neutral700
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White
-                    )
-                )
-            }
+            SplitifyAppBar(
+                title = "Expenses",
+                onBackClick = onBack
+            )
         },
         floatingActionButton = {
             FloatingActionButton(

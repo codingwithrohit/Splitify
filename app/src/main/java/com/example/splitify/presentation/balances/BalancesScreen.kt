@@ -64,6 +64,7 @@ import com.example.splitify.domain.model.SimplifiedDebt
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.presentation.components.AllSettledState
 import com.example.splitify.presentation.components.ErrorStateWithRetry
+import com.example.splitify.presentation.components.SplitifyAppBar
 import com.example.splitify.presentation.settlement.CancelSettlementDialog
 import com.example.splitify.presentation.settlement.SettleUpDialog
 import com.example.splitify.presentation.settlement.SettlementUiState
@@ -137,9 +138,24 @@ fun BalancesScreen(
 
     Scaffold(
         topBar = {
-            BalanceTopBar(
-                onNavigateToSettlementHistory = onNavigateToHistory,
-                onBack = onNavigateBack
+            SplitifyAppBar(
+                title = "Balances",
+                onBackClick = onNavigateBack,
+                actions = {
+                    IconButton(
+                        onClick = onNavigateToHistory,
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(40.dp)
+                            .clip(MaterialTheme.shapes.small)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = "History",
+                            tint = PrimaryColors.Primary600
+                        )
+                    }
+                }
             )
         }
     ) {padding ->
@@ -554,76 +570,3 @@ private fun SimplifiedDebtCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun BalanceTopBar(
-    onBack: () -> Unit,
-    onNavigateToSettlementHistory: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            PrimaryColors.Primary500,
-                            PrimaryColors.Primary700
-                        )
-                    )
-                )
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(Color.White.copy(alpha = 0.2f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Text(
-                    text = "Balances",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.weight(1f)
-                )
-
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = onNavigateToSettlementHistory,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(Color.White.copy(alpha = 0.2f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = "History",
-                        tint = Color.White
-                    )
-                }
-            }
-        }
-    }
-}

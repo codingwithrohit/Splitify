@@ -40,188 +40,24 @@ fun MembersScreen(
     viewModel: MembersViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var isSelectionMode by remember { mutableStateOf(false) }
-    var selectedMembers by remember { mutableStateOf(setOf<String>()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var memberToDelete by remember { mutableStateOf<TripMember?>(null) }
 
     Scaffold(
         topBar = {
-            if (isSelectionMode) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 4.dp
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(
-                                        SemanticColors.Error,
-                                        SemanticColors.ErrorDark
-                                    )
-                                )
-                            )
-                            .statusBarsPadding()
-                            .padding(horizontal = 20.dp, vertical = 16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = {
-                                        isSelectionMode = false
-                                        selectedMembers = emptySet()
-                                    },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(MaterialTheme.shapes.small)
-                                        .background(Color.White.copy(alpha = 0.2f))
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Cancel",
-                                        tint = Color.White
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(16.dp))
-
-                                Text(
-                                    text = "${selectedMembers.size} selected",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-
-                            Row {
-                                IconButton(
-                                    onClick = {
-                                        if (uiState is MembersUiState.Success) {
-                                            val allMemberIds = (uiState as MembersUiState.Success)
-                                                .members.map { it.id }.toSet()
-                                            selectedMembers = if (selectedMembers.size == allMemberIds.size) {
-                                                emptySet()
-                                            } else {
-                                                allMemberIds
-                                            }
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = if (uiState is MembersUiState.Success &&
-                                            selectedMembers.size == (uiState as MembersUiState.Success).members.size)
-                                            Icons.Default.CheckCircle else Icons.Default.CheckCircleOutline,
-                                        contentDescription = "Select All",
-                                        tint = Color.White
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = { showDeleteDialog = true },
-                                    enabled = selectedMembers.isNotEmpty()
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete",
-                                        tint = if (selectedMembers.isNotEmpty()) Color.White else Color.White.copy(alpha = 0.5f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 4.dp
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(
-                                        PrimaryColors.Primary500,
-                                        PrimaryColors.Primary700
-                                    )
-                                )
-                            )
-                            .statusBarsPadding()
-                            .padding(horizontal = 20.dp, vertical = 16.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = onBack,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(MaterialTheme.shapes.small)
-                                        .background(Color.White.copy(alpha = 0.2f))
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowBack,
-                                        contentDescription = "Back",
-                                        tint = Color.White
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(16.dp))
-
-                                Text(
-                                    text = "Members",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-
-                            if (uiState is MembersUiState.Success && (uiState as MembersUiState.Success).members.isNotEmpty()) {
-                                IconButton(
-                                    onClick = { isSelectionMode = true },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(MaterialTheme.shapes.small)
-                                        .background(Color.White.copy(alpha = 0.2f))
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "Delete Mode",
-                                        tint = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            SplitifyAppBar(
+                title = "Members",
+                onBackClick = onBack
+            )
         },
         floatingActionButton = {
-            AnimatedVisibility(
-                visible = !isSelectionMode,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
+            FloatingActionButton(
+                onClick = onAddMembers,
+                containerColor = PrimaryColors.Primary600,
+                contentColor = Color.White,
+                shape = CircleShape
             ) {
-                FloatingActionButton(
-                    onClick = onAddMembers,
-                    containerColor = PrimaryColors.Primary600,
-                    contentColor = Color.White,
-                    shape = CircleShape
-                ) {
-                    Icon(Icons.Default.PersonAdd, contentDescription = "Add Members")
-                }
+                Icon(Icons.Default.PersonAdd, contentDescription = "Add Members")
             }
         }
     ) { padding ->
@@ -243,7 +79,6 @@ fun MembersScreen(
                             .fillMaxSize()
                             .padding(padding)
                     )
-
                 } else {
                     LazyColumn(
                         modifier = Modifier
@@ -259,15 +94,6 @@ fun MembersScreen(
                         ) { member ->
                             MemberCard(
                                 member = member,
-                                isSelectionMode = isSelectionMode,
-                                isSelected = selectedMembers.contains(member.id),
-                                onSelect = {
-                                    selectedMembers = if (selectedMembers.contains(member.id)) {
-                                        selectedMembers - member.id
-                                    } else {
-                                        selectedMembers + member.id
-                                    }
-                                },
                                 onDelete = {
                                     memberToDelete = member
                                     showDeleteDialog = true
@@ -306,48 +132,32 @@ fun MembersScreen(
                 )
             },
             title = {
-                Text(
-                    text = if (selectedMembers.size > 1) "Delete ${selectedMembers.size} members?" else "Delete member?",
-                    fontWeight = FontWeight.Bold
-                )
+                Text(text = "Delete member?", fontWeight = FontWeight.Bold)
             },
             text = {
                 Text(
-                    text = if (selectedMembers.size > 1) {
-                        "Are you sure you want to remove these ${selectedMembers.size} members from the trip?"
-                    } else {
-                        "Are you sure you want to remove ${memberToDelete?.displayName ?: "this member"} from the trip?"
-                    },
+                    text = "Are you sure you want to remove ${memberToDelete?.displayName ?: "this member"} from the trip?",
                     color = NeutralColors.Neutral600
                 )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        // TODO: Call delete logic here
-                        // For multiple: viewModel.deleteMembers(tripId, selectedMembers)
-                        // For single: viewModel.deleteMember(tripId, memberToDelete?.id)
-
+                        // viewModel.deleteMember(tripId, memberToDelete?.id)
                         showDeleteDialog = false
-                        isSelectionMode = false
-                        selectedMembers = emptySet()
                         memberToDelete = null
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SemanticColors.Error
-                    ),
+                    colors = ButtonDefaults.buttonColors(containerColor = SemanticColors.Error),
                     shape = CustomShapes.ButtonShape
                 ) {
                     Text("Delete", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        memberToDelete = null
-                    }
-                ) {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    memberToDelete = null
+                }) {
                     Text("Cancel", color = NeutralColors.Neutral600)
                 }
             },
@@ -356,28 +166,17 @@ fun MembersScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemberCard(
     member: TripMember,
-    isSelectionMode: Boolean,
-    isSelected: Boolean,
-    onSelect: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
-        onClick = { if (isSelectionMode) onSelect },
         modifier = modifier.fillMaxWidth(),
         shape = CustomShapes.CardShape,
-        color = if (isSelected) PrimaryColors.Primary50 else Color.White,
-        shadowElevation = if (isSelected) 8.dp else 2.dp,
-        border = if (isSelected) ButtonDefaults.outlinedButtonBorder.copy(
-            width = 2.dp,
-            brush = Brush.linearGradient(
-                colors = listOf(PrimaryColors.Primary500, PrimaryColors.Primary700)
-            )
-        ) else null
+        color = Color.White,
+        shadowElevation = 2.dp
     ) {
         Row(
             modifier = Modifier
@@ -385,21 +184,9 @@ private fun MemberCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isSelectionMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = { onSelect() },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = PrimaryColors.Primary600,
-                        uncheckedColor = NeutralColors.Neutral400
-                    )
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-            }
-
             Surface(
                 shape = MaterialTheme.shapes.medium,
-                color = if (isSelected) PrimaryColors.Primary100 else PrimaryColors.Primary50,
+                color = PrimaryColors.Primary50,
                 modifier = Modifier.size(48.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -418,7 +205,7 @@ private fun MemberCard(
                     text = member.displayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isSelected) PrimaryColors.Primary900 else MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
@@ -444,17 +231,15 @@ private fun MemberCard(
                 Spacer(modifier = Modifier.width(8.dp))
             }
 
-            if (!isSelectionMode) {
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = SemanticColors.Error
-                    )
-                }
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    tint = SemanticColors.Error
+                )
             }
         }
     }

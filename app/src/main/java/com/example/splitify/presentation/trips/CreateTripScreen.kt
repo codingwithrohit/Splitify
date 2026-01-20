@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.splitify.presentation.components.SplitifyAppBar
 import com.example.splitify.presentation.theme.CustomShapes
 import com.example.splitify.presentation.theme.CustomTextStyles
 import com.example.splitify.presentation.theme.NeutralColors
@@ -124,19 +125,18 @@ fun CreateTripScreen(
 
     Scaffold(
         topBar = {
-            PremiumHeader(
+            SplitifyAppBar(
                 title = if (viewModel.mode is CreateTripFormMode.CreateTrip) "Create Trip" else "Edit Trip",
                 onBackClick = onNavigateBack
             )
         },
         bottomBar = {
-            // This ensures the button is always visible and handles system nav padding
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding() // FIX: Keeps button above system nav
+                    .navigationBarsPadding()
                     .padding(20.dp),
-                color = Color.Transparent // Let the background show through
+                color = Color.Transparent
             ) {
                 Button(
                     onClick = viewModel::saveTrip,
@@ -260,61 +260,6 @@ fun CreateTripScreen(
     }
 }
 
-@Composable
-private fun PremiumHeader(
-    title: String,
-    onBackClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            PrimaryColors.Primary500,
-                            PrimaryColors.Primary700
-                        )
-                    )
-                )
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onBackClick,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(Color.White.copy(alpha = 0.2f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun PremiumInviteCodeCard(

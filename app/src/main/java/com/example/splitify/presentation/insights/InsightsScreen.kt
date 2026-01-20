@@ -54,6 +54,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.TripInsights
 import com.example.splitify.presentation.components.ErrorStateWithRetry
+import com.example.splitify.presentation.components.SplitifyAppBar
 import com.example.splitify.presentation.insights.charts.CategoryBreakdownSection
 import com.example.splitify.presentation.insights.charts.DailySpendingSection
 import com.example.splitify.presentation.insights.charts.MemberSpendingSection
@@ -77,58 +78,29 @@ fun InsightsScreen(
 
     Scaffold(
         topBar = {
-            Surface(
-                shadowElevation = 2.dp,
-                color = Color.White
-            ) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Trip Insights",
-                            fontWeight = FontWeight.Bold,
-                            color = NeutralColors.Neutral900
+            SplitifyAppBar(
+                title = "Trip Insights",
+                onBackClick = onBack,
+                actions = {
+                    IconButton(
+                        onClick = {
+                            viewModel.generateSummary { summary ->
+                                summaryText = summary
+                                showSummaryDialog = true
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share Summary",
+                            tint = PrimaryColors.Primary600
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(NeutralColors.Neutral100)
-                        ) {
-                            Icon(
-                                Icons.Default.ArrowBack,
-                                contentDescription = "Back",
-                                tint = NeutralColors.Neutral700
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(
-                            onClick = {
-                                viewModel.generateSummary { summary ->
-                                    summaryText = summary
-                                    showSummaryDialog = true
-                                }
-                            },
-                            modifier = Modifier
-                                .padding(end = 8.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        ) {
-                            Icon(
-                                Icons.Default.Share,
-                                contentDescription = "Share Summary",
-                                tint = PrimaryColors.Primary600
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White
-                    )
-                )
-            }
+                    }
+                }
+            )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
