@@ -329,8 +329,8 @@ fun SplitifyNavGraph(
                         navController.navigate(
                             Screen.SettlementHistory.createRoute(tripId, memberId)
                         )
-                    }
-
+                    },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

@@ -202,35 +202,35 @@ private fun TripDetailTopBar(
                     modifier = Modifier.weight(1f)
                 )
 
-                IconButton(
-                    onClick = { },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(Color.White.copy(alpha = 0.2f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Share",
-                        tint = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = { },
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .background(Color.White.copy(alpha = 0.2f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "More options",
-                        tint = Color.White
-                    )
-                }
+//                IconButton(
+//                    onClick = { },
+//                    modifier = Modifier
+//                        .size(40.dp)
+//                        .clip(MaterialTheme.shapes.small)
+//                        .background(Color.White.copy(alpha = 0.2f))
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.Share,
+//                        contentDescription = "Share",
+//                        tint = Color.White
+//                    )
+//                }
+//
+//                Spacer(modifier = Modifier.width(8.dp))
+//
+//                IconButton(
+//                    onClick = { },
+//                    modifier = Modifier
+//                        .size(40.dp)
+//                        .clip(MaterialTheme.shapes.small)
+//                        .background(Color.White.copy(alpha = 0.2f))
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.MoreVert,
+//                        contentDescription = "More options",
+//                        tint = Color.White
+//                    )
+//                }
             }
         }
     }
@@ -269,7 +269,7 @@ fun TripDashboard(
             )
         }
 
-        item { Spacer(modifier = Modifier.height(12.dp)) }
+        item { Spacer(modifier = Modifier.height(18.dp)) }
 
         item {
             QuickBalanceCard(
