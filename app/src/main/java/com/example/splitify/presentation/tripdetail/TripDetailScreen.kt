@@ -3,11 +3,19 @@ package com.example.splitify.presentation.tripdetail
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -15,22 +23,27 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.LoadingScreen
+import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.tripdetail.cards.InsightsPreviewCard
 import com.example.splitify.presentation.tripdetail.cards.MembersCard
 import com.example.splitify.presentation.tripdetail.cards.QuickBalanceCard
@@ -51,6 +64,7 @@ fun TripDetailScreen(
     onNavigateToSettlement: (String, String) -> Unit,
     onAddExpense: () -> Unit,
     onAddMembers: () -> Unit,
+    onNavigateToEditTrip: (String) -> Unit,
     viewModel: TripDetailViewModel = hiltViewModel()
 ){
     LaunchedEffect(tripId) {
@@ -93,16 +107,16 @@ fun TripDetailScreen(
             )
         },
         floatingActionButton = {
-                ExtendedFloatingActionButton(
-                    onClick = onAddExpense,
-                    icon = { Icon(Icons.Default.Add, "Add expense") },
-                    text = { Text("New Expense") },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            ExtendedFloatingActionButton(
+                onClick = onAddExpense,
+                icon = { Icon(Icons.Default.Add, "Add expense") },
+                text = { Text("New Expense", fontWeight = FontWeight.Bold) },
+                containerColor = PrimaryColors.Primary600,
+                contentColor = Color.White,
+                shape = CircleShape
+            )
         }
     ) { paddingValues ->
-
         when(val state = dashboardState){
             is TripDashboardState.Loading ->{
                 LoadingScreen(
@@ -124,12 +138,12 @@ fun TripDetailScreen(
                     onNavigateToBalances = onNavigateToBalances,
                     onNavigateToInsights = onNavigateToInsights,
                     onNavigateToSettlement = onNavigateToSettlement,
+                    onNavigateToEditTrip = onNavigateToEditTrip,
                     onAddMembers = onAddMembers,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues)
                 )
-
             }
         }
     }
@@ -141,36 +155,85 @@ private fun TripDetailTopBar(
     tripName: String,
     onBack: () -> Unit
 ) {
-    TopAppBar(
-        title = {
-            Text(
-                text = tripName,
-                style = MaterialTheme.typography.titleLarge
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back"
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 4.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            PrimaryColors.Primary500,
+                            PrimaryColors.Primary700
+                        )
+                    )
                 )
-            }
-        },
-        actions = {
-            IconButton(onClick = { /* TODO: Share trip */ }) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = "Share"
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(Color.White.copy(alpha = 0.2f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = tripName,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
                 )
-            }
-            IconButton(onClick = { /* TODO: Trip settings */ }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More options"
-                )
+
+//                IconButton(
+//                    onClick = { },
+//                    modifier = Modifier
+//                        .size(40.dp)
+//                        .clip(MaterialTheme.shapes.small)
+//                        .background(Color.White.copy(alpha = 0.2f))
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.Share,
+//                        contentDescription = "Share",
+//                        tint = Color.White
+//                    )
+//                }
+//
+//                Spacer(modifier = Modifier.width(8.dp))
+//
+//                IconButton(
+//                    onClick = { },
+//                    modifier = Modifier
+//                        .size(40.dp)
+//                        .clip(MaterialTheme.shapes.small)
+//                        .background(Color.White.copy(alpha = 0.2f))
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.MoreVert,
+//                        contentDescription = "More options",
+//                        tint = Color.White
+//                    )
+//                }
             }
         }
-    )
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -182,28 +245,32 @@ fun TripDashboard(
     onNavigateToMembers: () -> Unit,
     onNavigateToInsights: () -> Unit,
     onNavigateToSettlement: (tripId: String, currentMemberId: String) -> Unit,
+    onNavigateToEditTrip: (String) -> Unit,
     onAddMembers: () -> Unit,
     modifier: Modifier = Modifier
 ){
     val currentUserId = state.currentUserId
     val currentMemberId = state.members.firstOrNull(){it.userId == currentUserId}?.id
 
-    LazyColumn(modifier = modifier.fillMaxSize().padding(16.dp)) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 20.dp)
+    ) {
+        item { Spacer(modifier = Modifier.height(20.dp)) }
 
-
-        item{
+        item {
             TripInfoCard(
                 trip = state.trip,
-                memberCount = state.members.size
+                memberCount = state.members.size,
+                totalAmount = state.totalAmount,
+                onClick = { state.trip.id.let { onNavigateToEditTrip(it) }}
             )
         }
 
-        item {
-            Spacer(modifier = Modifier.height(10.dp))
-        }
+        item { Spacer(modifier = Modifier.height(18.dp)) }
 
-
-        // Recent Balance Card
         item {
             QuickBalanceCard(
                 youOwe = state.youOwe,
@@ -216,11 +283,8 @@ fun TripDashboard(
             )
         }
 
-        item {
-            Spacer(modifier = Modifier.height(10.dp))
-        }
+        item { Spacer(modifier = Modifier.height(12.dp)) }
 
-        // Recent Expenses Card
         item {
             RecentExpensesCard(
                 totalExpenses = state.expenseCount,
@@ -228,30 +292,24 @@ fun TripDashboard(
                 recentExpenses = state.recentExpenses,
                 onClick = {
                     currentMemberId?.let {
-                        onNavigateToExpenses(state.trip.id,currentUserId, it)
+                        onNavigateToExpenses(state.trip.id, currentUserId, it)
                     }
                 }
             )
         }
 
-        item {
-            Spacer(modifier = Modifier.height(10.dp))
-        }
+        item { Spacer(modifier = Modifier.height(12.dp)) }
 
-        // Members Card
-        item{
+        item {
             MembersCard(
                 members = state.members,
                 onClick = onNavigateToMembers
             )
         }
 
-        item {
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
-        // Insights Card (only show if there are expenses)
         if (state.expenseCount > 0) {
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
             item {
                 InsightsPreviewCard(
                     onClick = onNavigateToInsights
@@ -259,12 +317,9 @@ fun TripDashboard(
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
-        // Settlements Card (only show if there are settlements)
         if (state.pendingSettlements > 0 || state.completedSettlements > 0) {
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
             item {
                 SettlementsCard(
                     pendingCount = state.pendingSettlements,
@@ -278,14 +333,6 @@ fun TripDashboard(
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(80.dp))
-        }
-
-
+        item { Spacer(modifier = Modifier.height(100.dp)) }
     }
 }
-
-
-
-

@@ -17,8 +17,13 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface TripDao {
 
-     /* Get all trips ordered by start date (newest first)
-        Returns Flow - updates automatically when data changes */
+
+    @Query("""
+    SELECT trips.id FROM trips
+    INNER JOIN trip_members ON trips.id = trip_members.trip_id
+    WHERE trip_members.user_id = :userId
+""")
+    suspend fun getTripIdsByUser(userId: String): List<String>
     @Query("Select * from trips ORDER BY start_date DESC")
     fun getAllTrips(): Flow<List<TripEntity>>
 
@@ -30,12 +35,20 @@ interface TripDao {
     fun observeTripById(tripId: String): Flow<TripEntity>
 
     // Get all trips created by a specific user
-    @Query("Select * From trips WHERE created_by = :userId ORDER BY start_date DESC")
+//    @Query("Select * From trips WHERE created_by = :userId ORDER BY start_date DESC")
+//    fun getTripsByUser(userId: String): Flow<List<TripEntity>>
+
+    @Query("""
+        SELECT trips.* FROM trips
+        INNER JOIN trip_members ON trips.id = trip_members.trip_id
+        WHERE trip_members.user_id = :userId
+        ORDER BY trips.start_date DESC
+    """)
     fun getTripsByUser(userId: String): Flow<List<TripEntity>>
 
     // Get trips that haven't been synced to Supabase yet
-    @Query("Select * From trips WHERE is_local = 1")
-    suspend fun getUnsyncedTrips(): List<TripEntity>
+    @Query("SELECT * FROM trips WHERE is_synced = 0 AND created_by = :userId")
+    suspend fun getUnsyncedTrips(userId: String): List<TripEntity>
 
     // Insert a new trip, If trip with same Id exists, replace it
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -56,6 +69,17 @@ interface TripDao {
     // Delete trip by Id
     @Query("Delete From trips WHERE id = :tripId")
     suspend fun deleteTripById(tripId: String)
+
+    @Query("""
+    DELETE FROM trips
+    WHERE id IN (
+        SELECT trip_id
+        FROM trip_members
+        WHERE user_id = :userId
+    )
+""")
+    suspend fun deleteAllTripsForUser(userId: String)
+
 
     // Delete all trips - for testing and logout
     @Query("Delete From trips")

@@ -2,6 +2,7 @@ package com.example.splitify.presentation.insights
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachMoney
@@ -30,8 +33,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +44,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,6 +57,10 @@ import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.insights.charts.CategoryBreakdownSection
 import com.example.splitify.presentation.insights.charts.DailySpendingSection
 import com.example.splitify.presentation.insights.charts.MemberSpendingSection
+import com.example.splitify.presentation.theme.CustomShapes
+import com.example.splitify.presentation.theme.NeutralColors
+import com.example.splitify.presentation.theme.PrimaryColors
+import com.example.splitify.presentation.theme.SecondaryColors
 import com.example.splitify.util.CurrencyUtils
 import java.time.format.DateTimeFormatter
 
@@ -65,31 +77,60 @@ fun InsightsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Trip Insights",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        viewModel.generateSummary { summary ->
-                            summaryText = summary
-                            showSummaryDialog = true
+            Surface(
+                shadowElevation = 2.dp,
+                color = Color.White
+            ) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Trip Insights",
+                            fontWeight = FontWeight.Bold,
+                            color = NeutralColors.Neutral900
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(NeutralColors.Neutral100)
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = NeutralColors.Neutral700
+                            )
                         }
-                    }) {
-                        Icon(Icons.Default.Share, "Share Summary")
-                    }
-                }
-            )
-        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                viewModel.generateSummary { summary ->
+                                    summaryText = summary
+                                    showSummaryDialog = true
+                                }
+                            },
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                        ) {
+                            Icon(
+                                Icons.Default.Share,
+                                contentDescription = "Share Summary",
+                                tint = PrimaryColors.Primary600
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White
+                    )
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(
             modifier = Modifier
@@ -99,7 +140,8 @@ fun InsightsScreen(
             when (val state = uiState) {
                 is InsightsUiState.Loading -> {
                     CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
+                        modifier = Modifier.align(Alignment.Center),
+                        color = PrimaryColors.Primary500
                     )
                 }
 
@@ -124,6 +166,7 @@ fun InsightsScreen(
             }
         }
     }
+
     if (showSummaryDialog) {
         SummaryDialog(
             summary = summaryText,
@@ -135,26 +178,38 @@ fun InsightsScreen(
 @Composable
 private fun EmptyInsightsState(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier,
+        modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = Icons.Default.BarChart,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        Surface(
+            modifier = Modifier.size(120.dp),
+            shape = CircleShape,
+            color = PrimaryColors.Primary100
+        ) {
+            Icon(
+                imageVector = Icons.Default.BarChart,
+                contentDescription = null,
+                modifier = Modifier.padding(32.dp),
+                tint = PrimaryColors.Primary600
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         Text(
             text = "No Expenses Yet",
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = NeutralColors.Neutral900
         )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
         Text(
             text = "Add some expenses to see insights",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = NeutralColors.Neutral600
         )
     }
 }
@@ -167,10 +222,14 @@ private fun InsightsContent(
 ) {
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(
+            start = 20.dp,
+            end = 20.dp,
+            top = 20.dp,
+            bottom = 32.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-
         item {
             TripHeaderCard(insights)
         }
@@ -190,48 +249,61 @@ private fun InsightsContent(
         item {
             DailySpendingSection(insights)
         }
-
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun TripHeaderCard(insights: TripInsights) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        shape = CustomShapes.CardElevatedShape,
+        shadowElevation = 4.dp
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            PrimaryColors.Primary500,
+                            PrimaryColors.Primary700
+                        )
+                    )
+                )
+                .padding(20.dp)
         ) {
-            Text(
-                text = insights.tripName,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+            Column {
+                Text(
+                    text = insights.tripName,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
 
-            val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
-            val dateRange = if (insights.endDate != null) {
-                "${insights.startDate.format(dateFormatter)} - ${insights.endDate.format(dateFormatter)}"
-            } else {
-                "Started ${insights.startDate.format(dateFormatter)}"
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy")
+                val dateRange = if (insights.endDate != null) {
+                    "${insights.startDate.format(dateFormatter)} - ${insights.endDate.format(dateFormatter)}"
+                } else {
+                    "Started ${insights.startDate.format(dateFormatter)}"
+                }
+
+                Text(
+                    text = dateRange,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "${insights.tripDurationDays} days • ${insights.totalMembers} members",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
             }
-
-            Text(
-                text = dateRange,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Text(
-                text = "${insights.tripDurationDays} days • ${insights.totalMembers} members",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
         }
     }
 }
@@ -241,7 +313,6 @@ private fun StatsCardsGrid(insights: TripInsights) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Row 1
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -250,17 +321,18 @@ private fun StatsCardsGrid(insights: TripInsights) {
                 title = "Total Spent",
                 value = CurrencyUtils.format(insights.totalSpending),
                 icon = Icons.Default.AttachMoney,
+                color = SecondaryColors.Secondary500,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 title = "Expenses",
                 value = insights.totalExpenses.toString(),
                 icon = Icons.Default.Receipt,
+                color = PrimaryColors.Primary500,
                 modifier = Modifier.weight(1f)
             )
         }
 
-        // Row 2
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -269,6 +341,7 @@ private fun StatsCardsGrid(insights: TripInsights) {
                 title = "Per Person",
                 value = CurrencyUtils.format(insights.averagePerPerson),
                 icon = Icons.Default.Person,
+                color = PrimaryColors.Primary600,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
@@ -277,6 +350,7 @@ private fun StatsCardsGrid(insights: TripInsights) {
                     insights.totalSpending / insights.tripDurationDays
                 ),
                 icon = Icons.Default.CalendarToday,
+                color = SecondaryColors.Secondary600,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -288,38 +362,52 @@ private fun StatCard(
     title: String,
     value: String,
     icon: ImageVector,
+    color: Color,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier,
-        elevation = CardDefaults.cardElevation(2.dp)
+        shape = CustomShapes.CardShape,
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = color.copy(alpha = 0.15f)
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = color,
+                    modifier = Modifier.padding(10.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                color = NeutralColors.Neutral600
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = NeutralColors.Neutral900
             )
         }
     }

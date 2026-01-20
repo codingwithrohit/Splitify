@@ -51,4 +51,5 @@ data class SettlementEntity(
     val createdAt: Long,
     @ColumnInfo("settled_at")
     val settledAt: Long? = null
+
 )

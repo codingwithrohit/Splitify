@@ -1,5 +1,7 @@
 package com.example.splitify.presentation.expense
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -20,7 +24,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,23 +35,25 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.usecase.expense.CanModifyExpenseUseCase
@@ -56,16 +61,15 @@ import com.example.splitify.presentation.components.EmptyExpensesState
 import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.ExpensesLoadingSkeleton
 import com.example.splitify.presentation.components.SuccessToast
-import com.example.splitify.util.SnackbarController
-import com.example.splitify.util.formatDate
+import com.example.splitify.presentation.theme.CategoryColors
+import com.example.splitify.presentation.theme.CustomShapes
+import com.example.splitify.presentation.theme.NeutralColors
+import com.example.splitify.presentation.theme.PrimaryColors
+import com.example.splitify.presentation.theme.SecondaryColors
+import com.example.splitify.util.CurrencyUtils
 import com.example.splitify.util.getCategoryIcon
+import java.time.format.DateTimeFormatter
 
-import java.text.NumberFormat
-import java.util.Locale
-
-/**
- * Full-screen Expenses list
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpensesScreen(
@@ -81,8 +85,6 @@ fun ExpensesScreen(
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
     var showSuccessToast by remember { mutableStateOf(false) }
 
-
-    // Delete confirmation
     expenseToDelete?.let { expense ->
         DeleteExpenseDialog(
             expense = expense,
@@ -97,20 +99,55 @@ fun ExpensesScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Expenses") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
+            Surface(
+                shadowElevation = 2.dp,
+                color = Color.White
+            ) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Expenses",
+                            fontWeight = FontWeight.Bold,
+                            color = NeutralColors.Neutral900
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(NeutralColors.Neutral100)
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = NeutralColors.Neutral700
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White
+                    )
+                )
+            }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddExpense) {
-                Icon(Icons.Default.Add, contentDescription = "Add Expense")
+            FloatingActionButton(
+                onClick = onAddExpense,
+                shape = CircleShape,
+                containerColor = PrimaryColors.Primary600,
+                contentColor = Color.White
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add Expense",
+                    modifier = Modifier.size(28.dp)
+                )
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         when (val state = uiState) {
             is ExpenseUiState.Loading -> {
@@ -130,8 +167,13 @@ fun ExpensesScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(padding),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentPadding = PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = 16.dp,
+                            bottom = 100.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(
                             items = state.expenses,
@@ -146,11 +188,6 @@ fun ExpensesScreen(
                                 onDelete = { expenseToDelete = expense }
                             )
                         }
-
-                        // Bottom padding for FAB
-                        item {
-                            Spacer(modifier = Modifier.height(80.dp))
-                        }
                     }
                 }
             }
@@ -158,7 +195,7 @@ fun ExpensesScreen(
             is ExpenseUiState.Error -> {
                 ErrorStateWithRetry(
                     message = state.message,
-                    onRetry = { /* Auto-retry via Flow */ },
+                    onRetry = { },
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding)
@@ -180,51 +217,63 @@ fun DeleteExpenseDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("en", "IN"))
-
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(48.dp)
-            )
+            Surface(
+                modifier = Modifier.size(64.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.errorContainer
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .size(32.dp)
+                )
+            }
         },
         title = {
-            Text("Delete Expense?")
+            Text(
+                text = "Delete Expense?",
+                fontWeight = FontWeight.Bold
+            )
         },
         text = {
             Column {
                 Text(
                     text = "Are you sure you want to delete this expense?",
-                    style = MaterialTheme.typography.bodyLarge
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = NeutralColors.Neutral700
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Show expense details
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                Surface(
+                    shape = CustomShapes.CardShape,
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = expense.description,
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = NeutralColors.Neutral900
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = currencyFormat.format(expense.amount),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            text = CurrencyUtils.format(expense.amount),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.error
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = expense.category.name,
+                            text = "${expense.category.icon} ${expense.category.displayName}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
+                            color = NeutralColors.Neutral600
                         )
                     }
                 }
@@ -243,7 +292,8 @@ fun DeleteExpenseDialog(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
-                )
+                ),
+                shape = CustomShapes.ButtonShape
             ) {
                 Text("Delete")
             }
@@ -252,85 +302,127 @@ fun DeleteExpenseDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
             }
-        }
+        },
+        shape = CustomShapes.DialogShape
     )
 }
-
 
 @Composable
 private fun ExpenseCard(
     expense: Expense,
     paidByMember: TripMember?,
-    currentUserMember: TripMember?,  // ✅ Pass full member object
-    currentUserId: String?,           // ✅ Pass user ID
+    currentUserMember: TripMember?,
+    currentUserId: String?,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     canModifyExpenseUseCase: CanModifyExpenseUseCase = remember { CanModifyExpenseUseCase() }
 ) {
-    // ✅ Proper permission check
     val canModify = canModifyExpenseUseCase(
         expense = expense,
         currentUserMember = currentUserMember,
         currentUserId = currentUserId
     )
 
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp))
-        {
+    val categoryColor = when (expense.category) {
+        Category.FOOD -> CategoryColors.Food
+        Category.TRANSPORT -> CategoryColors.Transport
+        Category.ACCOMMODATION -> CategoryColors.Accommodation
+        Category.ENTERTAINMENT -> CategoryColors.Entertainment
+        Category.SHOPPING -> CategoryColors.Shopping
+        Category.OTHER -> CategoryColors.Other
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        shape = CustomShapes.CardShape,
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = expense.description,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Paid by ${paidByMember?.displayName ?: "Unknown"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Text(
-                    text = "₹${expense.amount}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Category and date
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AssistChip(
-                    onClick = { },
-                    label = { Text(expense.category.name) },
-                    leadingIcon = {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Surface(
+                        modifier = Modifier.size(48.dp),
+                        shape = CircleShape,
+                        color = categoryColor.copy(alpha = 0.15f)
+                    ) {
                         Icon(
                             imageVector = getCategoryIcon(expense.category),
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            tint = categoryColor,
+                            modifier = Modifier.padding(12.dp)
                         )
                     }
-                )
 
-                Text(
-                    text = expense.expenseDate.toString(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = expense.description,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = NeutralColors.Neutral900
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Paid by ${paidByMember?.displayName ?: "Unknown"}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = NeutralColors.Neutral600
+                            )
+                            Text(
+                                text = "•",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = NeutralColors.Neutral400
+                            )
+                            Text(
+                                text = expense.expenseDate.format(DateTimeFormatter.ofPattern("MMM dd")),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = NeutralColors.Neutral600
+                            )
+                        }
+                    }
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = CurrencyUtils.format(expense.amount),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryColors.Primary600
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = categoryColor.copy(alpha = 0.1f)
+                    ) {
+                        Text(
+                            text = expense.category.displayName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = categoryColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
-            // ✅ Show edit/delete buttons if user has permission
+
             if (canModify) {
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -338,20 +430,22 @@ private fun ExpenseCard(
                 ) {
                     OutlinedButton(
                         onClick = onEdit,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shape = CustomShapes.ButtonShape
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text("Edit")
                     }
 
                     OutlinedButton(
                         onClick = onDelete,
                         modifier = Modifier.weight(1f),
+                        shape = CustomShapes.ButtonShape,
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         )
@@ -359,9 +453,9 @@ private fun ExpenseCard(
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text("Delete")
                     }
                 }

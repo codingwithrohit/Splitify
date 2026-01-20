@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
@@ -32,8 +33,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.splitify.presentation.theme.CustomShapes
+import com.example.splitify.presentation.theme.NeutralColors
+import com.example.splitify.presentation.theme.SecondaryColors
 
 @Composable
 fun EmptyState(
@@ -101,20 +106,6 @@ fun EmptyState(
     }
 }
 
-@Composable
-fun EmptyTripsState(
-    onCreateTrip: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    EmptyState(
-        icon = Icons.Default.CardTravel,
-        title = "No Trips Yet",
-        description = "Create your first trip to start tracking expenses with friends and family.",
-        actionLabel = "Create Trip",
-        onAction = onCreateTrip,
-        modifier = modifier
-    )
-}
 
 @Composable
 fun EmptyExpensesState(
@@ -153,24 +144,27 @@ fun AllSettledState(
 ) {
     Box(
         modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize().padding(32.dp)
+            modifier = Modifier.padding(32.dp)
         ) {
-            // Animated icon
             Surface(
-                shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(120.dp)
+                modifier = Modifier.size(120.dp),
+                shape = CircleShape,
+                color = SecondaryColors.Secondary100
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        modifier = Modifier.size(56.dp),
+                        tint = SecondaryColors.Secondary600
                     )
                 }
             }
@@ -180,7 +174,8 @@ fun AllSettledState(
             Text(
                 text = "All Settled! 🎉",
                 style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                color = NeutralColors.Neutral900,
                 textAlign = TextAlign.Center
             )
 
@@ -189,16 +184,17 @@ fun AllSettledState(
             Text(
                 text = "No pending settlements. Everyone is even!",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = NeutralColors.Neutral600,
                 textAlign = TextAlign.Center
             )
 
             if (onViewHistory != null) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
                 OutlinedButton(
                     onClick = onViewHistory,
-                    modifier = Modifier.fillMaxWidth(0.6f)
+                    modifier = Modifier.fillMaxWidth(0.65f),
+                    shape = CustomShapes.ButtonShape
                 ) {
                     Icon(
                         imageVector = Icons.Default.History,
@@ -217,10 +213,51 @@ fun AllSettledState(
 fun EmptySettlementsState(
     modifier: Modifier = Modifier
 ) {
-    EmptyState(
-        icon = Icons.Default.ReceiptLong,
-        title = "No Settlements Yet",
-        description = "When members settle their debts, the payment history will appear here.",
-        modifier = modifier
-    )
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(100.dp),
+                shape = CircleShape,
+                color = NeutralColors.Neutral100
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ReceiptLong,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = NeutralColors.Neutral500
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "No Settlements Yet",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = NeutralColors.Neutral900
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Settlements will appear here",
+                style = MaterialTheme.typography.bodyMedium,
+                color = NeutralColors.Neutral600,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
 }
+
+

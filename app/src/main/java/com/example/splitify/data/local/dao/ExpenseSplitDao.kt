@@ -43,4 +43,16 @@ interface ExpenseSplitDao {
     """)
     fun getExpensesWithSplitsForTrip(tripId: String): Flow<Map<ExpenseEntity, List<ExpenseSplitEntity>>>
 
+    @Query("""
+    DELETE FROM expense_splits 
+    WHERE expense_id IN (
+        SELECT e.id FROM expenses e
+        INNER JOIN trips t ON e.trip_id = t.id
+        INNER JOIN trip_members tm ON t.id = tm.trip_id
+        WHERE tm.user_id = :userId
+    )
+""")
+    suspend fun deleteAllSplitsForUser(userId: String)
+
+
 }

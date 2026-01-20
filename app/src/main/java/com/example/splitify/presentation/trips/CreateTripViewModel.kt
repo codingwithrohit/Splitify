@@ -1,9 +1,13 @@
 package com.example.splitify.presentation.trips
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.usecase.trip.CreateTripUseCase
+import com.example.splitify.domain.usecase.trip.GetTripUseCase
+import com.example.splitify.domain.usecase.trip.UpdateTripUseCase
+import com.example.splitify.presentation.navigation.Screen
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +21,10 @@ import javax.inject.Inject
 @HiltViewModel
 class CreateTripViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val createTripUseCase: CreateTripUseCase
+    private val createTripUseCase: CreateTripUseCase,
+    private val updateTripUseCase: UpdateTripUseCase,
+    private val getTripUseCase: GetTripUseCase,
+    savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateTripUiState(
@@ -25,12 +32,51 @@ class CreateTripViewModel @Inject constructor(
     ))
 
     val uiState: StateFlow<CreateTripUiState> = _uiState.asStateFlow()
-
+    private val tripId: String? = savedStateHandle[Screen.EditTrip.ARG_TRIP_ID]
     private var currentUserId: String? = null
+
+    val mode: CreateTripFormMode = if(tripId != null){
+        CreateTripFormMode.EditTrip(tripId = tripId)
+    }else{
+        CreateTripFormMode.CreateTrip
+    }
+
     init {
         viewModelScope.launch {
             authRepository.getCurrentUser().collect{user ->
                 currentUserId = user?.id
+            }
+        }
+        if(mode is CreateTripFormMode.EditTrip){
+            loadTripForEditing()
+        }
+    }
+
+    private fun loadTripForEditing(){
+        viewModelScope.launch {
+            getTripUseCase(tripId = tripId!!).collect { result ->
+                when(result){
+                    is Result.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                nameError = result.message
+                            )
+                        }
+                    }
+                    Result.Loading -> {}
+                    is Result.Success -> {
+                        val trip = result.data
+                        _uiState.update {
+                            it.copy(
+                                name = trip.name,
+                                description = trip.description.orEmpty(),
+                                startDate = trip.startDate,
+                                endDate = trip.endDate,
+                                inviteCode = trip.inviteCode
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -111,13 +157,30 @@ class CreateTripViewModel @Inject constructor(
                 ) }
                 return@launch
             }
-            when (val result = createTripUseCase(
-                name = state.name,
-                description = state.description,
-                startDate = state.startDate,
-                endDate = state.endDate,
-                inviteCode = state.inviteCode,
-            )) {
+
+            val result = when(mode){
+                is CreateTripFormMode.CreateTrip -> {
+                    createTripUseCase(
+                        name = state.name,
+                        description = state.description,
+                        startDate = state.startDate,
+                        endDate = state.endDate,
+                        inviteCode = state.inviteCode,
+                    )
+                }
+
+                is CreateTripFormMode.EditTrip -> {
+                    updateTripUseCase(
+                        name = state.name,
+                        description = state.description,
+                        startDate = state.startDate,
+                        endDate = state.endDate,
+                        inviteCode = state.inviteCode,
+                        tripId = tripId!!
+                    )
+                }
+            }
+            when(result) {
                 is Result.Success -> {
                     _uiState.update { it.copy(isLoading = false, isSaved = true) }
                 }

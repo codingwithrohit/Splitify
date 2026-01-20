@@ -1,6 +1,5 @@
 package com.example.splitify.presentation.addmembers
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,15 +15,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
@@ -32,19 +31,19 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,17 +53,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.TripMember
+import com.example.splitify.domain.model.User
 import com.example.splitify.presentation.components.SuccessToast
+import com.example.splitify.presentation.theme.CustomShapes
+import com.example.splitify.presentation.theme.NeutralColors
+import com.example.splitify.presentation.theme.PrimaryColors
+import com.example.splitify.presentation.theme.SecondaryColors
+import com.example.splitify.presentation.theme.SemanticColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +79,6 @@ fun AddMemberScreen(
     onNavigateBack: () -> Unit,
     viewModel: AddMembersViewModel = hiltViewModel()
 ){
-
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle("")
     var showSuccessToast by remember { mutableStateOf(false) }
@@ -85,18 +91,54 @@ fun AddMemberScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Add Members") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Default.ArrowBack, "Back")
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    PrimaryColors.Primary500,
+                                    PrimaryColors.Primary700
+                                )
+                            )
+                        )
+                        .statusBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(MaterialTheme.shapes.small)
+                                .background(Color.White.copy(alpha = 0.2f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Default.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Text(
+                            text = "Add Members",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
                     }
                 }
-            )
+            }
         }
-    )
-    { paddingValues ->
-
+    ) { paddingValues ->
         when(val state = uiState){
             is AddMembersUiState.Loading -> {
                 LoadingIndicator(modifier = Modifier.padding(paddingValues))
@@ -107,19 +149,36 @@ fun AddMemberScreen(
                     members = state.members,
                     onAddMember = viewModel::addMemberByName,
                     onRemoveMember = viewModel::removeMember,
-                    onSearch = viewModel::searchUsers,
+                    onSearchQueryChange = viewModel::onSearchQueryChange,
+                    onClearSearch = viewModel::clearSearch,
                     searchResults = state.searchResults,
-                    isSearching = state.isSearching
+                    isSearching = state.isSearching,
+                    searchQuery = state.searchQuery,
+                    hasSearched = state.hasSearched
                 )
             }
             is AddMembersUiState.Error -> {
-                Box(modifier = Modifier.fillMaxSize().padding(paddingValues),
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = state.message,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = SemanticColors.Error
+                        )
+                        Text(
+                            text = state.message,
+                            color = SemanticColors.Error,
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
@@ -129,50 +188,55 @@ fun AddMemberScreen(
             visible = showSuccessToast,
             onDismiss = {
                 showSuccessToast = false
-                viewModel.clearToastMessage() // We'll add this method
+                viewModel.clearToastMessage()
             }
         )
-
     }
-
 }
 
 @Composable
 fun AddMemberContent(
     modifier: Modifier,
     members: List<TripMember>,
+    searchQuery: String,
+    searchResults: List<User>,
+    isSearching: Boolean,
+    hasSearched: Boolean,
     onAddMember: (String) -> Unit,
     onRemoveMember: (String, String) -> Unit,
-    onSearch: (String) -> Unit,
-    searchResults: List<TripMember>,
-    isSearching: Boolean
-){
+    onSearchQueryChange: (String) -> Unit,
+    onClearSearch: () -> Unit
+) {
     var memberName by remember { mutableStateOf("") }
-    var searchQuery by remember { mutableStateOf("") }
     var showRemoveDialog by remember { mutableStateOf<TripMember?>(null) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(
-        modifier = modifier.fillMaxSize()
-            .padding(16.dp)
-    )
-    {
-        Text(
-            text = "Add Member by Name",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(20.dp)
+    ) {
+        SectionHeader(
+            icon = Icons.Default.Person,
+            title = "Add Member by Name"
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
             value = memberName,
             onValueChange = { memberName = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Add Member") },
-            placeholder = { Text("e.g. Rohit Dhanraj") },
+            placeholder = { Text("e.g., John Doe", color = NeutralColors.Neutral400) },
             singleLine = true,
-            shape = RoundedCornerShape(12.dp),
+            shape = CustomShapes.TextFieldShape,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = PrimaryColors.Primary500,
+                unfocusedBorderColor = NeutralColors.Neutral300,
+                focusedContainerColor = PrimaryColors.Primary50,
+                unfocusedContainerColor = Color.White
+            ),
             trailingIcon = {
                 IconButton(
                     onClick = {
@@ -182,15 +246,15 @@ fun AddMemberContent(
                             keyboardController?.hide()
                         }
                     },
-                    enabled = memberName.isNotBlank() // Visual feedback
+                    enabled = memberName.isNotBlank()
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AddCircle, // More prominent icon
+                        imageVector = Icons.Default.AddCircle,
                         contentDescription = "Add",
                         tint = if (memberName.isNotBlank())
-                            MaterialTheme.colorScheme.primary
+                            PrimaryColors.Primary600
                         else
-                            MaterialTheme.colorScheme.outline
+                            NeutralColors.Neutral400
                     )
                 }
             },
@@ -209,107 +273,183 @@ fun AddMemberContent(
             )
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
-        Text(
-            text = "Search Existing Users",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = {
-                searchQuery = it
-                onSearch(it)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Search by username") },
-            leadingIcon = { Icon(Icons.Default.Search, "Search")},
-            trailingIcon = {
-                if(searchQuery.isNotEmpty()){
-                    IconButton(
-                        onClick = {
-                            searchQuery = ""
-                            onSearch("")
-                        }
-                    ) {
-                        Icon(Icons.Default.Clear, "Clear")
-                    }
-                }
-            },
-            singleLine = true,
-
+        SectionHeader(
+            icon = Icons.Default.Search,
+            title = "Search Existing Users"
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Type to search...", color = NeutralColors.Neutral400) },
+            leadingIcon = {
+                Icon(Icons.Default.Search, "Search", tint = PrimaryColors.Primary500)
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = onClearSearch) {
+                        Icon(Icons.Default.Clear, "Clear", tint = NeutralColors.Neutral600)
+                    }
+                }
+            },
+            singleLine = true,
+            shape = CustomShapes.TextFieldShape,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = PrimaryColors.Primary500,
+                unfocusedBorderColor = NeutralColors.Neutral300,
+                focusedContainerColor = PrimaryColors.Primary50,
+                unfocusedContainerColor = Color.White
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         when {
             isSearching -> {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.Center
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = CustomShapes.CardShape,
+                    color = NeutralColors.Neutral100
                 ) {
-                    CircularProgressIndicator()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = PrimaryColors.Primary600,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            "Searching...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = NeutralColors.Neutral700
+                        )
+                    }
                 }
             }
 
-            searchQuery.isNotBlank() && searchResults.isEmpty() -> {
-                Text(
-                    text = "No users found",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(8.dp)
-                )
+            hasSearched && searchResults.isEmpty() && searchQuery.isNotBlank() -> {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = CustomShapes.CardShape,
+                    color = SemanticColors.ErrorLight
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = SemanticColors.ErrorDark,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "No users found for \"$searchQuery\"",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = SemanticColors.ErrorDark,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
 
             searchResults.isNotEmpty() -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 220.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = CustomShapes.CardShape,
+                    color = SecondaryColors.Secondary50,
+                    shadowElevation = 2.dp
                 ) {
-                    items(searchResults, key = { it.id }) { user ->
-                        MemberItem(
-                            member = user,
-                            onRemove = null, // ❗ reuse UI, disable remove
-                            onClick = {
-                                onAddMember(user.displayName)
-                                searchQuery = ""
-                                onSearch("")
-                                keyboardController?.hide()
-                            }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            "Found ${searchResults.size} user(s)",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SecondaryColors.Secondary700,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                         )
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 220.dp),
+                            contentPadding = PaddingValues(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(searchResults, key = { it.id }) { user ->
+                                SearchResultUserItem(
+                                    user = user,
+                                    onClick = {
+                                        onAddMember(user.userName)
+                                        onClearSearch()
+                                        keyboardController?.hide()
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
-        Text(
-            text = "Current Members (${members.size})",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Current Members",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Surface(
+                shape = CircleShape,
+                color = PrimaryColors.Primary100
+            ) {
+                Text(
+                    text = "${members.size}",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryColors.Primary700
+                )
+            }
+        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        if(members.isEmpty()){
+        if (members.isEmpty()) {
             EmptyState(
                 message = "No members yet",
                 icon = Icons.Default.Person
             )
-        }
-        else{
+        } else {
             LazyColumn(
-                Modifier.fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(members, key = {it.id}){ member ->
+                items(members, key = { it.id }) { member ->
                     MemberItem(
                         member = member,
                         onRemove = { showRemoveDialog = member }
@@ -318,26 +458,80 @@ fun AddMemberContent(
             }
         }
     }
+
     showRemoveDialog?.let { member ->
         AlertDialog(
             onDismissRequest = { showRemoveDialog = null },
-            title = { Text("Remove Member?") },
-            text = { Text("Remove ${member.displayName} from this trip?") },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = SemanticColors.Error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    "Remove Member?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Remove ${member.displayName} from this trip?",
+                    color = NeutralColors.Neutral600
+                )
+            },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         onRemoveMember(member.id, member.displayName)
                         showRemoveDialog = null
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SemanticColors.Error
+                    ),
+                    shape = CustomShapes.ButtonShape
                 ) {
-                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                    Text("Remove", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRemoveDialog = null }) {
-                    Text("Cancel")
+                    Text("Cancel", color = NeutralColors.Neutral600)
                 }
-            }
+            },
+            shape = CustomShapes.DialogShape
+        )
+    }
+}
+
+@Composable
+private fun SectionHeader(
+    icon: ImageVector,
+    title: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Surface(
+            modifier = Modifier.size(40.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = PrimaryColors.Primary100
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.padding(10.dp),
+                tint = PrimaryColors.Primary600
+            )
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
 }
@@ -348,16 +542,117 @@ fun MemberItem(
     onRemove: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ){
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth()
             .let {
-            if (onClick != null) {
-                it.clickable { onClick() }
-            } else {
-                it
+                if (onClick != null) {
+                    it.clickable { onClick() }
+                } else {
+                    it
+                }
+            },
+        shape = CustomShapes.CardShape,
+        color = Color.White,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(PrimaryColors.Primary100),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = member.displayName.firstOrNull()?.uppercase() ?: "?",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryColors.Primary700
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = member.displayName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (member.isAdmin) {
+                            Surface(
+                                shape = CustomShapes.ChipShape,
+                                color = PrimaryColors.Primary100
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Star,
+                                        null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = PrimaryColors.Primary700
+                                    )
+                                    Text(
+                                        "Admin",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PrimaryColors.Primary700
+                                    )
+                                }
+                            }
+                        }
+                        if (member.isGuest) {
+                            Text(
+                                text = "Guest",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NeutralColors.Neutral500
+                            )
+                        }
+                    }
+                }
             }
-        },
-        elevation = CardDefaults.cardElevation(2.dp)
+
+            if (onRemove != null && !member.isAdmin) {
+                IconButton(onClick = onRemove) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Remove",
+                        tint = SemanticColors.Error
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultUserItem(
+    user: User,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = CustomShapes.CardShape,
+        color = Color.White,
+        shadowElevation = 1.dp
     ) {
         Row(
             modifier = Modifier
@@ -368,66 +663,47 @@ fun MemberItem(
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-                // Avatar
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .background(SecondaryColors.Secondary100),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = member.displayName.firstOrNull()?.uppercase() ?: "?",
+                        text = user.userName.firstOrNull()?.uppercase() ?: "?",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        fontWeight = FontWeight.Bold,
+                        color = SecondaryColors.Secondary700
                     )
                 }
 
                 Column {
                     Text(
-                        text = member.displayName,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium
+                        text = user.userName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (member.isAdmin) {
-                            AssistChip(
-                                onClick = {},
-                                label = { Text("Admin", style = MaterialTheme.typography.labelSmall) },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Star,
-                                        null,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            )
-                        }
-                        if (member.isGuest) {
-                            Text(
-                                text = "Guest",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                        }
+                    if (user.fullName != null) {
+                        Text(
+                            text = user.fullName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NeutralColors.Neutral600
+                        )
                     }
                 }
             }
 
-            if (onRemove!=null && !member.isAdmin) {
-                IconButton(onClick = onRemove) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Remove",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
+            Icon(
+                imageVector = Icons.Default.AddCircle,
+                contentDescription = "Add user",
+                tint = SecondaryColors.Secondary600,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -438,21 +714,29 @@ fun EmptyState(
     icon: ImageVector
 ){
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(vertical = 40.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
+        Surface(
+            modifier = Modifier.size(80.dp),
+            shape = CircleShape,
+            color = NeutralColors.Neutral100
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.padding(20.dp),
+                tint = NeutralColors.Neutral500
+            )
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.bodyLarge,
+            color = NeutralColors.Neutral600
         )
     }
 }
@@ -464,6 +748,9 @@ fun LoadingIndicator(modifier: Modifier){
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        CircularProgressIndicator()
+        CircularProgressIndicator(
+            color = PrimaryColors.Primary600,
+            strokeWidth = 3.dp
+        )
     }
 }

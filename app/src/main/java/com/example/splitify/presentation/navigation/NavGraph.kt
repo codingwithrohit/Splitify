@@ -15,6 +15,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.splitify.data.local.SessionManager
+import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.presentation.addmembers.AddMemberScreen
 import com.example.splitify.presentation.addmembers.MembersScreen
 import com.example.splitify.presentation.auth.LoginScreen
@@ -27,28 +29,55 @@ import com.example.splitify.presentation.settlement.SettlementHistoryScreen
 import com.example.splitify.presentation.tripdetail.TripDetailScreen
 import com.example.splitify.presentation.trips.CreateTripScreen
 import com.example.splitify.presentation.trips.TripsScreen
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun SplitifyNavGraph(
     navController: NavHostController = rememberNavController(),
-    supabase: SupabaseClient
+    authRepository: AuthRepository,
+    sessionManager: SessionManager
 ) {
-    var isCheckingAuth by remember { mutableStateOf(true) }
+    var isCheckingSession by remember { mutableStateOf(true) }
     var startDestination by remember { mutableStateOf(Screen.Login.route) }
 
     LaunchedEffect(Unit) {
-        val session = supabase.auth.currentSessionOrNull()
-        startDestination = if (session != null)
-            Screen.Trips.route
-        else
-            Screen.Login.route
-        isCheckingAuth = false
+        withContext(Dispatchers.IO) {
+            try {
+                Log.d("NavGraph", "🔄 Checking session...")
+
+                // Check if session exists
+                val hasSession = sessionManager.hasValidSession()
+
+                if (hasSession) {
+                    Log.d("NavGraph", "✅ Session found, initializing...")
+
+                    // Try to restore/refresh session
+                    val sessionValid = authRepository.initializeSession()
+
+                    if (sessionValid) {
+                        Log.d("NavGraph", "✅ Session valid → Trips screen")
+                        startDestination = Screen.Trips.route
+                    } else {
+                        Log.d("NavGraph", "❌ Session invalid → Login screen")
+                        startDestination = Screen.Login.route
+                    }
+                } else {
+                    Log.d("NavGraph", "❌ No session → Login screen")
+                    startDestination = Screen.Login.route
+                }
+
+            } catch (e: Exception) {
+                Log.e("NavGraph", "❌ Session check failed", e)
+                startDestination = Screen.Login.route
+            } finally {
+                isCheckingSession = false
+            }
+        }
     }
 
-    if (!isCheckingAuth) {
+    if (!isCheckingSession) {
         NavHost(
             navController = navController,
             startDestination = startDestination
@@ -97,9 +126,26 @@ fun SplitifyNavGraph(
             // Create Trip Screen
             composable(route = Screen.CreateTrip.route) {
                 CreateTripScreen(
+                    tripId = null,
                     onNavigateBack = {
                         navController.popBackStack()
                     }
+                )
+            }
+
+            //Edit Trip
+            composable(route = Screen.EditTrip.route,
+                arguments = listOf(
+                    navArgument(Screen.EditTrip.ARG_TRIP_ID){
+                        type = NavType.StringType
+                    }
+                )){
+                val tripId = it.arguments?.getString(Screen.EditTrip.ARG_TRIP_ID)
+                CreateTripScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                    tripId = tripId
                 )
             }
 
@@ -121,19 +167,19 @@ fun SplitifyNavGraph(
                     tripId = tripId,
                     onNavigateBack = { navController.popBackStack() },
 
-                    // ✅ FIX 1: Add Expense
+                    // 1: Add Expense
                     onAddExpense = {
                         Log.d("NavGraph", "🧭 Navigating to AddExpense with tripId: $tripId")
                         navController.navigate(Screen.AddExpense.createRoute(tripId))
                     },
 
-                    // ✅ FIX 2: Add Members
+                    // 2: Add Members
                     onAddMembers = {
                         Log.d("NavGraph", "🧭 Navigating to AddMember with tripId: $tripId")
                         navController.navigate(Screen.AddMember.createRoute(tripId))
                     },
 
-                    // ✅ FIX 3: Navigate to Expenses Screen
+                    //  3: Navigate to Expenses Screen
                     onNavigateToExpense = { _, userId, memberId ->
                         Log.d("NavGraph", "🧭 Navigating to ExpensesScreen")
                         navController.navigate(
@@ -141,13 +187,13 @@ fun SplitifyNavGraph(
                         )
                     },
 
-                    // ✅ FIX 4: Navigate to Members Screen (was missing tripId!)
+                    // 4: Navigate to Members Screen (was missing tripId!)
                     onNavigateToMembers = {
                         Log.d("NavGraph", "🧭 Navigating to MembersScreen with tripId: $tripId")
                         navController.navigate(Screen.MembersScreen.createRoute(tripId))
                     },
 
-                    // ✅ FIX 5: Navigate to Balances Screen
+                    // 5: Navigate to Balances Screen
                     onNavigateToBalances = { memberId ->
                         Log.d("NavGraph", "🧭 Navigating to BalancesScreen")
                         navController.navigate(
@@ -155,18 +201,23 @@ fun SplitifyNavGraph(
                         )
                     },
 
-                    // ✅ FIX 6: Navigate to Insights (was going to CreateTrip!)
+                    // 6: Navigate to Insights (was going to CreateTrip!)
                     onNavigateToInsights = {
                         Log.d("NavGraph", "🧭 Navigating to TripInsights with tripId: $tripId")
                         navController.navigate(Screen.InsightsScreen.createRoute(tripId))
                     },
 
-                    // ✅ FIX 7: Navigate to Settlement
+                    // 7: Navigate to Settlement
                     onNavigateToSettlement = { _, memberId ->
                         Log.d("NavGraph", "🧭 Navigating to SettlementHistory")
                         navController.navigate(
                             Screen.SettlementHistory.createRoute(tripId, memberId)
                         )
+                    },
+                    // 8. Edit Trip
+                    onNavigateToEditTrip = { tripId ->
+                        Log.d("NavGraph", "🧭 Navigating to EditTrip with tripId: $tripId")
+                        navController.navigate(Screen.EditTrip.createRoute(tripId))
                     }
                 )
             }
@@ -278,7 +329,8 @@ fun SplitifyNavGraph(
                         navController.navigate(
                             Screen.SettlementHistory.createRoute(tripId, memberId)
                         )
-                    }
+                    },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

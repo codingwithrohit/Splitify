@@ -6,14 +6,24 @@ import java.time.LocalDate
 class DateConverter {
 
     @TypeConverter
-    fun fromTimeStamp(value: Long?): LocalDate?{
-        return value?.let {
-            LocalDate.ofEpochDay(it)
-        }
+    fun fromLocalDate(date: LocalDate?): String? {
+        return date?.toString() // yyyy-MM-dd
     }
 
     @TypeConverter
-    fun dateToTimeStamp(date: LocalDate?): Long?{
-        return date?.toEpochDay()
+    fun toLocalDate(value: String?): LocalDate? {
+        return value?.let { LocalDate.parse(it) }
     }
+
+//    @TypeConverter
+//    fun fromTimeStamp(value: Long?): LocalDate?{
+//        return value?.let {
+//            LocalDate.ofEpochDay(it)
+//        }
+//    }
+//
+//    @TypeConverter
+//    fun dateToTimeStamp(date: LocalDate?): Long?{
+//        return date?.toEpochDay()
+//    }
 }

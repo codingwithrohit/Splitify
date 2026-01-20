@@ -102,9 +102,7 @@ fun AnimatedCard(
     )
 }
 
-/**
- * Alternative: AnimatedCard with custom elevation behavior
- */
+
 @Composable
 fun AnimatedCardWithElevation(
     onClick: () -> Unit,

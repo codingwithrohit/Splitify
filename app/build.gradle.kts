@@ -9,8 +9,8 @@ plugins {
 }
 
 val localProps = gradleLocalProperties(rootProject.projectDir)
-println("SUPABASE_URL from local.properties = ${localProps.getProperty("SUPABASE_URL")}")
-println("SUPABASE_KEY from local.properties = ${localProps.getProperty("SUPABASE_KEY")}")
+//println("SUPABASE_URL from local.properties = ${localProps.getProperty("SUPABASE_URL")}")
+//println("SUPABASE_KEY from local.properties = ${localProps.getProperty("SUPABASE_KEY")}")
 
 
 val supabaseUrl = localProps.getProperty("SUPABASE_URL")
@@ -138,6 +138,7 @@ dependencies {
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.hilt:hilt-work:1.1.0")
+    ksp("androidx.hilt:hilt-compiler:1.1.0")
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")

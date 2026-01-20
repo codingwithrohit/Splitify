@@ -1,36 +1,40 @@
 package com.example.splitify.presentation.trips
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,17 +43,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.presentation.components.AnimatedCard
-import com.example.splitify.presentation.components.EmptyTripsState
 import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.LoadingScreen
+import com.example.splitify.presentation.theme.CustomShapes
+import com.example.splitify.presentation.theme.NeutralColors
+import com.example.splitify.presentation.theme.PrimaryColors
+import com.example.splitify.presentation.theme.SemanticColors
 import com.example.splitify.util.PullToRefreshBox
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,95 +72,164 @@ fun TripsScreen(
     viewModel: TripsViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var isRefreshing by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
-//    LaunchedEffect(uiState) {
-//        isRefreshing = false
-//    }
-    LaunchedEffect(uiState) {
-        if (uiState is TripsUiState.Success || uiState is TripsUiState.Error) {
-            isRefreshing = false
+    LaunchedEffect(Unit) {
+        viewModel.logoutEvent.collect {
+            onLogOut()
         }
     }
 
-
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("My Trips") },
-                actions = {
-                    TextButton(onClick = onLogOut)  {
-                    Text("Logout", color = MaterialTheme.colorScheme.onPrimary)
-                } },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                )
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onCreateTripClick,
-                icon = { Icon(Icons.Default.Add, "Add trip") },
-                text = { Text("New Trip") },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            )
-        }
-    ){paddingValues ->
-
-        when(uiState){
-            is TripsUiState.Loading -> {
-                if(!isRefreshing){
-                    LoadingScreen(
-                        message = "Loading your trips...",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                    )
-                }
-            }
-            is TripsUiState.Success -> {
-                val trips = (uiState as TripsUiState.Success).trips
-                if(trips.isEmpty()){
-                    EmptyTripsState(
-                        onCreateTripClick,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues)
-                    )
-                }
-                else{
-                    PullToRefreshBox(
-                        isRefreshing = isRefreshing,
-                        onRefresh = {
-                            isRefreshing = true
-                            viewModel.refresh()
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        TripsList(
-                            trips = trips,
-                            onTripClick = onTripClick,
-                            onDeleteTrip = { tripId -> viewModel.deleteTrip(tripId) },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(paddingValues)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    PrimaryColors.Primary500,
+                                    PrimaryColors.Primary700
+                                )
+                            )
                         )
+                        .statusBarsPadding()
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "My Trips",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+
+                        IconButton(
+                            onClick = { showLogoutDialog = true},
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(MaterialTheme.shapes.small)
+                                .background(Color.White.copy(alpha = 0.2f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Logout,
+                                contentDescription = "Logout",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
             }
+        },
+        floatingActionButton = {
+            when(uiState){
+                is TripsUiState.Content -> {
+                    ExtendedFloatingActionButton(
+                        onClick = onCreateTripClick,
+                        icon = { Icon(Icons.Default.Add, "Add trip") },
+                        text = { Text("New Trip", fontWeight = FontWeight.Bold) },
+                        containerColor = PrimaryColors.Primary600,
+                        contentColor = Color.White,
+                        shape = CircleShape
+                    )
+                }
+
+                is TripsUiState.Empty -> {}
+                is TripsUiState.Error -> {}
+                TripsUiState.InitialLoading -> {}
+            }
+        }
+    ){paddingValues ->
+        when (uiState) {
+            TripsUiState.InitialLoading -> {
+                LoadingScreen("Preparing your trips…")
+            }
+
+            is TripsUiState.Empty -> {
+                EmptyTripScreen(
+                    onCreateTripClick = onCreateTripClick,
+                    onLogoutClick = { viewModel.logout() }
+                )
+            }
+
+            is TripsUiState.Content -> {
+                val state = uiState as TripsUiState.Content
+
+                PullToRefreshBox(
+                    isRefreshing = state.isSyncing,
+                    onRefresh = viewModel::refresh,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    TripsList(
+                        trips = state.trips,
+                        onTripClick = onTripClick,
+                        onDeleteTrip = viewModel::deleteTrip,
+                        modifier = Modifier.padding(paddingValues)
+                    )
+                }
+            }
+
             is TripsUiState.Error -> {
                 ErrorStateWithRetry(
                     message = (uiState as TripsUiState.Error).message,
-                    onRetry = { viewModel.refresh() },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
+                    onRetry = viewModel::refresh
                 )
             }
         }
-
+    }
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Logout,
+                    contentDescription = null,
+                    tint = SemanticColors.Warning,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    "Logout",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Are you sure you want to logout?",
+                    color = NeutralColors.Neutral600
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        viewModel.logout()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SemanticColors.Warning
+                    ),
+                    shape = CustomShapes.ButtonShape
+                ) {
+                    Text("Logout", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancel", color = NeutralColors.Neutral600)
+                }
+            },
+            shape = CustomShapes.DialogShape
+        )
     }
 }
 
@@ -160,171 +241,40 @@ fun TripsList(
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(
-            items  = trips,
+            items = trips,
             key = { trip -> trip.id }
         ){ trip ->
-
             TripCardWithDeleteConfirmation(
                 trip = trip,
                 onClick = { onTripClick(trip.id) },
                 onDelete = { onDeleteTrip(trip.id) }
             )
         }
-    }
 
-}
-
-@Composable
-fun TripCard(
-    trip: Trip,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth(),
-            //.clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = trip.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                if (trip.description != null) {
-                    Text(
-                        text = trip.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Text(
-                    text = formatDateRange(trip.startDate.toString(), trip.endDate?.toString()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = "Code: ${trip.inviteCode}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Delete trip",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
+        item {
+            Spacer(modifier = Modifier.height(80.dp))
         }
-
     }
-
 }
-private fun formatDateRange(startDate: String, endDate: String?): String {
+
+private fun formatDateRange(startDate: LocalDate, endDate: LocalDate?): String {
+    val formatter = DateTimeFormatter.ofPattern("MMM dd")
+    val start = startDate.format(formatter)
     return if (endDate != null) {
-        "$startDate → $endDate"
+        val end = endDate.format(formatter)
+        "$start → $end"
     } else {
-        startDate
-    }
-}
-@Composable
-fun TripCardWithActions(
-    trip: Trip,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    // ✨ Wrap in AnimatedCard for press animation
-    AnimatedCard(
-        onClick = onClick,
-        modifier = modifier
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Trip info (takes most space)
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = trip.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                if (trip.description != null && trip.description.isNotBlank()) {
-                    Text(
-                        text = trip.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Text(
-                    text = formatDateRange(
-                        trip.startDate.toString(),
-                        trip.endDate?.toString()
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Text(
-                    text = "Code: ${trip.inviteCode}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            // Delete button (stops click propagation)
-            IconButton(
-                onClick = onDelete // This won't trigger the card onClick
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete trip",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
-        }
+        start
     }
 }
 
-/**
- * ALTERNATIVE: With confirmation dialog
- */
 @Composable
 fun TripCardWithDeleteConfirmation(
     trip: Trip,
@@ -341,90 +291,138 @@ fun TripCardWithDeleteConfirmation(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = trip.name,
                     style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 if (trip.description != null && trip.description.isNotBlank()) {
                     Text(
                         text = trip.description,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = NeutralColors.Neutral600,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Text(
-                    text = formatDateRange(
-                        trip.startDate.toString(),
-                        trip.endDate?.toString()
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = PrimaryColors.Primary600
+                        )
+                        Text(
+                            text = formatDateRange(trip.startDate, trip.endDate),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NeutralColors.Neutral700
+                        )
+                    }
+                }
 
-                Text(
-                    text = "Code: ${trip.inviteCode}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Surface(
+                    shape = CustomShapes.ChipShape,
+                    color = PrimaryColors.Primary50
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode2,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = PrimaryColors.Primary700
+                        )
+                        Text(
+                            text = trip.inviteCode,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryColors.Primary700
+                        )
+                    }
+                }
             }
 
+            Spacer(modifier = Modifier.width(12.dp))
+
             IconButton(
-                onClick = { showDeleteDialog = true }
+                onClick = { showDeleteDialog = true },
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete trip",
-                    tint = MaterialTheme.colorScheme.error
+                    tint = SemanticColors.Error
                 )
             }
         }
     }
 
-    // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Trip?") },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = SemanticColors.Error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    "Delete Trip?",
+                    fontWeight = FontWeight.Bold
+                )
+            },
             text = {
-                Text("Are you sure you want to delete '${trip.name}'? This action cannot be undone.")
+                Text(
+                    "Are you sure you want to delete '${trip.name}'? This action cannot be undone.",
+                    color = NeutralColors.Neutral600
+                )
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         showDeleteDialog = false
                         onDelete()
                     },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SemanticColors.Error
+                    ),
+                    shape = CustomShapes.ButtonShape
                 ) {
-                    Text("Delete")
+                    Text("Delete", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text("Cancel", color = NeutralColors.Neutral600)
                 }
-            }
+            },
+            shape = CustomShapes.DialogShape
         )
     }
 }
-
-
-
-
-

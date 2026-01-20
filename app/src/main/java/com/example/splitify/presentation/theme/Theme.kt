@@ -1,48 +1,121 @@
 package com.example.splitify.presentation.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
 
-private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF6366F1),           // Modern indigo
+private val LightColors = lightColorScheme(
+    // Primary colors
+    primary = PrimaryColors.Primary500,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE0E7FF),
-    onPrimaryContainer = Color(0xFF1E1B4B),
+    primaryContainer = PrimaryColors.Primary100,
+    onPrimaryContainer = PrimaryColors.Primary900,
 
-    secondary = Color(0xFF10B981),         // Success green
+    // Secondary colors
+    secondary = SecondaryColors.Secondary500,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFD1FAE5),
-    onSecondaryContainer = Color(0xFF065F46),
+    secondaryContainer = SecondaryColors.Secondary100,
+    onSecondaryContainer = SecondaryColors.Secondary900,
 
-    tertiary = Color(0xFF7C3AED),          // Purple accent
+    // Tertiary colors
+    tertiary = AccentColors.Accent500,
     onTertiary = Color.White,
+    tertiaryContainer = AccentColors.Accent100,
+    onTertiaryContainer = AccentColors.Accent900,
 
-    error = Color(0xFFEF4444),
+    // Background colors
+    background = Color.White,
+    onBackground = NeutralColors.Neutral900,
+
+    // Surface colors
+    surface = NeutralColors.Neutral50,
+    onSurface = NeutralColors.Neutral900,
+    surfaceVariant = NeutralColors.Neutral100,
+    onSurfaceVariant = NeutralColors.Neutral700,
+
+    // Error colors
+    error = SemanticColors.Error,
     onError = Color.White,
-    errorContainer = Color(0xFFFEE2E2),
+    errorContainer = SemanticColors.ErrorLight,
+    onErrorContainer = SemanticColors.ErrorDark,
 
-    background = Color(0xFFFAFAFA),
-    onBackground = Color(0xFF1C1B1F),
+    // Outline colors
+    outline = NeutralColors.Neutral300,
+    outlineVariant = NeutralColors.Neutral200,
 
-    surface = Color.White,
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFF3F4F6),
-    onSurfaceVariant = Color(0xFF6B7280)
+    // Other
+    scrim = Color.Black.copy(alpha = 0.32f),
+    inverseSurface = NeutralColors.Neutral800,
+    inverseOnSurface = NeutralColors.Neutral50,
+    inversePrimary = PrimaryColors.Primary400,
+
+    // Surface tints
+    surfaceTint = PrimaryColors.Primary500,
 )
+
+private val DarkColors = darkColorScheme(
+    // Primary colors
+    primary = PrimaryColors.Primary400,
+    onPrimary = PrimaryColors.Primary900,
+    primaryContainer = PrimaryColors.Primary700,
+    onPrimaryContainer = PrimaryColors.Primary100,
+
+    // Secondary colors
+    secondary = SecondaryColors.Secondary400,
+    onSecondary = SecondaryColors.Secondary900,
+    secondaryContainer = SecondaryColors.Secondary700,
+    onSecondaryContainer = SecondaryColors.Secondary100,
+
+    // Tertiary colors
+    tertiary = AccentColors.Accent400,
+    onTertiary = AccentColors.Accent900,
+    tertiaryContainer = AccentColors.Accent700,
+    onTertiaryContainer = AccentColors.Accent100,
+
+    // Background colors
+    background = NeutralColors.Neutral900,
+    onBackground = NeutralColors.Neutral50,
+
+    // Surface colors
+    surface = NeutralColors.Neutral800,
+    onSurface = NeutralColors.Neutral50,
+    surfaceVariant = NeutralColors.Neutral700,
+    onSurfaceVariant = NeutralColors.Neutral300,
+
+    // Error colors
+    error = SemanticColors.Error,
+    onError = SemanticColors.ErrorDark,
+    errorContainer = SemanticColors.ErrorDark,
+    onErrorContainer = SemanticColors.ErrorLight,
+
+    // Outline colors
+    outline = NeutralColors.Neutral600,
+    outlineVariant = NeutralColors.Neutral700,
+
+    // Other
+    scrim = Color.Black.copy(alpha = 0.64f),
+    inverseSurface = NeutralColors.Neutral100,
+    inverseOnSurface = NeutralColors.Neutral900,
+    inversePrimary = PrimaryColors.Primary600,
+
+    // Surface tints
+    surfaceTint = PrimaryColors.Primary400,
+)
+
 
 @Composable
 fun SplitifyTheme(
@@ -57,13 +130,48 @@ fun SplitifyTheme(
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> DarkColors
+        else -> LightColors
+    }
+
+    // Update system bars
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+
+            // Set status bar color (transparent for gradient backgrounds)
+            window.statusBarColor = Color.Transparent.toArgb()
+
+            // Set navigation bar color
+            window.navigationBarColor = if (darkTheme) {
+                NeutralColors.Neutral900.toArgb()
+            } else {
+                Color.White.toArgb()
+            }
+
+            // Set system UI icons color
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content
+        content = content,
+        //shapes = Shapes
     )
+}
+
+@Composable
+fun SplitifyLightTheme(content: @Composable () -> Unit) {
+    SplitifyTheme(darkTheme = false, content = content)
+}
+
+@Composable
+fun SplitifyDarkTheme(content: @Composable () -> Unit) {
+    SplitifyTheme(darkTheme = true, content = content)
 }

@@ -2,6 +2,7 @@ package com.example.splitify.presentation.insights.charts
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
@@ -15,23 +16,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.splitify.domain.model.MemberSpending
 import com.example.splitify.domain.model.TripInsights
+import com.example.splitify.presentation.theme.CustomShapes
+import com.example.splitify.presentation.theme.NeutralColors
+import com.example.splitify.presentation.theme.PrimaryColors
+import com.example.splitify.presentation.theme.SecondaryColors
 import com.example.splitify.util.CurrencyUtils
 
 @Composable
 fun MemberSpendingSection(insights: TripInsights) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = CustomShapes.CardShape,
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(20.dp)
         ) {
             Text(
                 text = "Who Paid What?",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = NeutralColors.Neutral900
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -39,16 +49,16 @@ fun MemberSpendingSection(insights: TripInsights) {
             Text(
                 text = "Total contributions by each member",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = NeutralColors.Neutral600
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             if (insights.memberSpending.isEmpty()) {
                 Text(
                     text = "No member data available",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = NeutralColors.Neutral600
                 )
             } else {
                 insights.memberSpending.forEachIndexed { index, memberSpending ->
@@ -58,7 +68,7 @@ fun MemberSpendingSection(insights: TripInsights) {
                         isTopSpender = index == 0
                     )
                     if (index < insights.memberSpending.size - 1) {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
                     }
                 }
             }
@@ -79,51 +89,60 @@ private fun MemberSpendingItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // Avatar
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = if (isTopSpender)
+                        PrimaryColors.Primary100
+                    else
+                        SecondaryColors.Secondary100
                 ) {
-                    Text(
-                        text = memberSpending.member.displayName
-                            .firstOrNull()
-                            ?.uppercase() ?: "?",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Text(
+                            text = memberSpending.member.displayName
+                                .firstOrNull()
+                                ?.uppercase() ?: "?",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = if (isTopSpender)
+                                PrimaryColors.Primary700
+                            else
+                                SecondaryColors.Secondary700,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 Column {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = memberSpending.member.displayName,
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.SemiBold,
+                            color = NeutralColors.Neutral900
                         )
                         if (isTopSpender) {
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "Top Spender",
-                                modifier = Modifier.size(16.dp),
-                                tint = Color(0xFFFFD700) // Gold
+                                modifier = Modifier.size(18.dp),
+                                tint = Color(0xFFFFD700)
                             )
                         }
                     }
                     Text(
                         text = "${memberSpending.expenseCount} expenses",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = NeutralColors.Neutral600
                     )
                 }
             }
@@ -132,25 +151,38 @@ private fun MemberSpendingItem(
                 Text(
                     text = CurrencyUtils.format(memberSpending.totalPaid),
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = NeutralColors.Neutral900
                 )
-                Text(
-                    text = String.format("%.1f%%", memberSpending.percentage),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = if (isTopSpender)
+                        PrimaryColors.Primary100
+                    else
+                        SecondaryColors.Secondary100
+                ) {
+                    Text(
+                        text = String.format("%.1f%%", memberSpending.percentage),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isTopSpender)
+                            PrimaryColors.Primary700
+                        else
+                            SecondaryColors.Secondary700,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // Horizontal bar
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(12.dp)
                 .clip(RoundedCornerShape(6.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(NeutralColors.Neutral200)
         ) {
             Box(
                 modifier = Modifier
@@ -159,9 +191,9 @@ private fun MemberSpendingItem(
                     .clip(RoundedCornerShape(6.dp))
                     .background(
                         if (isTopSpender)
-                            MaterialTheme.colorScheme.primary
+                            PrimaryColors.Primary500
                         else
-                            MaterialTheme.colorScheme.secondary
+                            SecondaryColors.Secondary500
                     )
             )
         }

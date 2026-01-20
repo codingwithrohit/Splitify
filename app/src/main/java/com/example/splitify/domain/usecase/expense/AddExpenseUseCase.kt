@@ -106,30 +106,16 @@ class AddExpenseUseCase @Inject constructor(
             )
 
             // Create splits
-            val splits = if (isGroupExpense) {
-                // Equal split among all participating members
-                val splitAmount = amount / participatingMembers.size
-                participatingMembers.map { member ->
-                    ExpenseSplit(
-                        id = UUID.randomUUID().toString(),
-                        expenseId = expense.id,
-                        memberId = member.id,
-                        memberName = member.displayName,
-                        amountOwed = splitAmount,
-                        createdAt = System.currentTimeMillis()
-                    )
-                }
-            } else {
-                // Personal expense - only payer owes
-                listOf(
-                    ExpenseSplit(
-                        id = UUID.randomUUID().toString(),
-                        expenseId = expense.id,
-                        memberId = payer.id,
-                        memberName = payer.displayName,
-                        amountOwed = amount,
-                        createdAt = System.currentTimeMillis()
-                    )
+            val splitAmount = amount / participatingMembers.size
+
+            val splits = participatingMembers.map { member ->
+                ExpenseSplit(
+                    id = UUID.randomUUID().toString(),
+                    expenseId = expense.id,
+                    memberId = member.id,
+                    memberName = member.displayName,
+                    amountOwed = splitAmount,
+                    createdAt = System.currentTimeMillis()
                 )
             }
 
