@@ -573,11 +573,11 @@ fun MemberItem(
                                 }
                             }
                         }
-                        if (member.isGuest) {
+                        else{
                             Text(
-                                text = "Guest",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = NeutralColors.Neutral500
+                                text = if (member.userId != null) "App user" else "Guest",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = NeutralColors.Neutral600
                             )
                         }
                     }

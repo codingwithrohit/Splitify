@@ -28,4 +28,7 @@ interface AuthRepository {
     fun searchUsersByUsername(query: String): Flow<Result<List<User>>>
 
     suspend fun signOut(): Result<Unit>
+
+    suspend fun checkUsernameAvailable(username: String): Result<Boolean>
+
 }

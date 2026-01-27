@@ -13,6 +13,7 @@ data class SignUpUiState(
     val confirmPasswordError: String? = null,
 
     val isLoading: Boolean = false,
+    val isCheckingUsername: Boolean = false,
     val errorMessage: String? = null,
     val isSignedUp: Boolean = false
 )

@@ -1,11 +1,14 @@
 package com.example.splitify.presentation.auth
 
+import android.util.Log
 import androidx.compose.runtime.saveable.autoSaver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +24,8 @@ class SignUpViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SignUpUiState())
     val uiState: StateFlow<SignUpUiState> = _uiState.asStateFlow()
 
+    private var usernameCheckJob: Job? = null
+
     fun onFullNameChange(fullName: String){
         _uiState.update { it.copy(
             fullName = fullName,
@@ -32,8 +37,32 @@ class SignUpViewModel @Inject constructor(
         _uiState.update { it.copy(
             userName = userName,
             userNameError = null,
-            errorMessage = null
+            errorMessage = null,
+            isCheckingUsername = true
         ) }
+
+        usernameCheckJob?.cancel()
+        usernameCheckJob = viewModelScope.launch {
+            delay(500)
+
+            if (userName.length >= 3) {
+                when (val result = authRepository.checkUsernameAvailable(userName)) {
+                    is Result.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                isCheckingUsername = false,
+                                userNameError = if (!result.data) "Username already taken" else null
+                            )
+                        }
+                    }
+                    else -> {
+                        _uiState.update { it.copy(isCheckingUsername = false) }
+                    }
+                }
+            } else {
+                _uiState.update { it.copy(isCheckingUsername = false) }
+            }
+        }
     }
 
     fun onEmailChange(email: String){
@@ -113,11 +142,52 @@ class SignUpViewModel @Inject constructor(
                     ) }
                 }
                 is Result.Error -> {
-                    _uiState.update { it.copy(
-                        isLoading = false,
-                        errorMessage = result.message
-                    ) }
+                    val message = result.message.lowercase()
+
+                    when {
+                        // No internet / DNS issue
+                        message.contains("unable to resolve host") ||
+                                message.contains("no address associated with hostname") -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = "No internet connection. Please check your network and try again."
+                                )
+                            }
+                        }
+
+                        // Email already registered
+                        message.contains("user already registered") -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    emailError = "Email already registered. Please sign in"
+                                )
+                            }
+                        }
+
+                        // Username already taken
+                        message.contains("users_username_key") ||
+                                (message.contains("duplicate key") && message.contains("username")) -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    userNameError = "Username already taken. Choose another one"
+                                )
+                            }
+                        }
+
+                        else -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = "Something went wrong. Please try again."
+                                )
+                            }
+                        }
+                    }
                 }
+
 
                 Result.Loading -> TODO()
             }

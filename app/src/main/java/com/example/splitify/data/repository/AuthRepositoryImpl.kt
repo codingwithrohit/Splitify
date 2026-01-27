@@ -114,26 +114,45 @@ class AuthRepositoryImpl @Inject constructor(
         fullName: String
     ): Result<User> {
         return try {
-            //1. sign up with supabase auth
+            //1. Check if username is already taken
+            val existingUser = supabase.from("users")
+                .select {
+                    filter { eq("username", userName) }
+                }
+                .decodeList<UserDto>()
+
+            if (existingUser.isNotEmpty()) {
+                return Exception("Username already taken").asError()
+            }
+
+            //2. sign up with supabase auth
             supabase.auth.signUpWith(Email){
                 this.email = email
                 this.password = password
             }
-            //2. Get current session (contain tokens)
+            //3. Get current session (contain tokens)
             val session = supabase.auth.currentSessionOrNull() ?:
             return Exception("Failed to get session").asError()
 
             val userId = session.user?.id
                 ?: return Exception("Failed to get user id").asError()
 
-            //3. Create user profile in database
-            val userDto = UserDto(
-                id = userId,
-                email = email,
-                username = userName,
-                full_name = fullName
-            )
-            supabase.from("users").insert(userDto)
+            //4. Create user profile in database
+            try {
+                val userDto = UserDto(
+                    id = userId,
+                    email = email,
+                    username = userName,
+                    full_name = fullName
+                )
+                supabase.from("users").insert(userDto)
+            } catch (e: Exception) {
+                // Rollback: Delete auth user if profile creation fails
+                try {
+                    supabase.auth.admin.deleteUser(userId)
+                } catch (_: Exception) { }
+                throw e
+            }
 
             //4. Save session token
             sessionManager.saveSession(
@@ -149,7 +168,7 @@ class AuthRepositoryImpl @Inject constructor(
 
             Log.d("AuthRepo", "✅ Sign up successful, session saved")
 
-            userDto.toDomainModel().asSuccess()
+            UserDto(userId, email, userName, fullName, null, "", "").toDomainModel().asSuccess()
         }
         catch (e: Exception){
             e.asError()
@@ -267,6 +286,20 @@ class AuthRepositoryImpl @Inject constructor(
             emit(Result.Success(users.map { it.toDomainModel() }))
         } catch (e: Exception) {
             emit(Result.Error(e, "Search failed: ${e.message}"))
+        }
+    }
+
+    override suspend fun checkUsernameAvailable(username: String): Result<Boolean> {
+        return try {
+            val users = supabase.from("users")
+                .select {
+                    filter { eq("username", username) }
+                }
+                .decodeList<UserDto>()
+
+            (users.isEmpty()).asSuccess()
+        } catch (e: Exception) {
+            e.asError()
         }
     }
 
