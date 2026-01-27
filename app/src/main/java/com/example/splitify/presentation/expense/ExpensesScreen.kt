@@ -48,6 +48,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +62,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.TripMember
@@ -86,6 +89,7 @@ import kotlin.math.exp
 fun ExpensesScreen(
     currentMemberId: String?,
     currentUserId: String?,
+    navController: NavController,
     onBack: () -> Unit,
     onEditExpense: (String) -> Unit,
     onAddExpense: () -> Unit,
@@ -95,9 +99,19 @@ fun ExpensesScreen(
     val tabs = listOf("Group Expense", "Personal Expense")
     val pagerState = rememberPagerState(pageCount = {tabs.size} )
     val coroutineState = rememberCoroutineScope()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
 
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
     var showSuccessToast by remember { mutableStateOf(false) }
+
+
+    LaunchedEffect(navBackStackEntry) {
+        val targetTab = navBackStackEntry?.savedStateHandle?.get<Int>("target_tab")
+        if (targetTab != null) {
+            pagerState.animateScrollToPage(targetTab)
+            navBackStackEntry?.savedStateHandle?.remove<Int>("target_tab")
+        }
+    }
 
     expenseToDelete?.let { expense ->
         DeleteExpenseDialog(

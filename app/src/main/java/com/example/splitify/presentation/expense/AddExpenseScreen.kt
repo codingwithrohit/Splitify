@@ -92,6 +92,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.presentation.components.FailureToast
@@ -114,6 +115,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AddExpenseScreen(
     onNavigationBack: () -> Unit,
+    navController: NavController,
     viewModel: AddExpenseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -135,6 +137,10 @@ fun AddExpenseScreen(
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) {
             showSuccessToast = true
+            val targetTab = if (isGroupExpense) 0 else 1
+            navController.previousBackStackEntry
+                ?.savedStateHandle
+                ?.set("target_tab", targetTab)
             delay(1500)
             onNavigationBack()
         }

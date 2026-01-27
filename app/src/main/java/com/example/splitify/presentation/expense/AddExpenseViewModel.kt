@@ -416,6 +416,7 @@ class AddExpenseViewModel @Inject constructor(
                 is Result.Success -> {
                     Log.d("AddExpenseVM", "💾 Saving expense for user: ${currentUser.userName}")
                     _uiState.update { it.copy(isSaved = true, isLoading = false) }
+                    
                 }
                 is Result.Error -> {
                     _uiState.update {

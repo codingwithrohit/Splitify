@@ -45,7 +45,7 @@ fun MembersCard(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        members.take(5).forEach { member ->
+        members.take(4).forEach { member ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

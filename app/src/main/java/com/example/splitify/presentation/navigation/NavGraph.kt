@@ -289,7 +289,8 @@ fun SplitifyNavGraph(
                         navController.navigate(
                             Screen.EditExpense.createRoute(tripId, expenseId)
                         )
-                    }
+                    },
+                    navController = navController
                 )
             }
 
@@ -364,7 +365,8 @@ fun SplitifyNavGraph(
                 Log.d("NavGraph", "🧭 AddExpenseScreen - tripId: $tripId")
 
                 AddExpenseScreen(
-                    onNavigationBack = { navController.popBackStack() }
+                    onNavigationBack = { navController.popBackStack() },
+                    navController = navController
                 )
             }
 
@@ -407,7 +409,8 @@ fun SplitifyNavGraph(
                 Log.d("NavGraph", "🧭 EditExpenseScreen - tripId: $tripId, expenseId: $expenseId")
 
                 AddExpenseScreen(
-                    onNavigationBack = { navController.navigateUp() }
+                    onNavigationBack = { navController.navigateUp() },
+                    navController = navController
                 )
             }
 
