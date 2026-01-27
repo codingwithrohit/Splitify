@@ -2,11 +2,16 @@ package com.example.splitify.data.repository
 
 import android.annotation.SuppressLint
 import android.util.Log
+import androidx.room.withTransaction
+import com.example.splitify.data.local.AppDatabase
 import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.local.dao.ExpenseDao
 import com.example.splitify.data.local.dao.ExpenseSplitDao
+import com.example.splitify.data.local.dao.SettlementDao
 import com.example.splitify.data.local.dao.TripDao
 import com.example.splitify.data.local.dao.TripMemberDao
+import com.example.splitify.data.remote.dto.UserDto
+import com.example.splitify.data.remote.toDomainModel
 import com.example.splitify.domain.model.User
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.util.asError
@@ -20,6 +25,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
 import com.example.splitify.util.Result
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
@@ -28,10 +36,12 @@ import kotlin.time.DurationUnit
 class AuthRepositoryImpl @Inject constructor(
     private val supabase: SupabaseClient,
     private val sessionManager: SessionManager,
+    private val database: AppDatabase,
     private val tripDao: TripDao,
     private val tripMemberDao: TripMemberDao,
     private val expenseDao: ExpenseDao,
-    private val expenseSplitDao: ExpenseSplitDao
+    private val expenseSplitDao: ExpenseSplitDao,
+    private val settlementDao: SettlementDao
 ): AuthRepository {
 
     override suspend fun initializeSession(): Boolean {
@@ -208,19 +218,26 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+
     override suspend fun signOut(): Result<Unit> {
         return try {
             supabase.auth.signOut()
 
             val userId = sessionManager.getCurrentUserId() ?: ""
 
-            tripDao.deleteAllTrips()
+            database.withTransaction {
+                expenseSplitDao.deleteAllSplits()
+                expenseDao.deleteAllExpense()
+                settlementDao.deleteAllSettlements()
+                tripMemberDao.deleteAllMembers()
+                tripDao.deleteAllTrips()
+            }
 
             val remainingTrips = tripDao.getTripIdsByUser(userId).size
             if (remainingTrips == 0) {
                 Log.d("AuthRepo", "Database cleared successfully")
             } else {
-                Log.w("AuthRepo", "Warning: $remainingTrips trips still remain in DB")
+                Log.d("AuthRepo", "Warning: $remainingTrips trips still remain in DB")
             }
 
             sessionManager.clearSession()
@@ -229,32 +246,6 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             e.asError()
         }
-    }
-
-
-    //Data Transfer Object for User (matches Supabase schema)
-    @Serializable
-    data class UserDto(
-        val id: String,
-        val email: String,
-        val username: String,
-        val full_name: String? = null,
-        val avatar_url: String? = null,
-        val created_at: String? = null,
-        val updated_at: String? = null,
-    )
-
-    //Convert UserDto to Domain Model()
-    fun UserDto.toDomainModel(): User{
-        return User(
-            id = id,
-            email = email,
-            userName = username,
-            fullName = full_name,
-            avatarUrl = avatar_url,
-            createdAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis()
-        )
     }
 
     override fun searchUsersByUsername(query: String): Flow<Result<List<User>>> = flow {

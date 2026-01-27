@@ -25,6 +25,7 @@ import com.example.splitify.presentation.balances.BalancesScreen
 import com.example.splitify.presentation.expense.AddExpenseScreen
 import com.example.splitify.presentation.expense.ExpensesScreen
 import com.example.splitify.presentation.insights.InsightsScreen
+import com.example.splitify.presentation.jointrip.JoinTripScreen
 import com.example.splitify.presentation.settlement.SettlementHistoryScreen
 import com.example.splitify.presentation.tripdetail.TripDetailScreen
 import com.example.splitify.presentation.trips.CreateTripScreen
@@ -115,6 +116,9 @@ fun SplitifyNavGraph(
                     onTripClick = { tripId ->
                         navController.navigate(Screen.TripDetail.createRoute(tripId))
                     },
+                    onJoinTripClick = {
+                        navController.navigate(Screen.JoinTrip.route)
+                    },
                     onLogOut = {
                         navController.navigate(Screen.Login.route) {
                             popUpTo(0) { inclusive = true }
@@ -129,6 +133,17 @@ fun SplitifyNavGraph(
                     tripId = null,
                     onNavigateBack = {
                         navController.popBackStack()
+                    }
+                )
+            }
+
+            //Join Trip Screen
+            composable(Screen.JoinTrip.route) {
+                JoinTripScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onTripJoined = { tripId ->
+                        navController.popBackStack()
+                        navController.navigate(Screen.TripDetail.createRoute(tripId))
                     }
                 )
             }

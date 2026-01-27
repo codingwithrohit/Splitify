@@ -43,4 +43,6 @@ interface SettlementDao {
 
     @Query("Select * from settlements where from_member_id = :fromMemberId and to_member_id = :toMemberId and status = 'PENDING' ")
     fun getPendingSettlementsBetweenMembers(fromMemberId: String, toMemberId: String): Flow<List<SettlementEntity>>
+    @Query("DELETE FROM settlements")
+    fun deleteAllSettlements()
 }

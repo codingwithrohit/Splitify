@@ -54,5 +54,8 @@ interface ExpenseSplitDao {
 """)
     suspend fun deleteAllSplitsForUser(userId: String)
 
+    @Query("DELETE FROM expense_splits")
+    fun deleteAllSplits()
+
 
 }

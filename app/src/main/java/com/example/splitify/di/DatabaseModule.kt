@@ -27,7 +27,8 @@ object DatabaseModule {
         return Room.databaseBuilder(context,
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME)
-            .fallbackToDestructiveMigration() // Destroys old database on version change
+            .addMigrations(AppDatabase.MIGRATION_7_8)
+            .fallbackToDestructiveMigration()
             .build()
     }
 

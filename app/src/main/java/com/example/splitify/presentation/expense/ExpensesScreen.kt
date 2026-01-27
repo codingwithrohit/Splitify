@@ -1,6 +1,7 @@
 package com.example.splitify.presentation.expense
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,6 +39,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -44,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,9 +77,11 @@ import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.theme.SecondaryColors
 import com.example.splitify.util.CurrencyUtils
 import com.example.splitify.util.getCategoryIcon
+import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
+import kotlin.math.exp
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ExpensesScreen(
     currentMemberId: String?,
@@ -82,6 +92,9 @@ fun ExpensesScreen(
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val tabs = listOf("Group Expense", "Personal Expense")
+    val pagerState = rememberPagerState(pageCount = {tabs.size} )
+    val coroutineState = rememberCoroutineScope()
 
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
     var showSuccessToast by remember { mutableStateOf(false) }
@@ -123,6 +136,7 @@ fun ExpensesScreen(
     ) { padding ->
         when (val state = uiState) {
             is ExpenseUiState.Loading -> {
+
                 ExpensesLoadingSkeleton()
             }
 
@@ -135,30 +149,72 @@ fun ExpensesScreen(
                             .padding(padding)
                     )
                 } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding),
-                        contentPadding = PaddingValues(
-                            start = 20.dp,
-                            end = 20.dp,
-                            top = 16.dp,
-                            bottom = 100.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(
-                            items = state.expenses,
-                            key = { it.id }
-                        ) { expense ->
-                            ExpenseCard(
-                                expense = expense,
-                                paidByMember = state.members.find { it.id == expense.paidBy },
-                                currentUserMember = state.members.find { it.id == currentMemberId },
-                                currentUserId = currentUserId,
-                                onEdit = { onEditExpense(expense.id) },
-                                onDelete = { expenseToDelete = expense }
-                            )
+
+                    Column(modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)) {
+
+                        TabRow(
+                            selectedTabIndex = pagerState.currentPage,
+                            containerColor = Color.White,
+                            indicator = {tabPositions ->
+                                if(pagerState.currentPage < tabs.size){
+                                    SecondaryIndicator(
+                                        Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                                        height = 2.dp,
+                                        color = PrimaryColors.Primary900
+                                    )
+                                }
+                            }
+                        ) {
+                            tabs.forEachIndexed { index, title ->
+                                val selected = pagerState.currentPage == index
+                                Tab(
+                                    selected = selected,
+                                    onClick = { coroutineState.launch { pagerState.animateScrollToPage(index) } },
+                                    text = { Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = if(selected) PrimaryColors.Primary600 else NeutralColors.Neutral600
+                                    ) },
+                                    modifier = Modifier.background(
+                                        if(selected)
+                                            PrimaryColors.Primary300.copy(alpha = 0.2f)
+                                        else
+                                            Color.Transparent
+                                    )
+                                )
+                            }
+                        }
+
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.weight(1f)
+                        ) { page ->
+
+                            val filteredExpense = when(page){
+                                0 -> state.expenses.filter { it.isGroupExpense }
+                                1 -> state.expenses.filter { !it.isGroupExpense }
+                                else -> emptyList()
+                            }
+                            when (page) {
+                                0 -> ListExpense(
+                                    expense = filteredExpense,
+                                    members = state.members,
+                                    currentMemberId = currentMemberId,
+                                    currentUserId = currentUserId,
+                                    onEditExpense = onEditExpense,
+                                    expenseToDelete = expenseToDelete
+                                )
+                                1 -> ListExpense(
+                                    expense = filteredExpense,
+                                    members = state.members,
+                                    currentMemberId = currentMemberId,
+                                    currentUserId = currentUserId,
+                                    onEditExpense = onEditExpense,
+                                    expenseToDelete = expenseToDelete
+                                )
+                            }
                         }
                     }
                 }
@@ -180,6 +236,42 @@ fun ExpensesScreen(
             visible = showSuccessToast,
             onDismiss = { showSuccessToast = false }
         )
+    }
+}
+
+@Composable
+fun ListExpense(
+    expense: List<Expense>,
+    members: List<TripMember>,
+    currentMemberId: String?,
+    currentUserId: String?,
+    onEditExpense: (String) -> Unit,
+    expenseToDelete: Expense?
+){
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = 20.dp,
+            end = 20.dp,
+            top = 16.dp,
+            bottom = 100.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items(
+            items = expense,
+            key = { it.id }
+        ) { expense ->
+            ExpenseCard(
+                expense = expense,
+                paidByMember = members.find { it.id == expense.paidBy },
+                currentUserMember = members.find { it.id == currentMemberId },
+                currentUserId = currentUserId,
+                onEdit = { onEditExpense(expense.id) },
+                onDelete = { expenseToDelete == expense }
+            )
+        }
     }
 }
 

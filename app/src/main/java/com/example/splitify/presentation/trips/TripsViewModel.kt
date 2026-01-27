@@ -149,9 +149,15 @@ class TripsViewModel @Inject constructor(
     fun logout() {
         viewModelScope.launch {
             Log.d("TripsVM", "🚪 Logging out...")
+            val result = authRepository.signOut()
+            if (result is Result.Success) {
+                _logoutEvent.send(Unit)
+            }else {
+                _uiState.value = TripsUiState.Error("Failed to logout")
+                Log.d("TripsVM", "❌ Logout failed: ${result.isError}")
+                Log.d("TripsVM", "❌ Logout failed: $result")
+            }
 
-            authRepository.signOut()
-            _logoutEvent.send(Unit)
             Log.d("TripsVM", "✅ Logout complete")
         }
     }

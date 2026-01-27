@@ -14,7 +14,7 @@ interface TripRepository {
 
     suspend fun getTripById(tripId: String): Trip?
 
-    fun observeTripById(tripId: String):  Flow<Result<Trip>>
+    fun observeTripById(tripId: String): Flow<Result<Trip>>
 
     suspend fun createTrip(trip: Trip): Result<Trip>
 
@@ -27,6 +27,14 @@ interface TripRepository {
     suspend fun clearLocalTrips(): Result<Unit>
 
     suspend fun downloadTripsFromSupabase(): Result<Unit>
+
+    suspend fun validateInviteCode(code: String): Result<Trip>
+
+    suspend fun joinTrip(tripId: String, userId: String, displayName: String): Result<Unit>
+
+    suspend fun joinTripWithInviteCode(inviteCode: String): Result<Trip>
+
+
 
 
 }

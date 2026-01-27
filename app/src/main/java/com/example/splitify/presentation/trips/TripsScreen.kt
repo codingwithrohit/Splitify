@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -68,6 +69,7 @@ import java.time.format.DateTimeFormatter
 fun TripsScreen(
     onCreateTripClick: () -> Unit,
     onTripClick: (String) -> Unit,
+    onJoinTripClick: () -> Unit,
     onLogOut: () -> Unit,
     viewModel: TripsViewModel = hiltViewModel()
 ){
@@ -113,18 +115,38 @@ fun TripsScreen(
                             color = Color.White
                         )
 
-                        IconButton(
-                            onClick = { showLogoutDialog = true},
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(MaterialTheme.shapes.small)
-                                .background(Color.White.copy(alpha = 0.2f))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Logout,
-                                contentDescription = "Logout",
-                                tint = Color.White
-                            )
+                            IconButton(
+                                onClick = onJoinTripClick,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(MaterialTheme.shapes.small)
+                                    .background(Color.White.copy(alpha = 0.2f))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCodeScanner,
+                                    contentDescription = "Join Trip",
+                                    tint = Color.White
+                                )
+                            }
+
+                            // LOGOUT BUTTON
+                            IconButton(
+                                onClick = { showLogoutDialog = true },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(MaterialTheme.shapes.small)
+                                    .background(Color.White.copy(alpha = 0.2f))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Logout,
+                                    contentDescription = "Logout",
+                                    tint = Color.White
+                                )
+                            }
                         }
                     }
                 }

@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.example.splitify.data.local.entity.TripEntity
+import com.example.splitify.util.Result
 import kotlinx.coroutines.flow.Flow
 
 

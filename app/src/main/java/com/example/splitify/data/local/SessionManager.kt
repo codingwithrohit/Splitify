@@ -43,6 +43,22 @@ class SessionManager @Inject constructor(
                 && !prefs[Keys.USER_ID].isNullOrBlank()
     }
 
+
+    suspend fun getUserName(): String? {
+        val prefs = context.sessionDataStore.data.first()
+        return prefs[Keys.USER_NAME]
+    }
+
+    suspend fun getFullName(): String? {
+        val prefs = context.sessionDataStore.data.first()
+        return prefs[Keys.FULL_NAME]
+    }
+
+    suspend fun getAvatarUrl(): String? {
+        val prefs = context.sessionDataStore.data.first()
+        return prefs[Keys.AVATAR_URL]
+    }
+
     suspend fun saveSession(
         accessToken: String,
         refreshToken: String,
@@ -97,15 +113,16 @@ class SessionManager @Inject constructor(
         return prefs[Keys.ACCESS_TOKEN]
     }
 
+    suspend fun getCurrentUserId(): String? {
+        val prefs = context.sessionDataStore.data.first()
+        return prefs[Keys.USER_ID]
+    }
+
     suspend fun getRefreshToken(): String? {
         val prefs = context.sessionDataStore.data.first()
         return prefs[Keys.REFRESH_TOKEN]
     }
 
-    suspend fun getCurrentUserId(): String? {
-        val prefs = context.sessionDataStore.data.first()
-        return prefs[Keys.USER_ID]
-    }
 
     fun getCurrentUserFlow(): Flow<UserSession?> {
         return context.sessionDataStore.data.map { prefs ->

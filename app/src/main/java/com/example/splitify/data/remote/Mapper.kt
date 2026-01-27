@@ -11,9 +11,11 @@ import com.example.splitify.data.remote.dto.ExpenseUpdateDto
 import com.example.splitify.data.remote.dto.SettlementDto
 import com.example.splitify.data.remote.dto.TripDto
 import com.example.splitify.data.remote.dto.TripMemberDto
+import com.example.splitify.data.remote.dto.UserDto
 import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.Trip
+import com.example.splitify.domain.model.User
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -22,6 +24,19 @@ import java.time.ZoneOffset
  * Convert Room entity to Supabase DTO
  * Used when uploading to Supabase
  */
+
+
+fun UserDto.toDomainModel(): User{
+    return User(
+        id = id,
+        email = email,
+        userName = username,
+        fullName = full_name,
+        avatarUrl = avatar_url,
+        createdAt = System.currentTimeMillis(),
+        updatedAt = System.currentTimeMillis()
+    )
+}
 
 fun Trip.toDto() = TripDto(
     id = id,
@@ -54,12 +69,21 @@ fun TripDto.toEntity(createdAt: Long): TripEntity {
         inviteCode = this.inviteCode,
         createdBy = this.createdBy,
         createdAt = createdAt,
-        // Logic: Since it's coming FROM the server, these must be:
         isLocal = false,
         isSynced = true,
         lastModified = System.currentTimeMillis()
     )
 }
+
+fun TripDto.toDomain() = Trip(
+    id = id,
+    name = name,
+    description = description,
+    createdBy = createdBy,
+    inviteCode = inviteCode,
+    startDate = startDate,
+    endDate = endDate
+)
 
 fun TripMemberEntity.toDto(): TripMemberDto {
     return TripMemberDto(
@@ -69,9 +93,10 @@ fun TripMemberEntity.toDto(): TripMemberDto {
         displayName = displayName,
         role = role,
         avatarUrl = avatarUrl,
+        invitationStatus = invitationStatus,
         joinedAt = Instant.ofEpochMilli(joinedAt)
             .atOffset(ZoneOffset.UTC)
-            .toString()  // Convert timestamp to ISO string
+            .toString()
     )
 }
 
@@ -84,6 +109,7 @@ fun TripMemberDto.toEntity(): TripMemberEntity {
         displayName = displayName,
         role = role,
         avatarUrl = avatarUrl,
+        invitationStatus = invitationStatus,
         joinedAt = joinedAt?.let {
             try {
                 java.time.Instant.parse(it).toEpochMilli()

@@ -36,6 +36,8 @@ data class TripMemberEntity(
     val joinedAt: Long,
     @ColumnInfo("avatar_url")
     val avatarUrl: String? = null,
+    @ColumnInfo("invitation_status")
+    val invitationStatus: String = "accepted",
     @ColumnInfo("is_synced")
     val isSynced: Boolean = false,
     @ColumnInfo("last_modified")

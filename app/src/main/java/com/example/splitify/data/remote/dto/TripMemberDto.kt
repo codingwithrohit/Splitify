@@ -32,7 +32,10 @@ data class TripMemberDto(
     val avatarUrl: String? = null,
 
     @SerialName("joined_at")
-    val joinedAt: String? = null  // ISO timestamp from Supabase
+    val joinedAt: String? = null,  // ISO timestamp from Supabase
+
+    @SerialName("invitation_status")
+    val invitationStatus: String = "accepted"
 )
 
 object LocalDateSerializer : KSerializer<LocalDate> {

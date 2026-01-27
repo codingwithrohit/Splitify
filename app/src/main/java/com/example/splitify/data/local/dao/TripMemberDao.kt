@@ -52,4 +52,7 @@ interface TripMemberDao {
         LIMIT 20
     """)
     fun searchUsers(query: String): Flow<List<TripMemberEntity>>
+
+    @Query("DELETE FROM trip_members")
+    fun deleteAllMembers()
 }

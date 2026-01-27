@@ -59,4 +59,7 @@ interface ExpenseDao {
     )
 """)
     suspend fun deleteAllExpensesForUser(userId: String)
+
+    @Query("DELETE FROM expenses")
+    fun deleteAllExpense()
 }
