@@ -119,17 +119,16 @@ fun ExpensesScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddExpense,
-                shape = CircleShape,
-                containerColor = PrimaryColors.Primary600,
-                contentColor = Color.White
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = "Add Expense",
-                    modifier = Modifier.size(28.dp)
-                )
+            val state = uiState
+            if (state is ExpenseUiState.Success && state.expenses.isNotEmpty()) {
+                FloatingActionButton(
+                    onClick = onAddExpense,
+                    shape = CircleShape,
+                    containerColor = PrimaryColors.Primary600,
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Expense")
+                }
             }
         },
         containerColor = MaterialTheme.colorScheme.background

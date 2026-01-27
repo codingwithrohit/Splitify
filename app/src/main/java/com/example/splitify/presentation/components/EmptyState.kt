@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.splitify.presentation.theme.CustomShapes
 import com.example.splitify.presentation.theme.NeutralColors
+import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.theme.SecondaryColors
 
 @Composable
@@ -60,7 +61,7 @@ fun EmptyState(
         ) {
             Surface(
                 shape = MaterialTheme.shapes.extraLarge,
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = SecondaryColors.Secondary100,
                 modifier = Modifier.size(120.dp)
             ) {
                 Box(contentAlignment = Alignment.Center){
@@ -68,7 +69,7 @@ fun EmptyState(
                         imageVector = icon,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        tint = SecondaryColors.Secondary600
                     )
                 }
             }
@@ -95,11 +96,19 @@ fun EmptyState(
             if (actionLabel != null && onAction != null) {
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Button(
+                OutlinedButton(
                     onClick = onAction,
-                    modifier = Modifier.fillMaxWidth(0.6f)
+                    modifier = Modifier.fillMaxWidth(0.65f),
+                    shape = CustomShapes.ButtonShape,
                 ) {
-                    Text(actionLabel)
+//                    Icon(
+//                        imageVector = Icons.Default.History,
+//                        contentDescription = null,
+//                        modifier = Modifier.size(20.dp)
+//                    )
+//                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(actionLabel,
+                        color = PrimaryColors.Primary600)
                 }
             }
         }
@@ -199,10 +208,12 @@ fun AllSettledState(
                     Icon(
                         imageVector = Icons.Default.History,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        tint = PrimaryColors.Primary600
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("View History")
+                    Text("View History",
+                        color = PrimaryColors.Primary600)
                 }
             }
         }
