@@ -54,6 +54,10 @@ interface ExpenseSplitDao {
 """)
     suspend fun deleteAllSplitsForUser(userId: String)
 
+
+    @Query("DELETE FROM expense_splits WHERE expense_id IN (SELECT id FROM expenses WHERE trip_id = :tripId)")
+    suspend fun deleteAllSplitsForTrip(tripId: String)
+
     @Query("DELETE FROM expense_splits")
     fun deleteAllSplits()
 

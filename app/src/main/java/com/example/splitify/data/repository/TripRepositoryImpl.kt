@@ -172,33 +172,32 @@ class TripRepositoryImpl @Inject constructor(
 
     override suspend fun deleteTrip(tripId: String): Result<Unit> {
         return try {
-            println("Deleting trip from Room: $tripId")
-            tripDao.deleteTripById(tripId)
-            println("✅ Deleted from Room")
-
+            // 1. Delete from Supabase FIRST (cascade handles everything there)
             try {
-                println("📤 Syncing to Supabase...")
                 val session = supabase.auth.currentSessionOrNull()
-                if (session == null) {
-                    println("⚠️ No session, skipping Supabase delete")
-                    return Unit.asSuccess()
-                }
-                println("📤 Deleting from Supabase...")
-                supabase.from("trips").delete {
-                    filter {
-                        eq("id", tripId)
+                if (session != null) {
+                    supabase.from("trips").delete {
+                        filter { eq("id", tripId) }
                     }
-                    println("✅ Deleted from Supabase")
+                    Log.d("TripRepo", "✅ Deleted from Supabase")
                 }
-            }catch (syncError:Exception){
-                println("⚠️ Failed to delete from Supabase: ${syncError.message}")
-                syncError.printStackTrace()
+            } catch (syncError: Exception) {
+                Log.e("TripRepo", "⚠️ Failed to delete from Supabase: ${syncError.message}")
             }
+
+            // 2. Delete from Room in transaction with proper order
+            database.withTransaction {
+                // Delete in reverse order of dependencies
+                expenseSplitDao.deleteAllSplitsForTrip(tripId)
+                expenseDao.deleteAllExpensesByTrip(tripId)
+                tripMemberDao.deleteAllMembersForTrip(tripId)
+                tripDao.deleteTripById(tripId)
+            }
+            Log.d("TripRepo", "✅ Deleted from Room")
 
             Unit.asSuccess()
         } catch (e: Exception) {
-            println("❌ Delete failed: ${e.message}")
-            e.printStackTrace()
+            Log.e("TripRepo", "❌ Delete failed: ${e.message}")
             e.asError()
         }
     }
