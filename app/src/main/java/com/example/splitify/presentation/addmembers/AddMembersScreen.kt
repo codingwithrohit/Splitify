@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
@@ -53,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -174,7 +171,7 @@ fun AddMemberContent(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(20.dp)
+            .padding(top = 20.dp, start = 20.dp, end = 20.dp)
     ) {
         SectionHeader(
             icon = Icons.Default.Person,
@@ -234,142 +231,142 @@ fun AddMemberContent(
 
         Spacer(modifier = Modifier.height(28.dp))
 
-        SectionHeader(
-            icon = Icons.Default.Search,
-            title = "Search Existing Users"
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Type to search...", color = NeutralColors.Neutral400) },
-            leadingIcon = {
-                Icon(Icons.Default.Search, "Search", tint = PrimaryColors.Primary500)
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = onClearSearch) {
-                        Icon(Icons.Default.Clear, "Clear", tint = NeutralColors.Neutral600)
-                    }
-                }
-            },
-            singleLine = true,
-            shape = CustomShapes.TextFieldShape,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryColors.Primary500,
-                unfocusedBorderColor = NeutralColors.Neutral300,
-                focusedContainerColor = PrimaryColors.Primary50,
-                unfocusedContainerColor = Color.White
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        when {
-            isSearching -> {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CustomShapes.CardShape,
-                    color = NeutralColors.Neutral100
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = PrimaryColors.Primary600,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Searching...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = NeutralColors.Neutral700
-                        )
-                    }
-                }
-            }
-
-            hasSearched && searchResults.isEmpty() && searchQuery.isNotBlank() -> {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CustomShapes.CardShape,
-                    color = SemanticColors.ErrorLight
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = SemanticColors.ErrorDark,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "No users found for \"$searchQuery\"",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SemanticColors.ErrorDark,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-
-            searchResults.isNotEmpty() -> {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CustomShapes.CardShape,
-                    color = SecondaryColors.Secondary50,
-                    shadowElevation = 2.dp
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            "Found ${searchResults.size} user(s)",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = SecondaryColors.Secondary700,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
-                        )
-
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 220.dp),
-                            contentPadding = PaddingValues(4.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            items(searchResults, key = { it.id }) { user ->
-                                SearchResultUserItem(
-                                    user = user,
-                                    onClick = {
-                                        onAddMember(user.userName)
-                                        onClearSearch()
-                                        keyboardController?.hide()
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
+//        SectionHeader(
+//            icon = Icons.Default.Search,
+//            title = "Search Existing Users"
+//        )
+//
+//        Spacer(modifier = Modifier.height(12.dp))
+//
+//        OutlinedTextField(
+//            value = searchQuery,
+//            onValueChange = onSearchQueryChange,
+//            modifier = Modifier.fillMaxWidth(),
+//            placeholder = { Text("Type to search...", color = NeutralColors.Neutral400) },
+//            leadingIcon = {
+//                Icon(Icons.Default.Search, "Search", tint = PrimaryColors.Primary500)
+//            },
+//            trailingIcon = {
+//                if (searchQuery.isNotEmpty()) {
+//                    IconButton(onClick = onClearSearch) {
+//                        Icon(Icons.Default.Clear, "Clear", tint = NeutralColors.Neutral600)
+//                    }
+//                }
+//            },
+//            singleLine = true,
+//            shape = CustomShapes.TextFieldShape,
+//            colors = OutlinedTextFieldDefaults.colors(
+//                focusedBorderColor = PrimaryColors.Primary500,
+//                unfocusedBorderColor = NeutralColors.Neutral300,
+//                focusedContainerColor = PrimaryColors.Primary50,
+//                unfocusedContainerColor = Color.White
+//            )
+//        )
+//
+//        Spacer(modifier = Modifier.height(16.dp))
+//
+//        when {
+//            isSearching -> {
+//                Surface(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    shape = CustomShapes.CardShape,
+//                    color = NeutralColors.Neutral100
+//                ) {
+//                    Row(
+//                        modifier = Modifier
+//                            .fillMaxWidth()
+//                            .padding(20.dp),
+//                        horizontalArrangement = Arrangement.Center,
+//                        verticalAlignment = Alignment.CenterVertically
+//                    ) {
+//                        CircularProgressIndicator(
+//                            modifier = Modifier.size(20.dp),
+//                            color = PrimaryColors.Primary600,
+//                            strokeWidth = 2.dp
+//                        )
+//                        Spacer(modifier = Modifier.width(12.dp))
+//                        Text(
+//                            "Searching...",
+//                            style = MaterialTheme.typography.bodyMedium,
+//                            color = NeutralColors.Neutral700
+//                        )
+//                    }
+//                }
+//            }
+//
+//            hasSearched && searchResults.isEmpty() && searchQuery.isNotBlank() -> {
+//                Surface(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    shape = CustomShapes.CardShape,
+//                    color = SemanticColors.ErrorLight
+//                ) {
+//                    Column(
+//                        modifier = Modifier
+//                            .fillMaxWidth()
+//                            .padding(20.dp),
+//                        horizontalAlignment = Alignment.CenterHorizontally
+//                    ) {
+//                        Icon(
+//                            imageVector = Icons.Default.Search,
+//                            contentDescription = null,
+//                            tint = SemanticColors.ErrorDark,
+//                            modifier = Modifier.size(32.dp)
+//                        )
+//                        Spacer(modifier = Modifier.height(8.dp))
+//                        Text(
+//                            "No users found for \"$searchQuery\"",
+//                            style = MaterialTheme.typography.bodyMedium,
+//                            color = SemanticColors.ErrorDark,
+//                            textAlign = TextAlign.Center
+//                        )
+//                    }
+//                }
+//            }
+//
+//            searchResults.isNotEmpty() -> {
+//                Surface(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    shape = CustomShapes.CardShape,
+//                    color = SecondaryColors.Secondary50,
+//                    shadowElevation = 2.dp
+//                ) {
+//                    Column(
+//                        modifier = Modifier
+//                            .fillMaxWidth()
+//                            .padding(12.dp)
+//                    ) {
+//                        Text(
+//                            "Found ${searchResults.size} user(s)",
+//                            style = MaterialTheme.typography.labelLarge,
+//                            fontWeight = FontWeight.SemiBold,
+//                            color = SecondaryColors.Secondary700,
+//                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+//                        )
+//
+//                        LazyColumn(
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .heightIn(max = 220.dp),
+//                            contentPadding = PaddingValues(4.dp),
+//                            verticalArrangement = Arrangement.spacedBy(6.dp)
+//                        ) {
+//                            items(searchResults, key = { it.id }) { user ->
+//                                SearchResultUserItem(
+//                                    user = user,
+//                                    onClick = {
+//                                        onAddMember(user.userName)
+//                                        onClearSearch()
+//                                        keyboardController?.hide()
+//                                    }
+//                                )
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//
+//        Spacer(modifier = Modifier.height(28.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -405,7 +402,7 @@ fun AddMemberContent(
             )
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxHeight(),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(members, key = { it.id }) { member ->
