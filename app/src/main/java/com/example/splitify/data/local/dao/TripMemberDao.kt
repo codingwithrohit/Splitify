@@ -44,6 +44,7 @@ interface TripMemberDao {
     suspend fun deleteAllMembersForUser(userId: String)
 
 
+
     @Query("""
         SELECT * FROM trip_members 
         WHERE user_id IS NOT NULL 

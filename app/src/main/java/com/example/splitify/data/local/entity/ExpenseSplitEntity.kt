@@ -19,7 +19,8 @@ import androidx.room.PrimaryKey
             entity = TripMemberEntity::class,
             parentColumns = ["id"],
             childColumns = ["member_id"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.CASCADE,
+            deferred = true
         )
     ],
     indices = [

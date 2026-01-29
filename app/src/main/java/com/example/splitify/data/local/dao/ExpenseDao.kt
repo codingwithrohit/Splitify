@@ -31,8 +31,20 @@ interface ExpenseDao {
     @Query("Select * from expenses where id = :expenseId")
     fun getExpenseWithSplitsById(expenseId: String): Flow<ExpenseWithSplitsRelation>
 
-    @Update
-    suspend fun updateExpenseWithSplits(expense: ExpenseEntity, splits: List<ExpenseSplitEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSplits(splits: List<ExpenseSplitEntity>)
+
+    @Query("DELETE FROM expense_splits WHERE expense_id = :expenseId")
+    suspend fun deleteSplitsForExpense(expenseId: String)
+
+    @Transaction
+    suspend fun updateExpenseAndSplits(expense: ExpenseEntity, splits: List<ExpenseSplitEntity>) {
+        insertAnExpense(
+            expense.copy(updatedAt = System.currentTimeMillis())
+        )
+        deleteSplitsForExpense(expense.id)
+        insertSplits(splits)
+    }
 
     @Update
     suspend fun updateExpense(expense: ExpenseEntity)

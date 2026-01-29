@@ -102,6 +102,7 @@ import java.time.format.DateTimeFormatter
 fun CreateTripScreen(
     tripId: String?,
     onNavigateBack: () -> Unit,
+    onTripCreated: ((String) -> Unit)? = null,
     viewModel: CreateTripViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -109,8 +110,13 @@ fun CreateTripScreen(
     val clipboardManager = LocalClipboardManager.current
     var showCopiedMessage by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.isSaved) {
-        if (uiState.isSaved) onNavigateBack()
+    LaunchedEffect(uiState.isSaved, uiState.createdTripId) {
+        if (uiState.isSaved) {
+            uiState.createdTripId?.let {
+                onTripCreated?.invoke(it)
+            }
+            onNavigateBack()
+        }
     }
 
     LaunchedEffect(showCopiedMessage) {

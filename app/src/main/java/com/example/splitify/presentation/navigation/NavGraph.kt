@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -30,6 +31,7 @@ import com.example.splitify.presentation.settlement.SettlementHistoryScreen
 import com.example.splitify.presentation.tripdetail.TripDetailScreen
 import com.example.splitify.presentation.trips.CreateTripScreen
 import com.example.splitify.presentation.trips.TripsScreen
+import com.example.splitify.presentation.trips.TripsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -128,11 +130,23 @@ fun SplitifyNavGraph(
             }
 
             // Create Trip Screen
-            composable(route = Screen.CreateTrip.route) {
+            composable(
+                route = Screen.CreateTrip.route,
+                arguments = listOf(navArgument("tripId") {
+                    type = NavType.StringType
+                    nullable = true
+                })
+            ) { backStackEntry ->
+                val tripId = backStackEntry.arguments?.getString("tripId")
+                val tripsViewModel: TripsViewModel = hiltViewModel()
+
                 CreateTripScreen(
-                    tripId = null,
-                    onNavigateBack = {
-                        navController.popBackStack()
+                    tripId = tripId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onTripCreated = if (tripId == null) {
+                        { tripsViewModel.onTripCreated(it) }
+                    } else {
+                        null
                     }
                 )
             }

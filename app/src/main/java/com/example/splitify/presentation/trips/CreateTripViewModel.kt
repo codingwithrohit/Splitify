@@ -182,7 +182,17 @@ class CreateTripViewModel @Inject constructor(
             }
             when(result) {
                 is Result.Success -> {
-                    _uiState.update { it.copy(isLoading = false, isSaved = true) }
+
+                    val createdId = when (mode) {
+                        is CreateTripFormMode.CreateTrip -> result.data.id
+                        is CreateTripFormMode.EditTrip -> tripId!!
+                    }
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isSaved = true,
+                            createdTripId = createdId
+                        ) }
                 }
                 is Result.Error -> {
                     _uiState.update {

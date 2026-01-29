@@ -1,10 +1,12 @@
 package com.example.splitify.presentation.tripdetail
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.splitify.data.sync.RealtimeManager
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.SettlementStatus
 import com.example.splitify.domain.model.Trip
@@ -26,16 +28,22 @@ import javax.inject.Inject
 
 @HiltViewModel
 class TripDetailViewModel @Inject constructor(
-    private val getTripUseCase: GetTripUseCase,
-    private val getExpensesUseCase: GetExpensesUseCase,
-    private val getTripMemberUseCase: GetTripMemberUseCase,
-    private val calculateTripBalancesUseCase: CalculateTripBalancesUseCase,
-    private val settlementsForTripUseCase: GetSettlementsForTripUseCase,
+    getTripUseCase: GetTripUseCase,
+    getExpensesUseCase: GetExpensesUseCase,
+    getTripMemberUseCase: GetTripMemberUseCase,
+    calculateTripBalancesUseCase: CalculateTripBalancesUseCase,
+    settlementsForTripUseCase: GetSettlementsForTripUseCase,
     private val authRepository: AuthRepository,
+    private val realtimeManager: RealtimeManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
+
+    init {
+        realtimeManager.subscribeToTrip(tripId)
+        Log.d("TripDetailVM", "Subscribed to trip: $tripId")
+    }
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     val dashboardState: StateFlow<TripDashboardState> =
@@ -125,6 +133,12 @@ class TripDetailViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = TripDashboardState.Loading
         )
+
+    override fun onCleared() {
+        realtimeManager.unsubscribeFromTrip(tripId)
+        Log.d("TripDetailVM", "🔕 Unsubscribed from trip: $tripId")
+        super.onCleared()
+    }
 
 }
 

@@ -8,8 +8,10 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
+import io.ktor.client.engine.okhttp.OkHttp
+import kotlin.time.Duration.Companion.seconds
 
-//Single instance will be used throughout the project
+
 class SupabaseClientProvider(private val context: Context) {
 
     val client: SupabaseClient by lazy {
@@ -17,7 +19,7 @@ class SupabaseClientProvider(private val context: Context) {
             supabaseUrl = BuildConfig.SUPABASE_URL,
             supabaseKey = BuildConfig.SUPABASE_KEY,
         ){
-
+            httpEngine = OkHttp.create()
             install(Auth){
                 autoLoadFromStorage = true
                 autoSaveToStorage = true
@@ -25,6 +27,7 @@ class SupabaseClientProvider(private val context: Context) {
             }
             install(Postgrest)
             install(Realtime)
+
         }
 
     }

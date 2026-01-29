@@ -1,5 +1,6 @@
 package com.example.splitify.domain.usecase.trip
 
+import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.util.Result
@@ -18,7 +19,7 @@ class UpdateTripUseCase @Inject constructor(
         startDate: LocalDate,
         endDate: LocalDate?,
         inviteCode: String
-    ): Result<Unit> {
+    ): Result<Trip> {
 
         val user = authRepository.getCurrentUser().first()
             ?: return Result.Error(Exception("User not logged in"))
@@ -43,6 +44,6 @@ class UpdateTripUseCase @Inject constructor(
 
         tripRepository.updateTrip(updatedTrip)
 
-        return Result.Success(Unit)
+        return Result.Success(updatedTrip)
     }
 }

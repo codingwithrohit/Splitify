@@ -26,7 +26,7 @@ import dagger.Provides
         ExpenseSplitEntity::class,
         SettlementEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class)

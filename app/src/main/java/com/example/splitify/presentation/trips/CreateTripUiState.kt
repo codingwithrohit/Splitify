@@ -12,8 +12,9 @@ data class CreateTripUiState (
     val nameError: String? = null,
     val dateError: String? = null,
 
-    //Loading State
     val isLoading: Boolean = false,
-    val isSaved: Boolean = false
+    val isSaved: Boolean = false,
 
-    )
+    val createdTripId: String? = null
+
+)

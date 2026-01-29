@@ -23,7 +23,7 @@ class CreateTripUseCase @Inject constructor(
         startDate: LocalDate,
         endDate: LocalDate?,
         inviteCode: String
-    ): Result<Unit>
+    ): Result<Trip>
     {
         val user = authRepository.getCurrentUser().first() ?: return Result.Error(Exception("User not logged in"))
 
@@ -52,7 +52,7 @@ class CreateTripUseCase @Inject constructor(
             )
         ).getOrThrow()
 
-        return Result.Success(Unit)
+        return Result.Success(trip)
 
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.data.local.SessionManager
+import com.example.splitify.data.sync.RealtimeManager
 import com.example.splitify.domain.usecase.trip.JoinTripUseCase
 import com.example.splitify.domain.usecase.trip.JoinTripUsingInviteCode
 import com.example.splitify.domain.usecase.trip.ValidateInviteCodeUseCase
@@ -23,7 +24,8 @@ class JoinTripViewModel @Inject constructor(
     private val validateInviteCodeUseCase: ValidateInviteCodeUseCase,
     private val joinTripUseCase: JoinTripUseCase,
     private val joinTripUsingInviteCode: JoinTripUsingInviteCode,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val realtimeManager: RealtimeManager
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow<JoinTripUiState>(JoinTripUiState.Idle)
@@ -98,16 +100,13 @@ fun joinTrip() {
     viewModelScope.launch {
         _uiState.value = JoinTripUiState.Joining
 
-        // Note: In the new Repository implementation, we handle userId
-        // and displayName inside the repository using the Supabase Session.
-        // So we just pass the invite code.
-
         val code = _inviteCode.value.trim()
 
         when (val result = joinTripUsingInviteCode(code)) {
             is Result.Success -> {
                 Log.d("JoinTripVM", "Successfully joined trip and synced all data")
                 // result.data is the Trip object returned from the repo
+                realtimeManager.subscribeToTrip(result.data.id)
                 _uiState.value = JoinTripUiState.Success(result.data.id)
             }
             is Result.Error -> {

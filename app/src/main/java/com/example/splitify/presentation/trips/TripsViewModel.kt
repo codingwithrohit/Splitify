@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.local.dao.TripDao
 import com.example.splitify.data.local.toDomainModels
+import com.example.splitify.data.sync.RealtimeManager
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.util.Result
@@ -25,7 +26,8 @@ class TripsViewModel @Inject constructor(
     private val tripRepository: TripRepository,
     private val sessionManager: SessionManager,
     private val tripDao: TripDao,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val realtimeManager: RealtimeManager
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow<TripsUiState>(TripsUiState.InitialLoading)
@@ -39,6 +41,11 @@ class TripsViewModel @Inject constructor(
     init {
 
         loadCurrentUser()
+
+        viewModelScope.launch {
+            realtimeManager.subscribeToUserTrips(currentUserId.toString())
+        }
+
     }
 
     private fun loadCurrentUser() {
@@ -145,10 +152,16 @@ class TripsViewModel @Inject constructor(
         }
     }
 
+    fun onTripCreated(tripId: String) {
+        realtimeManager.subscribeToTrip(tripId)
+        Log.d("TripsVM", "🔔 Subscribed to new trip: $tripId")
+    }
+
 
     fun logout() {
         viewModelScope.launch {
             Log.d("TripsVM", "🚪 Logging out...")
+            realtimeManager.unsubscribeAll()
             val result = authRepository.signOut()
             if (result is Result.Success) {
                 _logoutEvent.send(Unit)

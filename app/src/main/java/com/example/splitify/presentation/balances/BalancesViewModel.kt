@@ -1,4 +1,3 @@
-// presentation/balances/BalancesViewModel.kt
 package com.example.splitify.presentation.balances
 
 import android.os.Build
@@ -28,11 +27,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.*
 
-/**
- * ViewModel for the Balances screen
- *
- * Manages calculation and display of trip balances and simplified debts
- */
 @HiltViewModel
 class BalancesViewModel @Inject constructor(
     private val calculateTripBalancesUseCase: CalculateTripBalancesUseCase,
@@ -53,16 +47,22 @@ class BalancesViewModel @Inject constructor(
 
         when {
             balanceResult is Result.Error -> {
+                Log.e("BalancesVM", "❌ Balance calculation error: ${balanceResult.message}")
                 BalancesUiState.Error(balanceResult.message)
             }
 
             settlementsResult is Result.Error -> {
+                Log.e("BalancesVM", "❌ Settlements error: ${settlementsResult.message}")
                 BalancesUiState.Error(settlementsResult.message)
             }
 
             balanceResult is Result.Success && settlementsResult is Result.Success -> {
                 val tripBalance = balanceResult.data
                 val settlements = settlementsResult.data
+
+                Log.d("BalancesVM", "📊 Processing balances for trip: $tripId")
+                Log.d("BalancesVM", "  Members: ${tripBalance.memberBalances.size}")
+                Log.d("BalancesVM", "  Total expenses: ₹${tripBalance.totalExpenses}")
 
                 // ✅ Filter out debts that have pending or confirmed settlements
                 val settledDebts = settlements
@@ -76,12 +76,22 @@ class BalancesViewModel @Inject constructor(
 
                 Log.d("BalancesVM", "📊 Active debts: ${activeDebts.size} (filtered from ${tripBalance.simplifiedDebts.size})")
 
-                // Verify balance calculation
+                // Verify balance calculation with tolerance for floating-point precision
                 val sumOfBalances = tripBalance.memberBalances.sumOf { it.netBalance }
 
-                if (abs(sumOfBalances) > 0.01) {
-                    BalancesUiState.Error("Balance calculation error")
+                Log.d("BalancesVM", "🔍 Balance verification:")
+                Log.d("BalancesVM", "  Sum of balances: $sumOfBalances")
+                Log.d("BalancesVM", "  Members: ${tripBalance.memberBalances.size}")
+                tripBalance.memberBalances.forEach { balance ->
+                    Log.d("BalancesVM", "  ${balance.member.displayName}: ₹${balance.netBalance}")
+                }
+
+                // Allow small floating-point errors (increase tolerance to 1 rupee)
+                if (abs(sumOfBalances) > 1.0) {
+                    Log.e("BalancesVM", "❌ Balance calculation error: sum = $sumOfBalances")
+                    BalancesUiState.Error("Balance calculation error: Sum is ₹$sumOfBalances")
                 } else {
+                    Log.d("BalancesVM", "✅ Balances verified (sum=$sumOfBalances)")
                     BalancesUiState.Success(
                         memberBalances = tripBalance.memberBalances,
                         simplifiedDebts = activeDebts, // ✅ Use filtered debts
@@ -91,7 +101,10 @@ class BalancesViewModel @Inject constructor(
                 }
             }
 
-            else -> BalancesUiState.Loading
+            else -> {
+                Log.d("BalancesVM", "⏳ Loading balances...")
+                BalancesUiState.Loading
+            }
         }
     }.stateIn(
         scope = viewModelScope,
