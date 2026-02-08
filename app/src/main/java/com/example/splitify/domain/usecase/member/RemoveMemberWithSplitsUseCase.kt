@@ -23,56 +23,82 @@ class RemoveMemberWithSplitsUpdateUseCase @Inject constructor(
 
             // 1. Get all expenses with splits
             val expensesResult = expenseRepository.getExpensesWithSplits(tripId).first()
+            if (expensesResult !is Result.Success) {
+                Log.e("RemoveMember", "❌ Failed to get expenses")
+                return Result.Error(Exception("Failed to get expenses"))
+            }
 
-            if (expensesResult is Result.Success) {
-                val expensesWithSplits = expensesResult.data
+            // STEP 2: Find and update affected expenses
+            val expensesWithSplits = expensesResult.data
 
-                // 2. Find expenses where this member participated
-                val affectedExpenses = expensesWithSplits.filter { expenseWithSplits ->
-                    expenseWithSplits.splits.any { it.memberId == memberId }
+            val affectedExpenses = expensesWithSplits.filter { expenseWithSplits ->
+                expenseWithSplits.splits.any { it.memberId == memberId }
+            }
+
+            Log.d("RemoveMember", "  Affected expenses: ${affectedExpenses.size}")
+
+            // Update each affected expense SEQUENTIALLY and AWAIT each one
+            for (expenseWithSplits in affectedExpenses) {
+                val expense = expenseWithSplits.expense
+                val currentSplits = expenseWithSplits.splits
+
+                Log.d("RemoveMember", "  Processing expense: ${expense.id}")
+                Log.d("RemoveMember", "    Description: ${expense.description}")
+                Log.d("RemoveMember", "    Amount: ₹${expense.amount}")
+                Log.d("RemoveMember", "    Current participants: ${currentSplits.size}")
+
+                // Remove the member's split
+                val updatedSplits = currentSplits.filter { it.memberId != memberId }
+
+                if (updatedSplits.isEmpty()) {
+                    Log.w("RemoveMember", "    ⚠️ No participants left - deleting expense")
+                    // Delete expense if no participants remain
+                    expenseRepository.deleteExpense(expense.id)
+                    continue
                 }
 
-                Log.d("RemoveMember", "  Affected expenses: ${affectedExpenses.size}")
+                // Recalculate split amounts
+                val newSplitAmount = expense.amount / updatedSplits.size
+                val recalculatedSplits = updatedSplits.map { split ->
+                    split.copy(amountOwed = newSplitAmount)
+                }
 
-                // 3. Update splits for each affected expense
-                for (expenseWithSplits in affectedExpenses) {
-                    val expense = expenseWithSplits.expense
-                    val currentSplits = expenseWithSplits.splits
+                Log.d("RemoveMember", "    New participants: ${recalculatedSplits.size}")
+                Log.d("RemoveMember", "    New split amount: ₹$newSplitAmount each")
 
-                    Log.d("RemoveMember", "  Processing expense: ${expense.id}")
-                    Log.d("RemoveMember", "    Amount: ₹${expense.amount}")
-                    Log.d("RemoveMember", "    Current participants: ${currentSplits.size}")
+                // ⚠️ CRITICAL FIX: AWAIT the update result
+                val updateResult = expenseRepository.updateExpenseWithSplits(
+                    expense,
+                    recalculatedSplits
+                )
 
-                    // Remove the member's split
-                    val updatedSplits = currentSplits.filter { it.memberId != memberId }
-
-                    if (updatedSplits.isEmpty()) {
-                        Log.w("RemoveMember", "    ⚠️ No participants left after removal!")
-                        // This shouldn't happen if validation worked correctly
-                        // But handle gracefully - maybe delete the expense?
-                        continue
+                when (updateResult) {
+                    is Result.Success -> {
+                        Log.d("RemoveMember", "    ✅ Splits updated successfully")
                     }
-
-                    // Recalculate split amounts
-                    val newSplitAmount = expense.amount / updatedSplits.size
-                    val recalculatedSplits = updatedSplits.map { split ->
-                        split.copy(amountOwed = newSplitAmount)
+                    is Result.Error -> {
+                        Log.e("RemoveMember", "    ❌ Failed to update splits: ${updateResult.message}")
+                        return Result.Error(Exception("Failed to update expense splits: ${updateResult.message}"))
                     }
-
-                    Log.d("RemoveMember", "    New participants: ${recalculatedSplits.size}")
-                    Log.d("RemoveMember", "    New split amount: ₹$newSplitAmount each")
-
-                    // Update splits in database
-                    expenseRepository.updateExpenseWithSplits(expense, recalculatedSplits)
+                    else -> {}
                 }
             }
 
-            // 4. Finally, remove the member
+            Log.d("RemoveMember", "✅ All expense splits updated")
+
+            // 3. Finally, remove the member
             val removeResult = tripMemberRepository.removeMember(tripId, memberId)
 
-            if (removeResult is Result.Success) {
-                Log.d("RemoveMember", "✅ Member removed successfully")
-                Log.d("RemoveMember", "════════════════════════════════")
+            when (removeResult) {
+                is Result.Success -> {
+                    Log.d("RemoveMember", "✅ Member removed successfully")
+                    Log.d("RemoveMember", "════════════════════════════════")
+                }
+                is Result.Error -> {
+                    Log.e("RemoveMember", "❌ Failed to remove member: ${removeResult.message}")
+                    Log.e("RemoveMember", "════════════════════════════════")
+                }
+                else -> {}
             }
 
             removeResult

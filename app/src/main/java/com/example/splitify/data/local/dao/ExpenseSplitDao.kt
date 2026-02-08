@@ -5,11 +5,15 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import com.example.splitify.data.local.entity.ExpenseEntity
 import com.example.splitify.data.local.entity.ExpenseSplitEntity
 import kotlinx.coroutines.flow.Flow
 @Dao
 interface ExpenseSplitDao {
+
+    @Query("SELECT * FROM expense_splits WHERE id = :splitId")
+    suspend fun getSplitById(splitId: String): ExpenseSplitEntity?
 
     @Query("Select * from expense_splits where expense_id = :expenseId")
     fun getSplitsForExpenses(expenseId: String): Flow<List<ExpenseSplitEntity>>
@@ -20,11 +24,14 @@ interface ExpenseSplitDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSplit(split: ExpenseSplitEntity)
 
+    @Upsert
+    suspend fun upsertSplit(split: ExpenseSplitEntity)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSplits(splits: List<ExpenseSplitEntity>)
 
     @Query("Delete from expense_splits where expense_id = :expenseId")
-    suspend fun deleteSplitsForExpense(expenseId: String)
+    suspend fun deleteSplitsForExpense(expenseId: String): Int
 
     @Query("Delete from expense_splits where id = :splitId")
     suspend fun deleteSplit(splitId: String)

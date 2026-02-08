@@ -7,11 +7,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.data.sync.RealtimeManager
+import com.example.splitify.data.sync.SyncManager
+import com.example.splitify.data.sync.TripSyncUseCase
 import com.example.splitify.domain.model.Expense
 import com.example.splitify.domain.model.SettlementStatus
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.repository.AuthRepository
+import com.example.splitify.domain.repository.TripMemberRepository
 import com.example.splitify.domain.usecase.balance.CalculateTripBalancesUseCase
 import com.example.splitify.domain.usecase.expense.GetExpensesUseCase
 import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
@@ -19,11 +22,13 @@ import com.example.splitify.domain.usecase.settlement.GetSettlementsForTripUseCa
 import com.example.splitify.domain.usecase.trip.GetTripUseCase
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -35,14 +40,35 @@ class TripDetailViewModel @Inject constructor(
     settlementsForTripUseCase: GetSettlementsForTripUseCase,
     private val authRepository: AuthRepository,
     private val realtimeManager: RealtimeManager,
+    private val tripSyncUseCase: TripSyncUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
 
     init {
+        Log.d("TripDetailVM", "🎬 Initializing for trip: $tripId")
+
+        // Subscribe to realtime
         realtimeManager.subscribeToTrip(tripId)
-        Log.d("TripDetailVM", "Subscribed to trip: $tripId")
+        Log.d("TripDetailVM", "🔔 Subscribed to realtime")
+
+        // Pull latest data
+        viewModelScope.launch {
+            try {
+                // Initial pull (catches changes made while offline/unsubscribed)
+                tripSyncUseCase(tripId)
+                Log.d("TripDetailVM", "✅ Initial sync complete")
+
+                // Safety pull after 2.5 seconds (catches late joiners)
+                delay(2500)
+                tripSyncUseCase(tripId)
+                Log.d("TripDetailVM", "✅ Safety sync complete")
+
+            } catch (e: Exception) {
+                Log.e("TripDetailVM", "❌ Sync failed", e)
+            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -136,7 +162,11 @@ class TripDetailViewModel @Inject constructor(
 
     override fun onCleared() {
         realtimeManager.unsubscribeFromTrip(tripId)
-        Log.d("TripDetailVM", "🔕 Unsubscribed from trip: $tripId")
+//        if (isSubscribed) {
+//            Log.d("TripDetailVM", "🔕 Unsubscribing from trip: $tripId")
+//            realtimeManager.unsubscribeFromTrip(tripId)
+//            isSubscribed = false
+//        }
         super.onCleared()
     }
 
@@ -159,4 +189,5 @@ sealed interface TripDashboardState{
     ): TripDashboardState
 
     data class Error(val message: String): TripDashboardState
+    object Deleted: TripDashboardState
 }

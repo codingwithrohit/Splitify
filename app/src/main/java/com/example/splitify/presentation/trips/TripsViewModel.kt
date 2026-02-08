@@ -37,13 +37,19 @@ class TripsViewModel @Inject constructor(
     val logoutEvent = _logoutEvent.receiveAsFlow()
 
     private val currentUserId = MutableStateFlow<String?>(null)
+    val userId: StateFlow<String?> = currentUserId.asStateFlow()
+
 
     init {
 
         loadCurrentUser()
 
         viewModelScope.launch {
-            realtimeManager.subscribeToUserTrips(currentUserId.toString())
+            val userId = sessionManager.getCurrentUserId()
+            if (userId != null) {
+                realtimeManager.subscribeToGlobalTrips()
+                Log.d("TripsVM", "✅ Subscribed to global trip deletes only")
+            }
         }
 
     }
@@ -152,11 +158,6 @@ class TripsViewModel @Inject constructor(
         }
     }
 
-    fun onTripCreated(tripId: String) {
-        realtimeManager.subscribeToTrip(tripId)
-        Log.d("TripsVM", "🔔 Subscribed to new trip: $tripId")
-    }
-
 
     fun logout() {
         viewModelScope.launch {
@@ -175,6 +176,11 @@ class TripsViewModel @Inject constructor(
         }
     }
 
+    override fun onCleared() {
+        super.onCleared()
+        // Only unsubscribe from global channel, not individual trips
+        Log.d("TripsVM", "🔕 TripsViewModel cleared")
+    }
 
     private fun TripsUiState.isSyncing(): Boolean = when (this) {
         is TripsUiState.Content -> isSyncing

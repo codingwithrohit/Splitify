@@ -127,6 +127,7 @@ class AddMembersViewModel @Inject constructor(
         Log.d("AddMembersVM", "🗑️ Attempting to remove member: $memberName (ID: $memberId)")
 
         viewModelScope.launch {
+
             when (val result = removeTripMemberUseCase(tripId, memberId)) {
                 is Result.Success -> {
                     Log.d("AddMembersVM", "✅ Member removed successfully")
@@ -226,7 +227,7 @@ class AddMembersViewModel @Inject constructor(
                     is Result.Success -> {
                         Log.d("AddMembersVM", "✅ Found ${result.data.size} users")
 
-                        // ✨ Filter out users already in trip
+                        //  Filter out users already in trip
                         val existingUserIds = state.members
                             .mapNotNull { it.userId }  // Get user IDs of existing members
                             .toSet()

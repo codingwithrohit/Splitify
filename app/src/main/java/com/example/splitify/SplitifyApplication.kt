@@ -43,43 +43,43 @@ class SplitifyApplication: Application(), Configuration.Provider {
 
         registerNetworkCallback()
 
-        observeLoginState()
+
     }
 
 
-    private fun observeLoginState(){
-        appScope.launch {
-            sessionManager.getCurrentUserFlow().collect { userSession ->
-                if(userSession != null){
-                    subscribeToUserTrips(userSession.userId)
-                }
-                else {
-                    //User logged out → unsubscribe all
-                    realtimeManager.unsubscribeAll()
-                    Log.d("SplitifyApp", "🔕 Unsubscribed from all trips (logout)")
-                }
-
-            }
-        }
-    }
-
-    private suspend fun subscribeToUserTrips(userId: String){
-        try {
-            // Get all trip IDs for current user
-            val tripIds = tripDao.getTripIdsByUser(userId)
-
-            Log.d("SplitifyApp", "🔔 Subscribing to ${tripIds.size} trips for user: $userId")
-
-            //Subscribe to each trip
-            tripIds.forEach { tripId ->
-                realtimeManager.subscribeToTrip(tripId)
-            }
-
-            Log.d("SplitifyApp", "✅ Global subscriptions active")
-        } catch (e: Exception) {
-            Log.e("SplitifyApp", "❌ Failed to subscribe to trips", e)
-        }
-    }
+//    private fun observeLoginState(){
+//        appScope.launch {
+//            sessionManager.getCurrentUserFlow().collect { userSession ->
+//                if(userSession != null){
+//                    subscribeToUserTrips(userSession.userId)
+//                }
+//                else {
+//                    //User logged out → unsubscribe all
+//                    realtimeManager.unsubscribeAll()
+//                    Log.d("SplitifyApp", "🔕 Unsubscribed from all trips (logout)")
+//                }
+//
+//            }
+//        }
+//    }
+//
+//    private suspend fun subscribeToUserTrips(userId: String){
+//        try {
+//            // Get all trip IDs for current user
+//            val tripIds = tripDao.getTripIdsByUser(userId)
+//
+//            Log.d("SplitifyApp", "🔔 Subscribing to ${tripIds.size} trips for user: $userId")
+//
+//            //Subscribe to each trip
+//            tripIds.forEach { tripId ->
+//                realtimeManager.subscribeToTrip(tripId)
+//            }
+//
+//            Log.d("SplitifyApp", "✅ Global subscriptions active")
+//        } catch (e: Exception) {
+//            Log.e("SplitifyApp", "❌ Failed to subscribe to trips", e)
+//        }
+//    }
 
     private fun registerNetworkCallback() {
         val connectivityManager =

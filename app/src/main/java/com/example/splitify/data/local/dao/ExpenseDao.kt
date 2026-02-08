@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import com.example.splitify.data.local.entity.ExpenseEntity
 import com.example.splitify.data.local.entity.ExpenseSplitEntity
 import com.example.splitify.data.local.entity.relations.ExpenseWithSplits
@@ -27,6 +28,9 @@ interface ExpenseDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAnExpense(expense: ExpenseEntity)
 
+    @Upsert
+    suspend fun upsertExpense(expense: ExpenseEntity)
+
     @Transaction
     @Query("Select * from expenses where id = :expenseId")
     fun getExpenseWithSplitsById(expenseId: String): Flow<ExpenseWithSplitsRelation>
@@ -39,11 +43,13 @@ interface ExpenseDao {
 
     @Transaction
     suspend fun updateExpenseAndSplits(expense: ExpenseEntity, splits: List<ExpenseSplitEntity>) {
+        deleteSplitsForExpense(expense.id)
+        if (splits.isNotEmpty()) {
+            insertSplits(splits)
+        }
         insertAnExpense(
             expense.copy(updatedAt = System.currentTimeMillis())
         )
-        deleteSplitsForExpense(expense.id)
-        insertSplits(splits)
     }
 
     @Update

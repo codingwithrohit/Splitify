@@ -19,6 +19,7 @@ import com.example.splitify.data.remote.dto.TripMemberDto
 import com.example.splitify.data.remote.toDomain
 import com.example.splitify.data.remote.toDto
 import com.example.splitify.data.remote.toEntity
+import com.example.splitify.data.sync.RealtimeManager
 import com.example.splitify.data.sync.SyncManager
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.domain.repository.TripRepository
@@ -48,7 +49,8 @@ class TripRepositoryImpl @Inject constructor(
     private val supabase: SupabaseClient,
     private val syncManager: SyncManager,
     private val sessionManager: SessionManager,
-    private val database: AppDatabase
+    private val database: AppDatabase,
+    private val realtimeManager: RealtimeManager
 ): TripRepository {
 
     override suspend fun getUserTripIds(userId: String): List<String> {
@@ -372,73 +374,7 @@ class TripRepositoryImpl @Inject constructor(
         }
     }
 
-//    private suspend fun downloadExpensesForTrips(tripIds: List<String>) {
-//        if (tripIds.isEmpty()) return
-//
-//        try {
-//            Log.d("TripRepo", "💰 Downloading expenses for ${tripIds.size} trips...")
-//
-//            val expenseDtos = supabase.from("expenses")
-//                .select {
-//                    filter {
-//                        isIn("trip_id", tripIds)
-//                    }
-//                }
-//                .decodeList<ExpenseDto>()
-//
-//            Log.d("TripRepo", "📊 Downloaded ${expenseDtos.size} expenses")
-//
-//            if (expenseDtos.isEmpty()) {
-//                Log.d("TripRepo", "ℹ️ No expenses found")
-//                return
-//            }
-//
-//            // Download splits for these expenses
-//            val expenseIds = expenseDtos.map { it.id }
-//            val splitDtos = supabase.from("expense_splits")
-//                .select {
-//                    filter {
-//                        isIn("expense_id", expenseIds)
-//                    }
-//                }
-//                .decodeList<ExpenseSplitDto>()
-//
-//            Log.d("TripRepo", "📊 Downloaded ${splitDtos.size} splits")
-//
-//            // Save expenses
-//            expenseDtos.forEach { dto ->
-//                try {
-//                    val entity = dto.toEntity().copy(
-//                        isLocal = false,
-//                        isSynced = true
-//                    )
-//
-//                    val existing = expenseDao.getExpenseById(entity.id)
-//                    if (existing == null) {
-//                        expenseDao.insertAnExpense(entity)
-//                    } else {
-//                        expenseDao.updateExpense(entity)
-//                    }
-//                } catch (e: Exception) {
-//                    Log.e("TripRepo", "❌ Failed to save expense: ${e.message}")
-//                }
-//            }
-//
-//            // Save splits
-//            splitDtos.forEach { dto ->
-//                try {
-//                    val entity = dto.toEntity()
-//                    expenseSplitDao.insertSplit(entity)
-//                } catch (e: Exception) {
-//                    Log.e("TripRepo", "❌ Failed to save split: ${e.message}")
-//                }
-//            }
-//
-//            Log.d("TripRepo", "✅ Expenses and splits saved to Room")
-//        } catch (e: Exception) {
-//            Log.e("TripRepo", "❌ Failed to download expenses", e)
-//        }
-//    }
+
 private suspend fun downloadExpensesForTrips(tripIds: List<String>) {
     if (tripIds.isEmpty()) return
 
@@ -603,6 +539,11 @@ override suspend fun validateInviteCode(code: String): Result<Trip> {
                 )
                 supabase.from("trip_members").insert(newMember)
                 Log.d("TripRepo", "✅ Added yourself to trip")
+                try {
+                    realtimeManager.broadcastRefresh(tripDto.id)
+                } catch (e: Exception) {
+                    Log.e("TripRepo", "Broadcast failed - Admin might need manual refresh")
+                }
             } catch (e: Exception) {
                 if (e.message?.contains("duplicate") == true) {
                     Log.d("TripRepo", "ℹ️ Already a member")

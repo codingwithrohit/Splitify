@@ -8,6 +8,7 @@ import com.example.splitify.data.local.toDomain
 import com.example.splitify.data.local.toEntity
 import com.example.splitify.data.remote.dto.TripMemberDto
 import com.example.splitify.data.remote.toDto
+import com.example.splitify.data.remote.toEntity
 import com.example.splitify.data.sync.SyncManager
 import com.example.splitify.domain.model.TripMember
 import com.example.splitify.domain.repository.TripMemberRepository
@@ -74,7 +75,7 @@ class TripMemberRepositoryImpl @Inject constructor(
 
             val existingMember = tripMemberDao.getMemberById(tripMember.id)
             if (existingMember != null) {
-                Result.Error(Exception("Member already exists"))
+                return Result.Error(Exception("Member already exists"))
             }
 
             //1. Save to room
@@ -93,16 +94,19 @@ class TripMemberRepositoryImpl @Inject constructor(
                     Log.w("TripMemberRepo", "⚠️ No session, skipping sync")
                     return Result.Success(Unit)
                 }
-
                 Log.d("TripMemberRepo", "📤 Syncing to Supabase...")
-                val dto = entity.toDto()
-                supabase.from("trip_members").insert(dto)
+
+                //  FIX: Use upsert instead of insert
+                supabase.from("trip_members").upsert(entity.toDto())
+
+                Log.d("TripMemberRepo", "✅ Upserted to Supabase")
 
                 //3. Mark as synced
                 tripMemberDao.updateMember(entity.copy(isSynced = true))
                 Log.d("TripMemberRepo", "✅ Synced to Supabase")
             }catch (e: Exception){
                 Log.e("TripMemberRepo", "⚠️ Sync failed: ${e.message}")
+                Result.Error(e, "Failed to add member: ${e.message}")
             }
 
             Result.Success(Unit)
@@ -141,6 +145,10 @@ class TripMemberRepositoryImpl @Inject constructor(
                 }
             }catch (syncError: Exception){
                 Log.e("TripMemberRepo", "⚠️ Sync failed: ${syncError.message}")
+                if (syncError.message?.contains("violates foreign key", ignoreCase = true) == true ||
+                    syncError.message?.contains("still referenced", ignoreCase = true) == true) {
+                    return Result.Error(Exception("Cannot delete member: still has expense splits or settlements"))
+                }
             }
 
             Result.Success(Unit)
@@ -265,6 +273,28 @@ class TripMemberRepositoryImpl @Inject constructor(
 
         }catch (e: Exception){
             Log.e("TripMemberRepo", "❌ Sync failed", e)
+            Result.Error(e)
+        }
+    }
+
+
+
+    override suspend fun fetchAndSaveRemoteMembers(tripId: String): Result<Unit> {
+        return try {
+            Log.d("TripMemberRepo", "📥 Pulling latest members from Supabase for $tripId")
+
+            val remoteMembers = supabase.from("trip_members")
+                .select { filter { eq("trip_id", tripId) } }
+                .decodeList<TripMemberDto>()
+
+            remoteMembers.forEach { dto ->
+                tripMemberDao.upsertMember(dto.toEntity().copy(isSynced = true))  // Changed to upsert
+            }
+
+            Log.d("TripMemberRepo", "✅ Successfully pulled ${remoteMembers.size} members")
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Log.e("TripMemberRepo", "❌ Failed to pull members", e)
             Result.Error(e)
         }
     }

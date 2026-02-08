@@ -15,15 +15,25 @@ import io.github.jan.supabase.realtime.decodeOldRecord
 import io.github.jan.supabase.realtime.decodeRecord
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.realtime.RealtimeChannel
+import io.github.jan.supabase.realtime.broadcastFlow
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,50 +49,129 @@ class RealtimeManager @Inject constructor(
         private const val TAG = "RealtimeManager"
         private var subscriptionCount = 0
     }
-
-    private var globalChannelSubscribed = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val activeChannels = mutableMapOf<String, io.github.jan.supabase.realtime.RealtimeChannel>()
+    private val subscriptionMutex = Mutex()
 
 
-    suspend fun subscribeToUserTrips(userId: String) {
-        if (globalChannelSubscribed) {
-            Log.d(TAG, "⚠️ Already subscribed to global trips")
-            return
-        }
-
-        val globalChannel = supabase.realtime.channel("global_trips")
-
-        globalChannel.postgresChangeFlow<PostgresAction>(schema = "public") {
-            table = "trips"
-        }.onEach { action ->
-            if (action is PostgresAction.Delete) {
-                val id = action.oldRecord["id"]?.toString()?.replace("\"", "")
-                Log.d(TAG, "Attempting to delete trip from local DB: $id")
-                id?.let { tripDao.deleteTripById(it) }
+    fun subscribeToGlobalTrips() {
+        scope.launch {
+            subscriptionMutex.withLock {
+                if (activeChannels.containsKey("global")) {
+                    Log.w(TAG, "⚠️ Already subscribed to global trips")
+                    return@launch
+                }
             }
-        }.launchIn(scope)
 
-        globalChannel.subscribe()
-        activeChannels["global"] = globalChannel
-        globalChannelSubscribed = true
-        Log.d(TAG, "✅ Subscribed to global trips")
+            Log.d(TAG, "🔌 Subscribing to global_trips channel")
+
+            val channel = supabase.realtime.channel("global_trips")
+
+            channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                table = "trips"
+            }.onEach { action ->
+                if (action is PostgresAction.Delete) {
+                    val id = action.oldRecord["id"]
+                        ?.toString()
+                        ?.replace("\"", "")
+
+                    Log.d(TAG, "Attempting to delete trip from local DB: $id")
+
+                    id?.let { tripDao.deleteTripById(it) }
+                }
+            }.launchIn(scope)
+
+            channel.subscribe()
+
+            subscriptionMutex.withLock {
+                activeChannels["global"] = channel
+            }
+
+            Log.d(TAG, "✅ Subscribed to global trips")
+        }
     }
 
+    suspend fun broadcastRefresh(tripId: String) {
+        try {
+            val channel = subscriptionMutex.withLock { activeChannels[tripId] }
+            // In newer versions, we pass the object directly as the first argument
+            // or specifically use the parameter name 'message'
+            channel?.broadcast(
+                event = "sync_event",
+                message = buildJsonObject {
+                    put("action", "REFRESH_REQUIRED")
+                }
+            )
+            Log.d(TAG, "📡 Broadcast sent for trip: $tripId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Broadcast failed", e)
+        }
+    }
 
     fun subscribeToTrip(tripId: String) {
         subscriptionCount++
         Log.d(TAG, "📊 Subscription attempt #$subscriptionCount for trip: $tripId")
-
-        if (activeChannels.containsKey(tripId)) {
-            Log.d(TAG, "⚠️ Already subscribed to trip: $tripId")
-            return
+        Log.d(TAG, "📊 subscribeToTrip() called from:")
+        Thread.currentThread().stackTrace.take(10).forEach {
+            Log.d(TAG, "  ${it.className}.${it.methodName}:${it.lineNumber}")
         }
 
         scope.launch {
+
+//            val currentCount = subscriptionMutex.withLock {
+//                activeChannels.size
+//            }
+//
+//            if (currentCount >= 2) {  // Allow max 2: global + 1 active trip
+//                Log.e(TAG, "❌ SUBSCRIPTION LIMIT REACHED ($currentCount active)")
+//                Log.e(TAG, "  Active channels: ${activeChannels.keys}")
+//                Log.e(TAG, "  Rejecting subscription to: $tripId")
+//                return@launch
+//            }
+
+            val alreadySubscribed = subscriptionMutex.withLock {
+                activeChannels.containsKey(tripId)
+            }
+
+            if (alreadySubscribed) return@launch
+
+            // Check subscription limit
+            val currentCount = subscriptionMutex.withLock {
+                activeChannels.size
+            }
+
+            if (currentCount >= 3) {
+                Log.e(TAG, "❌ SUBSCRIPTION LIMIT REACHED ($currentCount active)")
+                return@launch
+            }
+
             try {
                 val channel = supabase.realtime.channel("trip_$tripId")
+                subscriptionMutex.withLock {
+                    activeChannels[tripId] = channel
+                }
 
+                // Inside subscribeToTrip
+                channel.broadcastFlow<JsonObject>(event = "sync_event")
+                    .onEach { message -> // Changed 'payload' to 'message' to match the result
+                        val action = message["action"]?.jsonPrimitive?.content
+                        if (action == "REFRESH_REQUIRED") {
+                            Log.d(TAG, "🔄 Refresh signal received via Broadcast!")
+                        }
+                    }.launchIn(scope)
+
+                channel.postgresChangeFlow<PostgresAction>(schema = "public") {
+                    table = "trips"
+                    filter = "id=eq.$tripId"
+                }.onEach { action ->
+                    when (action) {
+                        is PostgresAction.Delete -> {
+                            Log.w(TAG, "⚠️ Trip $tripId was deleted by admin")
+                            handleTripDelete(tripId)
+                        }
+                        else -> {}
+                    }
+                }.launchIn(scope)
 
                 // --- EXPENSES FLOW ---
                 channel.postgresChangeFlow<PostgresAction>(schema = "public") {
@@ -117,32 +206,55 @@ class RealtimeManager @Inject constructor(
                 // --- MEMBERS FLOW ---
                 channel.postgresChangeFlow<PostgresAction>(schema = "public") {
                     table = "trip_members"
-                    filter = "trip_id=eq.$tripId"
+                    //filter = "trip_id=eq.$tripId"
                 }.onEach { action ->
                     when (action) {
                         is PostgresAction.Insert -> {
                             val record = action.decodeRecord<TripMemberDto>()
-                            handleMemberInsert(record)
+                            Log.d(TAG, "🔔 MEMBER INSERT EVENT")
+                            Log.d(TAG, "  Member: ${record.displayName}")
+                            Log.d(TAG, "  Trip ID: ${record.tripId}")
+                            Log.d(TAG, "  Current trip filter: $tripId")
+                            //handleMemberInsert(record)
+                            if (record.tripId == tripId) {
+                                handleMemberInsert(record)
+                                Log.d(TAG, "✅ Added member to local DB: ${record.displayName}")
+                            } else {
+                                Log.d(TAG, "ℹ️ Ignoring member from different trip")
+                            }
                         }
+
                         is PostgresAction.Delete -> {
-                            val memberId = action.oldRecord["id"]?.toString()?.replace("\"", "")
+                            // .contentOrNull removes the surrounding quotes that .toString() leaves behind
+                            val memberId = action.oldRecord["id"]?.jsonPrimitive?.contentOrNull
+                            val deletedTripId = action.oldRecord["trip_id"]?.jsonPrimitive?.contentOrNull
 
                             if (memberId != null) {
-                                handleMemberDelete(memberId)
-                                Log.d(TAG, "🗑️ Member deleted: $memberId")
+                                // Now the comparison will actually work (e.g., "uuid" == "uuid")
+                                if (deletedTripId == tripId || deletedTripId == null) {
+                                    handleMemberDelete(memberId)
+                                    Log.d(TAG, "🗑️ Member deleted: $memberId")
+                                } else {
+                                    Log.d(TAG, "ℹ️ Delete ignored: Belongs to trip $deletedTripId")
+                                }
                             } else {
-                                Log.e(TAG, "❌ DELETE event missing member ID")
+                                Log.e(TAG, "❌ DELETE event failed: 'id' key missing in oldRecord. Keys: ${action.oldRecord.keys}")
                             }
                         }
                         is PostgresAction.Update -> {
                             val record = action.decodeRecord<TripMemberDto>()
-                            handleMemberUpdate(record)
+                            //handleMemberUpdate(record)
+                            if (record.tripId == tripId) {
+                                handleMemberUpdate(record)
+                                Log.d(TAG, "✅ Updated member in local DB")
+                            }
                         }
                         is PostgresAction.Select -> {
                             Log.d(TAG, "ℹ️ SELECT event received (ignored)")
                         }
                     }
                 }.launchIn(scope)
+
 
                 // --- SPLITS FLOW ---
                 channel.postgresChangeFlow<PostgresAction>(schema = "public") {
@@ -156,34 +268,39 @@ class RealtimeManager @Inject constructor(
                             splitId?.let { expenseSplitDao.deleteSplit(it) }
                         }
                         // Insert/Update are handled by the handleExpenseUpdate transaction
-                        is PostgresAction.Insert -> {}
+                        is PostgresAction.Insert -> {
+                            val record = action.decodeRecord<ExpenseSplitDto>()
+                            handleSplitInsert(record)
+                        }
                         is PostgresAction.Select -> {}
                         is PostgresAction.Update -> {}
                     }
                 }.launchIn(scope)
 
                 channel.subscribe()
-                activeChannels[tripId] = channel
-                Log.d(TAG, "✅ Flow-based subscription active for: $tripId")
+                Log.d(TAG, "✅ Subscribed to channel: trip_$tripId")
+                Log.d(TAG, "📡 Active channels: ${activeChannels.keys}")
 
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Subscription failed", e)
-                activeChannels.remove(tripId)
+                subscriptionMutex.withLock {
+                    activeChannels.remove(tripId)
+                }
             }
         }
     }
 
     fun unsubscribeFromTrip(tripId: String) {
-        Log.d(TAG, "🔕 Unsubscribing from trip: $tripId")
-
-        activeChannels[tripId]?.let { channel ->
-            scope.launch {
+        scope.launch {
+            val channel = subscriptionMutex.withLock {
+                activeChannels.remove(tripId)
+            }
+            channel?.let {
                 try {
-                    supabase.realtime.removeChannel(channel)
-                    activeChannels.remove(tripId)
+                    it.unsubscribe()
                     Log.d(TAG, "✅ Unsubscribed from trip: $tripId")
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Failed to unsubscribe", e)
+                    Log.e(TAG, "❌ Unsubscribe failed", e)
                 }
             }
         }
@@ -201,19 +318,10 @@ class RealtimeManager @Inject constructor(
     // =====================================================
 
     private suspend fun handleMemberInsert(memberDto: TripMemberDto) {
-        try {
-            val entity = memberDto.toEntity().copy(isSynced = true)
 
-            val existing = tripMemberDao.getMemberById(entity.id)
-            if (existing == null) {
-                tripMemberDao.insertMember(entity)
-                Log.d(TAG, "✅ Member added to Room: ${entity.displayName}")
-            } else {
-                Log.d(TAG, "ℹ️ Member already exists")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Failed to insert member", e)
-        }
+        val entity = memberDto.toEntity().copy(isSynced = true)
+        tripMemberDao.insertMember(entity)
+        Log.d(TAG, "✅ Realtime Sync: Updated member ${entity.displayName}")
     }
 
     private suspend fun handleMemberUpdate(memberDto: TripMemberDto) {
@@ -286,6 +394,7 @@ class RealtimeManager @Inject constructor(
 
             // 3. Atomic Transaction (now safe)
             expenseDao.updateExpenseAndSplits(entity, splitEntities)
+            delay(50)
 
             Log.d(TAG, "✅ Atomic update complete for: ${entity.description}")
         } catch (e: Exception) {
@@ -335,4 +444,50 @@ class RealtimeManager @Inject constructor(
             Log.e(TAG, "❌ Failed to fetch splits", e)
         }
     }
+
+    private suspend fun handleSplitInsert(splitDto: ExpenseSplitDto) {
+        try {
+            // 1. Ensure the member exists locally so the Foreign Key doesn't fail
+            val memberExists = tripMemberDao.getMemberById(splitDto.memberId) != null
+            if (!memberExists) {
+                fetchAndSyncSingleMember(splitDto.memberId)
+            }
+
+            val existingSplit = expenseSplitDao.getSplitById(splitDto.id)
+            if (existingSplit != null) {
+                Log.d(TAG, " Split already exists locally, skipping realtime insert")
+                return
+            }
+
+            // 2. Insert the split
+            val entity = splitDto.toEntity()
+            expenseSplitDao.insertSplit(entity)
+
+            Log.d(TAG, "✅ Realtime Split Sync: ${entity.memberName} owes ${entity.amountOwed}")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to sync split via realtime", e)
+        }
+    }
+
+    private suspend fun handleTripDelete(tripId: String) {
+        try {
+            Log.d(TAG, "🗑️ Handling trip deletion: $tripId")
+
+            // Delete all related data in correct order (avoid FK violations)
+            expenseSplitDao.deleteAllSplitsForTrip(tripId)
+            expenseDao.deleteAllExpensesByTrip(tripId)
+            tripMemberDao.deleteAllMembersForTrip(tripId)
+            tripDao.deleteTripById(tripId)
+
+            // Unsubscribe from realtime
+            unsubscribeFromTrip(tripId)
+
+            Log.d(TAG, "✅ Trip deleted locally and unsubscribed")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to handle trip deletion", e)
+        }
+    }
+
 }
+

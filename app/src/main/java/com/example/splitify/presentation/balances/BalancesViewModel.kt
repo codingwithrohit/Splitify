@@ -76,26 +76,35 @@ class BalancesViewModel @Inject constructor(
 
                 Log.d("BalancesVM", "📊 Active debts: ${activeDebts.size} (filtered from ${tripBalance.simplifiedDebts.size})")
 
-                // Verify balance calculation with tolerance for floating-point precision
-                val sumOfBalances = tripBalance.memberBalances.sumOf { it.netBalance }
+                // ✅ IMPROVED: Round balances to 2 decimal places before verification
+                val roundedBalances = tripBalance.memberBalances.map { balance ->
+                    balance.copy(
+                        totalPaid = (balance.totalPaid * 100).roundToInt() / 100.0,
+                        totalOwed = (balance.totalOwed * 100).roundToInt() / 100.0,
+                        netBalance = (balance.netBalance * 100).roundToInt() / 100.0
+                    )
+                }
+
+                val sumOfBalances = roundedBalances.sumOf { it.netBalance }
 
                 Log.d("BalancesVM", "🔍 Balance verification:")
                 Log.d("BalancesVM", "  Sum of balances: $sumOfBalances")
-                Log.d("BalancesVM", "  Members: ${tripBalance.memberBalances.size}")
-                tripBalance.memberBalances.forEach { balance ->
+                Log.d("BalancesVM", "  Members: ${roundedBalances.size}")
+                roundedBalances.forEach { balance ->
                     Log.d("BalancesVM", "  ${balance.member.displayName}: ₹${balance.netBalance}")
                 }
 
-                // Allow small floating-point errors (increase tolerance to 1 rupee)
-                if (abs(sumOfBalances) > 1.0) {
-                    Log.e("BalancesVM", "❌ Balance calculation error: sum = $sumOfBalances")
-                    BalancesUiState.Error("Balance calculation error: Sum is ₹$sumOfBalances")
+                // ✅ FIXED: Use proper floating-point tolerance (0.10 rupees = 10 paisa)
+                val tolerance = 0.10
+                if (abs(sumOfBalances) > tolerance) {
+                    Log.e("BalancesVM", "❌ Balance mismatch: sum = $sumOfBalances (tolerance: $tolerance)")
+                    BalancesUiState.Error("Balance calculation error: Sum is ₹${"%.2f".format(sumOfBalances)}")
                 } else {
-                    Log.d("BalancesVM", "✅ Balances verified (sum=$sumOfBalances)")
+                    Log.d("BalancesVM", "✅ Balances verified (sum=${"%.2f".format(sumOfBalances)})")
                     BalancesUiState.Success(
-                        memberBalances = tripBalance.memberBalances,
-                        simplifiedDebts = activeDebts, // ✅ Use filtered debts
-                        settlements = settlements,      // ✅ Pass settlements for button state
+                        memberBalances = roundedBalances, // ✅ Use rounded balances
+                        simplifiedDebts = activeDebts,
+                        settlements = settlements,
                         currentUserId = user?.id
                     )
                 }

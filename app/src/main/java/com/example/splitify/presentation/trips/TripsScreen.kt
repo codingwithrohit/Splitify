@@ -52,6 +52,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.splitify.data.local.SessionManager
+import com.example.splitify.domain.model.MemberRole
 import com.example.splitify.domain.model.Trip
 import com.example.splitify.presentation.components.AnimatedCard
 import com.example.splitify.presentation.components.ErrorStateWithRetry
@@ -71,10 +73,15 @@ fun TripsScreen(
     onTripClick: (String) -> Unit,
     onJoinTripClick: () -> Unit,
     onLogOut: () -> Unit,
+
     viewModel: TripsViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+
+    val currentUserId by viewModel.userId.collectAsStateWithLifecycle()
+
 
     LaunchedEffect(Unit) {
         viewModel.logoutEvent.collect {
@@ -194,7 +201,8 @@ fun TripsScreen(
                         trips = state.trips,
                         onTripClick = onTripClick,
                         onDeleteTrip = viewModel::deleteTrip,
-                        modifier = Modifier.padding(paddingValues)
+                        modifier = Modifier.padding(paddingValues),
+                        currentUserId = currentUserId
                     )
                 }
             }
@@ -259,6 +267,7 @@ fun TripsList(
     trips: List<Trip>,
     onTripClick: (String) -> Unit,
     onDeleteTrip: (String) -> Unit,
+    currentUserId: String?,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -275,7 +284,8 @@ fun TripsList(
             TripCardWithDeleteConfirmation(
                 trip = trip,
                 onClick = { onTripClick(trip.id) },
-                onDelete = { onDeleteTrip(trip.id) }
+                onDelete = { onDeleteTrip(trip.id) },
+                currentUserId = currentUserId,
             )
         }
 
@@ -301,6 +311,7 @@ fun TripCardWithDeleteConfirmation(
     trip: Trip,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    currentUserId: String?,
     modifier: Modifier = Modifier
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -388,16 +399,19 @@ fun TripCardWithDeleteConfirmation(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            IconButton(
-                onClick = { showDeleteDialog = true },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete trip",
-                    tint = SemanticColors.Error
-                )
+            if(trip.createdBy == currentUserId){
+                IconButton(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete trip",
+                        tint = SemanticColors.Error
+                    )
+                }
             }
+
         }
     }
 

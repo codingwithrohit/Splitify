@@ -29,6 +29,7 @@ import com.example.splitify.presentation.insights.InsightsScreen
 import com.example.splitify.presentation.jointrip.JoinTripScreen
 import com.example.splitify.presentation.settlement.SettlementHistoryScreen
 import com.example.splitify.presentation.tripdetail.TripDetailScreen
+import com.example.splitify.presentation.tripdetail.TripDetailViewModel
 import com.example.splitify.presentation.trips.CreateTripScreen
 import com.example.splitify.presentation.trips.TripsScreen
 import com.example.splitify.presentation.trips.TripsViewModel
@@ -142,12 +143,7 @@ fun SplitifyNavGraph(
 
                 CreateTripScreen(
                     tripId = tripId,
-                    onNavigateBack = { navController.popBackStack() },
-                    onTripCreated = if (tripId == null) {
-                        { tripsViewModel.onTripCreated(it) }
-                    } else {
-                        null
-                    }
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -186,15 +182,20 @@ fun SplitifyNavGraph(
                         type = NavType.StringType
                     }
                 )
-            ) {
-                val tripId = it.arguments?.getString(Screen.TripDetail.ARG_TRIP_ID)
+            ) {backStackEntry ->  // ← Add this parameter
+                val tripId = backStackEntry.arguments?.getString(Screen.TripDetail.ARG_TRIP_ID)
                     ?: return@composable
 
                 Log.d("NavGraph", "🧭 TripDetailScreen - tripId: $tripId")
 
+                // FIX: Scope ViewModel to backStackEntry
+                val viewModel: TripDetailViewModel = hiltViewModel(backStackEntry)
+
                 TripDetailScreen(
                     tripId = tripId,
+                    viewModel = viewModel,
                     onNavigateBack = { navController.popBackStack() },
+                    navController = navController,
 
                     // 1: Add Expense
                     onAddExpense = {

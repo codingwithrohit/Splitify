@@ -87,10 +87,39 @@ class LoginViewModel @Inject constructor(
 
                 is Result.Error -> {
                     Log.e("LoginVM", "❌ Login failed: ${result.message}")
-                    _uiState.update { it.copy(
-                        isLoading = false,
-                        errorMessage = result.message
-                    ) }
+                    val message = result.message.lowercase()
+
+                    when {
+                        // No internet / DNS issue
+                        message.contains("unable to resolve host") ||
+                                message.contains("no address associated with hostname") -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = "No internet connection. Please check your network and try again."
+                                )
+                            }
+                        }
+
+                        // Email already registered
+                        message.contains("invalid login credential") -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = "Incorrect login id or password"
+                                )
+                            }
+                        }
+
+                        else -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = "Something went wrong. Please try again."
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Result.Loading -> {

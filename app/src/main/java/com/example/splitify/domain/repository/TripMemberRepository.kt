@@ -19,4 +19,6 @@ interface TripMemberRepository {
 
     fun searchUsers(query: String): Flow<Result<List<TripMember>>>
 
+    suspend fun fetchAndSaveRemoteMembers(tripId: String): Result<Unit>
+
 }

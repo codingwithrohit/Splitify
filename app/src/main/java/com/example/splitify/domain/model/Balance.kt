@@ -1,11 +1,12 @@
 package com.example.splitify.domain.model
 
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 data class Balance(
-    val member: TripMember,         // Full member object (contains id, displayName, etc.)
-    val totalPaid: Double,          // Total amount this person paid
-    val totalOwed: Double,          // Total amount this person owes
+    val member: TripMember,
+    val totalPaid: Double,
+    val totalOwed: Double,
     val netBalance: Double
 ) {
 
@@ -13,20 +14,39 @@ data class Balance(
     val isDebtor: Boolean get() = netBalance < -0.01   // They owe others
     val isSettled: Boolean get() = abs(netBalance) < 0.01  // All balanced
 
+//    companion object {
+//        fun create(
+//            member: TripMember,
+//            totalPaid: Double,
+//            totalOwed: Double
+//        ): Balance {
+//            val net = totalPaid - totalOwed
+//            return Balance(
+//                member = member,
+//                totalPaid = totalPaid,
+//                totalOwed = totalOwed,
+//                netBalance = net
+//            )
+//        }
+//        private const val EPSILON = 0.01
+//    }
     companion object {
         fun create(
             member: TripMember,
             totalPaid: Double,
             totalOwed: Double
         ): Balance {
-            val net = totalPaid - totalOwed
+
+            val roundedPaid = (totalPaid * 100).roundToInt() / 100.0
+            val roundedOwed = (totalOwed * 100).roundToInt() / 100.0
+            val netBalance = roundedPaid - roundedOwed
+
             return Balance(
                 member = member,
-                totalPaid = totalPaid,
-                totalOwed = totalOwed,
-                netBalance = net
+                totalPaid = roundedPaid,
+                totalOwed = roundedOwed,
+                netBalance = netBalance
             )
         }
-        private const val EPSILON = 0.01
     }
 }

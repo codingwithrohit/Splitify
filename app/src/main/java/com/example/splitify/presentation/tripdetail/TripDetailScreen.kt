@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,8 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -38,9 +41,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.LoadingScreen
 import com.example.splitify.presentation.components.SplitifyAppBar
@@ -67,14 +72,9 @@ fun TripDetailScreen(
     onAddExpense: () -> Unit,
     onAddMembers: () -> Unit,
     onNavigateToEditTrip: (String) -> Unit,
+    navController: NavController,
     viewModel: TripDetailViewModel = hiltViewModel()
 ){
-    LaunchedEffect(tripId) {
-        Log.d("TripDetailScreen", "════════════════════════════════")
-        Log.d("TripDetailScreen", "🎯 Screen Loaded")
-        Log.d("TripDetailScreen", "  Trip ID: $tripId")
-        Log.d("TripDetailScreen", "════════════════════════════════")
-    }
 
     val dashboardState by viewModel.dashboardState.collectAsStateWithLifecycle()
 
@@ -94,6 +94,10 @@ fun TripDetailScreen(
             is TripDashboardState.Error -> {
                 val s = dashboardState as TripDashboardState.Error
                 Log.e("TripDetailScreen", "  Status: Error - ${s.message}")
+            }
+
+            TripDashboardState.Deleted -> {
+
             }
         }
     }
@@ -146,6 +150,42 @@ fun TripDetailScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                 )
+            }
+
+            TripDashboardState.Deleted -> {
+
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Trip Deleted",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "This trip has been deleted by the admin",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(onClick = { navController.navigateUp() }) {
+                            Text("Go Back to Trips")
+                        }
+                    }
+                }
             }
         }
     }

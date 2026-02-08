@@ -217,7 +217,7 @@ fun ExpensesScreen(
                                     currentMemberId = currentMemberId,
                                     currentUserId = currentUserId,
                                     onEditExpense = onEditExpense,
-                                    expenseToDelete = expenseToDelete
+                                    onDeleteExpense = { expenseToDelete = it}
                                 )
                                 1 -> ListExpense(
                                     expense = filteredExpense,
@@ -225,7 +225,7 @@ fun ExpensesScreen(
                                     currentMemberId = currentMemberId,
                                     currentUserId = currentUserId,
                                     onEditExpense = onEditExpense,
-                                    expenseToDelete = expenseToDelete
+                                    onDeleteExpense = { expenseToDelete = it }
                                 )
                             }
                         }
@@ -259,7 +259,7 @@ fun ListExpense(
     currentMemberId: String?,
     currentUserId: String?,
     onEditExpense: (String) -> Unit,
-    expenseToDelete: Expense?
+    onDeleteExpense: (Expense) -> Unit
 ){
     LazyColumn(
         modifier = Modifier
@@ -282,7 +282,7 @@ fun ListExpense(
                 currentUserMember = members.find { it.id == currentMemberId },
                 currentUserId = currentUserId,
                 onEdit = { onEditExpense(expense.id) },
-                onDelete = { expenseToDelete == expense }
+                onDelete = {  onDeleteExpense(expense)  }
             )
         }
     }

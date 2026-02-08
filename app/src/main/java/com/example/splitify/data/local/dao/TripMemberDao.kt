@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.example.splitify.data.local.entity.TripMemberEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -21,6 +22,9 @@ interface TripMemberDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMember(member: TripMemberEntity)
+
+    @Upsert
+    suspend fun upsertMember(member: TripMemberEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMembers(members: List<TripMemberEntity>)

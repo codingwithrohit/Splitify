@@ -1,31 +1,25 @@
 package com.example.splitify.presentation.jointrip
 
 import android.util.Log
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.splitify.data.local.SessionManager
-import com.example.splitify.data.sync.RealtimeManager
-import com.example.splitify.domain.usecase.trip.JoinTripUseCase
 import com.example.splitify.domain.usecase.trip.JoinTripUsingInviteCode
 import com.example.splitify.domain.usecase.trip.ValidateInviteCodeUseCase
-import com.example.splitify.presentation.jointrip.JoinTripUiState.*
+import com.example.splitify.presentation.jointrip.JoinTripUiState.Error
+import com.example.splitify.presentation.jointrip.JoinTripUiState.TripFound
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class JoinTripViewModel @Inject constructor(
     private val validateInviteCodeUseCase: ValidateInviteCodeUseCase,
-    private val joinTripUseCase: JoinTripUseCase,
     private val joinTripUsingInviteCode: JoinTripUsingInviteCode,
-    private val sessionManager: SessionManager,
-    private val realtimeManager: RealtimeManager
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow<JoinTripUiState>(JoinTripUiState.Idle)
@@ -93,30 +87,73 @@ class JoinTripViewModel @Inject constructor(
 //            }
 //        }
 //    }
-fun joinTrip() {
-    val state = _uiState.value
-    if (state !is JoinTripUiState.TripFound) return
+//fun joinTrip() {
+//    val state = _uiState.value
+//    if (state !is JoinTripUiState.TripFound) return
+//
+//    viewModelScope.launch {
+//        _uiState.value = JoinTripUiState.Joining
+//
+//        val code = _inviteCode.value.trim()
+//
+//        when (val result = joinTripUsingInviteCode(code)) {
+//            is Result.Success -> {
+//                Log.d("JoinTripVM", "Successfully joined trip and synced all data")
+//
+//                _uiState.value = JoinTripUiState.Success(result.data.id)
+//            }
+//            is Result.Error -> {
+//                Log.e("JoinTripVM", "Failed to join: ${result.message}")
+//                _uiState.value = JoinTripUiState.Error(result.message)
+//            }
+//            Result.Loading -> Unit
+//        }
+//    }
+//}
 
-    viewModelScope.launch {
-        _uiState.value = JoinTripUiState.Joining
+    fun joinTrip() {
+        val state = _uiState.value
+        if (state !is JoinTripUiState.TripFound) return
 
-        val code = _inviteCode.value.trim()
+        viewModelScope.launch {
+            _uiState.value = JoinTripUiState.Joining
 
-        when (val result = joinTripUsingInviteCode(code)) {
-            is Result.Success -> {
-                Log.d("JoinTripVM", "Successfully joined trip and synced all data")
-                // result.data is the Trip object returned from the repo
-                realtimeManager.subscribeToTrip(result.data.id)
-                _uiState.value = JoinTripUiState.Success(result.data.id)
+            val code = _inviteCode.value.trim()
+
+            // ADD THIS DEBUG LOG
+            Log.d("JoinTripVM", "🔍 Joining trip:")
+            Log.d("JoinTripVM", "  Invite code: $code")
+            Log.d("JoinTripVM", "  Trip from validation: ${state.trip.id}")
+            Log.d("JoinTripVM", "  Trip name: ${state.trip.name}")
+
+            when (val result = joinTripUsingInviteCode(code)) {
+                is Result.Success -> {
+                    Log.d("JoinTripVM", "✅ Joined trip: ${result.data.id}")
+
+                    // ADD THIS CHECK
+                    if (result.data.id != state.trip.id) {
+                        Log.e("JoinTripVM", "❌ TRIP ID MISMATCH!")
+                        Log.e("JoinTripVM", "  Expected: ${state.trip.id}")
+                        Log.e("JoinTripVM", "  Got: ${result.data.id}")
+                    }
+
+                    _uiState.value = JoinTripUiState.Success(result.data.id)
+                }
+                is Result.Error -> {
+                    Log.e("JoinTripVM", "Failed to join: ${result.message}")
+                    val message = result.message
+                    val userFriendlyMessage = when {
+                        message.contains("unable to resolve host") ->
+                            "No internet connection. Please check your network."
+                        else -> "Something went wrong. Please try again."
+                    }
+
+                    _uiState.value = JoinTripUiState.Error(userFriendlyMessage)
+                }
+                Result.Loading -> Unit
             }
-            is Result.Error -> {
-                Log.e("JoinTripVM", "Failed to join: ${result.message}")
-                _uiState.value = JoinTripUiState.Error(result.message)
-            }
-            Result.Loading -> Unit
         }
     }
-}
 
     fun resetState() {
         _uiState.value = JoinTripUiState.Idle

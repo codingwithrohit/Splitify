@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
 import kotlin.math.exp
+import kotlin.math.roundToInt
 
 class CalculateTripBalancesUseCase @Inject constructor(
     private val expenseRepository: ExpenseRepository,
@@ -73,16 +74,30 @@ class CalculateTripBalancesUseCase @Inject constructor(
                     .filter { it.memberId == member.id }
                     .sumOf { it.amountOwed }
 
+                // ✅ Round values to avoid floating-point errors
+                val roundedPaid = (totalPaid * 100).roundToInt() / 100.0
+                val roundedOwed = (totalOwed * 100).roundToInt() / 100.0
+
                 Log.d("CalculateBalances", "  ${member.displayName}:")
-                Log.d("CalculateBalances", "    Paid: ₹$totalPaid")
-                Log.d("CalculateBalances", "    Owes: ₹$totalOwed")
-                Log.d("CalculateBalances", "    Balance: ₹${totalPaid - totalOwed}")
+                Log.d("CalculateBalances", "    Paid: ₹$roundedPaid")
+                Log.d("CalculateBalances", "    Owes: ₹$roundedOwed")
+                Log.d("CalculateBalances", "    Balance: ₹${roundedPaid - roundedOwed}")
 
                 Balance.create(
                     member = member,
-                    totalPaid = totalPaid,
-                    totalOwed = totalOwed
+                    totalPaid = roundedPaid,
+                    totalOwed = roundedOwed
                 )
+            }
+
+            expensesWithSplits.forEach { expenseWithSplits ->
+                Log.d("CalculateBalances", "  📝 Expense: ${expenseWithSplits.expense.description}")
+                Log.d("CalculateBalances", "     Amount: ₹${expenseWithSplits.expense.amount}")
+                Log.d("CalculateBalances", "     Paid by: ${expenseWithSplits.expense.paidBy}")
+                Log.d("CalculateBalances", "     Splits: ${expenseWithSplits.splits.size}") // ← Shows split count
+                expenseWithSplits.splits.forEach { split ->
+                    Log.d("CalculateBalances", "       → ${split.memberId}: ₹${split.amountOwed}")
+                }
             }
 
             val simplifiedDebts = simplifyDebtsUseCase(balances)

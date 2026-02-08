@@ -31,5 +31,5 @@ interface ExpenseRepository {
 
     suspend fun createExpenseWithSplits(expense: Expense, participatingMembers: List<TripMember>): Result<Unit>
 
-
+    suspend fun fetchAndSaveRemoteExpenses(tripId: String): Result<Unit>
 }
