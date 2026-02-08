@@ -24,6 +24,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.splitify.data.local.SessionManager
 import com.example.splitify.domain.repository.AuthRepository
+import com.example.splitify.presentation.profile.ProfileScreen
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.trips.TripsScreen
@@ -59,13 +60,13 @@ fun MainScreen(
                 )
             }
 
-//            composable(BottomNavItem.Profile.route) {
-//                ProfileScreen(
-//                    onLogOut = onLogOut,
-//                    sessionManager = sessionManager,
-//                    authRepository = authRepository
-//                )
-//            }
+            composable(BottomNavItem.Profile.route) {
+                ProfileScreen(
+                    onLogOut = onLogOut,
+                    sessionManager = sessionManager,
+                    authRepository = authRepository
+                )
+            }
         }
     }
 }

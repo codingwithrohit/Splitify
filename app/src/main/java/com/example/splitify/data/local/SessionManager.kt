@@ -49,6 +49,11 @@ class SessionManager @Inject constructor(
         return prefs[Keys.USER_NAME]
     }
 
+    suspend fun getUserEmail(): String? {
+        val prefs = context.sessionDataStore.data.first()
+        return prefs[Keys.USER_EMAIL]
+    }
+
     suspend fun getFullName(): String? {
         val prefs = context.sessionDataStore.data.first()
         return prefs[Keys.FULL_NAME]
