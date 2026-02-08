@@ -78,6 +78,7 @@ fun AddMemberScreen(
     viewModel: AddMembersViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle("")
     var showSuccessToast by remember { mutableStateOf(false) }
 
@@ -100,9 +101,11 @@ fun AddMemberScreen(
                 LoadingIndicator(modifier = Modifier.padding(paddingValues))
             }
             is AddMembersUiState.Success -> {
+                val isCurrentUserAdmin = state.members.find { it.userId == currentUserId }?.isAdmin == true
                 AddMemberContent(
                     modifier = Modifier.padding(paddingValues),
                     members = state.members,
+                    isCurrentUserAdmin = isCurrentUserAdmin,
                     onAddMember = viewModel::addMemberByName,
                     onRemoveMember = viewModel::removeMember,
                     onSearchQueryChange = viewModel::onSearchQueryChange,
@@ -154,6 +157,7 @@ fun AddMemberScreen(
 fun AddMemberContent(
     modifier: Modifier,
     members: List<TripMember>,
+    isCurrentUserAdmin: Boolean,
     searchQuery: String,
     searchResults: List<User>,
     isSearching: Boolean,
@@ -408,7 +412,10 @@ fun AddMemberContent(
                 items(members, key = { it.id }) { member ->
                     MemberItem(
                         member = member,
-                        onRemove = { showRemoveDialog = member }
+                        onRemove = if(isCurrentUserAdmin && !member.isAdmin){
+                            { showRemoveDialog = member }
+                        }
+                        else null
                     )
                 }
             }

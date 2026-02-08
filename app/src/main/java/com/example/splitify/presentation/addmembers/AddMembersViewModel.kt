@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.splitify.data.local.SessionManager
 import com.example.splitify.domain.usecase.member.AddTripMemberUseCase
 import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
 import com.example.splitify.domain.usecase.member.RemoveTripMemberUseCase
@@ -29,12 +30,15 @@ class AddMembersViewModel @Inject constructor(
     private val addTripMemberUseCase: AddTripMemberUseCase,
     private val removeTripMemberUseCase: RemoveTripMemberUseCase,
     private val searchUsersUseCase: SearchUsersUseCase,
+    private val sessionManager: SessionManager,
     savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
     private val tripId: String = checkNotNull(savedStateHandle["tripId"])
     private val _uiState = MutableStateFlow<AddMembersUiState>(AddMembersUiState.Loading)
     val uiState: StateFlow<AddMembersUiState> = _uiState.asStateFlow()
+    private val _currentUserId = MutableStateFlow<String?>(null)
+    val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
 
     private val _toastMessage = MutableStateFlow("")
     val toastMessage: StateFlow<String> = _toastMessage.asStateFlow()
@@ -44,6 +48,9 @@ class AddMembersViewModel @Inject constructor(
     init {
         loadMembers()
         setUpSearchDebouncing()
+        viewModelScope.launch {
+            _currentUserId.value = sessionManager.getCurrentUserId()
+        }
     }
 
     private fun loadMembers() {
