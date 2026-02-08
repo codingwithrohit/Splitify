@@ -52,6 +52,8 @@ class RealtimeManager @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val activeChannels = mutableMapOf<String, io.github.jan.supabase.realtime.RealtimeChannel>()
     private val subscriptionMutex = Mutex()
+    private val pendingExpenseUpdates = mutableSetOf<String>()
+    private val updateMutex = Mutex()
 
 
     fun subscribeToGlobalTrips() {
@@ -183,9 +185,26 @@ class RealtimeManager @Inject constructor(
                             val record = action.decodeRecord<ExpenseDto>()
                             handleExpenseInsert(record)
                         }
+//                        is PostgresAction.Update -> {
+//                            val record = action.decodeRecord<ExpenseDto>()
+//                            handleExpenseUpdate(record)
+//                        }
                         is PostgresAction.Update -> {
                             val record = action.decodeRecord<ExpenseDto>()
-                            handleExpenseUpdate(record)
+
+                            // Mark as update pending
+                            updateMutex.withLock {
+                                pendingExpenseUpdates.add(record.id)
+                            }
+
+                            try {
+                                handleExpenseUpdate(record)
+                            } finally {
+                                // Clear pending flag after processing
+                                updateMutex.withLock {
+                                    pendingExpenseUpdates.remove(record.id)
+                                }
+                            }
                         }
                         is PostgresAction.Delete -> {
                             val expenseId = action.oldRecord["id"]?.toString()?.replace("\"", "")
@@ -263,6 +282,21 @@ class RealtimeManager @Inject constructor(
                     // Instead, we handle events if the expense_id exists in our local DB.
                 }.onEach { action ->
                     when (action) {
+                        is PostgresAction.Insert -> {
+                            val record = action.decodeRecord<ExpenseSplitDto>()
+
+                            // Check if expense UPDATE is pending
+                            val isUpdatePending = updateMutex.withLock {
+                                pendingExpenseUpdates.contains(record.expenseId)
+                            }
+
+                            if (isUpdatePending) {
+                                Log.d(TAG, "⏳ Split INSERT ignored - UPDATE pending for expense: ${record.expenseId}")
+                                return@onEach
+                            }
+
+                            handleSplitInsert(record)
+                        }
                         is PostgresAction.Delete -> {
                             val splitId = action.oldRecord["id"] as? String
                             splitId?.let { expenseSplitDao.deleteSplit(it) }
@@ -366,14 +400,54 @@ class RealtimeManager @Inject constructor(
         }
     }
 
+//    private suspend fun handleExpenseUpdate(expenseDto: ExpenseDto) {
+//        try {
+//            val entity = expenseDto.toEntity().copy(isLocal = false, isSynced = true)
+//
+//            // 1. Fetch splits
+//            val splitDtos = supabase.from("expense_splits")
+//                .select { filter { eq("expense_id", entity.id) } }
+//                .decodeList<ExpenseSplitDto>()
+//
+//            // 2. Ensure ALL members exist BEFORE transaction
+//            val missingMembers = splitDtos.mapNotNull { split ->
+//                val memberExists = tripMemberDao.getMemberById(split.memberId) != null
+//                if (!memberExists) split.memberId else null
+//            }
+//
+//            // Fetch ALL missing members synchronously
+//            if (missingMembers.isNotEmpty()) {
+//                Log.d(TAG, "⚠️ Missing ${missingMembers.size} members, fetching...")
+//                missingMembers.forEach { memberId ->
+//                    fetchAndSyncSingleMember(memberId)
+//                }
+//                Log.d(TAG, "✅ All missing members fetched")
+//            }
+//
+//            val splitEntities = splitDtos.map { it.toEntity() }
+//
+//            // 3. Atomic Transaction (now safe)
+//            expenseDao.updateExpenseAndSplits(entity, splitEntities)
+//            delay(50)
+//
+//            Log.d(TAG, "✅ Atomic update complete for: ${entity.description}")
+//        } catch (e: Exception) {
+//            Log.e(TAG, "❌ Sync failed", e)
+//        }
+//    }
+
     private suspend fun handleExpenseUpdate(expenseDto: ExpenseDto) {
         try {
+            Log.d(TAG, "🔄 Processing expense UPDATE: ${expenseDto.description}")
+
             val entity = expenseDto.toEntity().copy(isLocal = false, isSynced = true)
 
-            // 1. Fetch splits
+            // 1. Fetch NEW splits from Supabase
             val splitDtos = supabase.from("expense_splits")
                 .select { filter { eq("expense_id", entity.id) } }
                 .decodeList<ExpenseSplitDto>()
+
+            Log.d(TAG, "📊 Fetched ${splitDtos.size} splits from Supabase")
 
             // 2. Ensure ALL members exist BEFORE transaction
             val missingMembers = splitDtos.mapNotNull { split ->
@@ -381,7 +455,6 @@ class RealtimeManager @Inject constructor(
                 if (!memberExists) split.memberId else null
             }
 
-            // Fetch ALL missing members synchronously
             if (missingMembers.isNotEmpty()) {
                 Log.d(TAG, "⚠️ Missing ${missingMembers.size} members, fetching...")
                 missingMembers.forEach { memberId ->
@@ -390,15 +463,23 @@ class RealtimeManager @Inject constructor(
                 Log.d(TAG, "✅ All missing members fetched")
             }
 
-            val splitEntities = splitDtos.map { it.toEntity() }
+            // 3. DELETE ALL OLD SPLITS (before inserting new ones)
+            Log.d(TAG, "🗑️ Deleting old splits for expense: ${entity.id}")
+            expenseSplitDao.deleteSplitsForExpense(entity.id)
 
-            // 3. Atomic Transaction (now safe)
-            expenseDao.updateExpenseAndSplits(entity, splitEntities)
+            // Small delay to ensure delete completes
             delay(50)
 
-            Log.d(TAG, "✅ Atomic update complete for: ${entity.description}")
+            // 4. Convert new splits to entities
+            val splitEntities = splitDtos.map { it.toEntity() }
+
+            // 5. Atomic Transaction (update expense + insert new splits)
+            expenseDao.updateExpenseAndSplits(entity, splitEntities)
+
+            Log.d(TAG, "✅ Atomic update complete for: ${entity.description} (${splitEntities.size} splits)")
+
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Sync failed", e)
+            Log.e(TAG, "❌ Expense update failed", e)
         }
     }
 
@@ -461,7 +542,8 @@ class RealtimeManager @Inject constructor(
 
             // 2. Insert the split
             val entity = splitDto.toEntity()
-            expenseSplitDao.insertSplit(entity)
+            expenseSplitDao.upsertSplit(entity)
+            //expenseSplitDao.insertSplit(entity)
 
             Log.d(TAG, "✅ Realtime Split Sync: ${entity.memberName} owes ${entity.amountOwed}")
         } catch (e: Exception) {

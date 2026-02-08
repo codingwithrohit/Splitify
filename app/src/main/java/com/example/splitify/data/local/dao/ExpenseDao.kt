@@ -44,12 +44,12 @@ interface ExpenseDao {
     @Transaction
     suspend fun updateExpenseAndSplits(expense: ExpenseEntity, splits: List<ExpenseSplitEntity>) {
         deleteSplitsForExpense(expense.id)
+        updateExpense(
+            expense.copy(updatedAt = System.currentTimeMillis())
+        )
         if (splits.isNotEmpty()) {
             insertSplits(splits)
         }
-        insertAnExpense(
-            expense.copy(updatedAt = System.currentTimeMillis())
-        )
     }
 
     @Update
