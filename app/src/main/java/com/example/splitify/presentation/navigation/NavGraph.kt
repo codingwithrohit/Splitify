@@ -62,7 +62,7 @@ fun SplitifyNavGraph(
 
                     if (sessionValid) {
                         Log.d("NavGraph", "✅ Session valid → Trips screen")
-                        startDestination = Screen.Trips.route
+                        startDestination = Screen.Main.route
                     } else {
                         Log.d("NavGraph", "❌ Session invalid → Login screen")
                         startDestination = Screen.Login.route
@@ -91,7 +91,7 @@ fun SplitifyNavGraph(
                 LoginScreen(
                     onNavigateToSignUp = { navController.navigate(Screen.SignUp.route) },
                     onLoginSuccess = {
-                        navController.navigate(Screen.Trips.route) {
+                        navController.navigate(Screen.Main.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     }
@@ -103,30 +103,31 @@ fun SplitifyNavGraph(
                 SignUpScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onSignUpSuccess = {
-                        navController.navigate(Screen.Trips.route) {
+                        navController.navigate(Screen.Main.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     }
                 )
             }
 
-            // Trips List Screen
-            composable(route = Screen.Trips.route) {
-                TripsScreen(
-                    onCreateTripClick = {
-                        navController.navigate(Screen.CreateTrip.route)
-                    },
-                    onTripClick = { tripId ->
-                        navController.navigate(Screen.TripDetail.createRoute(tripId))
-                    },
-                    onJoinTripClick = {
-                        navController.navigate(Screen.JoinTrip.route)
-                    },
+            composable(route = Screen.Main.route) {
+                MainScreen(
                     onLogOut = {
                         navController.navigate(Screen.Login.route) {
                             popUpTo(0) { inclusive = true }
                         }
-                    }
+                    },
+                    onNavigateToTripDetail = { tripId ->
+                        navController.navigate(Screen.TripDetail.createRoute(tripId))
+                    },
+                    onNavigateToCreateTrip = {
+                        navController.navigate(Screen.CreateTrip.route)
+                    },
+                    onNavigateToJoinTrip = {
+                        navController.navigate(Screen.JoinTrip.route)
+                    },
+                    sessionManager = sessionManager,
+                    authRepository = authRepository
                 )
             }
 
