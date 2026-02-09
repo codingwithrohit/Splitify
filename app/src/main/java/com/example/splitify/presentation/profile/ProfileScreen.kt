@@ -24,6 +24,9 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -31,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,171 +51,196 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.data.local.SessionManager
-import com.example.splitify.domain.repository.AuthRepository
+import com.example.splitify.presentation.theme.CustomShapes
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.theme.SemanticColors
 
 @Composable
 fun ProfileScreen(
+    onNavigateToAccountSettings: () -> Unit,
+    onNavigateToAppSettings: () -> Unit,
+    onNavigateToAbout: () -> Unit,
+    onNavigateToDeveloper: () -> Unit,
     onLogOut: () -> Unit,
     sessionManager: SessionManager,
-    authRepository: AuthRepository,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
-    var showAccountSettings by remember { mutableStateOf(false) }
-    var showAppSettings by remember { mutableStateOf(false) }
-    var showAbout by remember { mutableStateOf(false) }
-    var showDeveloper by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
-    if (showAccountSettings) {
-        AccountSettingsScreen(
-            onBack = { showAccountSettings = false },
-            onLogOut = onLogOut,
-            viewModel = viewModel
-        )
-    } else if (showAppSettings) {
-        AppSettingsScreen(
-            onBack = { showAppSettings = false },
-            viewModel = viewModel
-        )
-    } else if (showAbout) {
-        AboutScreen(
-            onBack = { showAbout = false }
-        )
-    } else if (showDeveloper) {
-        DeveloperScreen(
-            onBack = { showDeveloper = false }
-        )
-    } else {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(NeutralColors.Neutral50)
+    ) {
+        // Header with gradient
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shadowElevation = 4.dp
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                PrimaryColors.Primary500,
+                                PrimaryColors.Primary700
+                            )
+                        )
+                    )
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 20.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Profile Avatar
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profile",
+                            modifier = Modifier.size(48.dp),
+                            tint = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = userProfile.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+
+                    Text(
+                        text = userProfile.email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                }
+            }
+        }
+
+        // Profile sections
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(NeutralColors.Neutral50)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header with gradient
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shadowElevation = 4.dp
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    PrimaryColors.Primary500,
-                                    PrimaryColors.Primary700
-                                )
-                            )
-                        )
-                        .statusBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 20.dp)
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        // Profile Avatar
-                        Box(
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.3f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Profile",
-                                modifier = Modifier.size(48.dp),
-                                tint = Color.White
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = userProfile.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-
-                        Text(
-                            text = userProfile.email,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
-                    }
-                }
+            // Account Section
+            ProfileSection(title = "Account") {
+                ProfileMenuItem(
+                    icon = Icons.Default.AccountCircle,
+                    title = "Account Settings",
+                    subtitle = "Manage your account and security",
+                    onClick = onNavigateToAccountSettings
+                )
             }
 
-            // Profile sections
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Account Section
-                ProfileSection(title = "Account") {
-                    ProfileMenuItem(
-                        icon = Icons.Default.AccountCircle,
-                        title = "Account Settings",
-                        subtitle = "Manage your account and security",
-                        onClick = { showAccountSettings = true }
-                    )
-                }
-
-                // App Settings Section
-                ProfileSection(title = "App Settings") {
-                    ProfileMenuItem(
-                        icon = Icons.Default.Settings,
-                        title = "Preferences",
-                        subtitle = "Notifications, currency, and theme",
-                        onClick = { showAppSettings = true }
-                    )
-                }
-
-                // About Section
-                ProfileSection(title = "About") {
-                    ProfileMenuItem(
-                        icon = Icons.Default.Info,
-                        title = "About Splitify",
-                        subtitle = "Version, privacy, and terms",
-                        onClick = { showAbout = true }
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        color = NeutralColors.Neutral200
-                    )
-
-                    ProfileMenuItem(
-                        icon = Icons.Default.Code,
-                        title = "About Developer",
-                        subtitle = "Meet the creator",
-                        onClick = { showDeveloper = true }
-                    )
-                }
-
-                // Logout Button
-                ProfileSection(title = "") {
-                    ProfileMenuItem(
-                        icon = Icons.Default.Logout,
-                        title = "Logout",
-                        subtitle = "Sign out of your account",
-                        onClick = { viewModel.logout(onLogOut) },
-                        iconTint = SemanticColors.Warning,
-                        showChevron = false
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
+            // App Settings Section
+            ProfileSection(title = "App Settings") {
+                ProfileMenuItem(
+                    icon = Icons.Default.Settings,
+                    title = "Preferences",
+                    subtitle = "Notifications, currency, and theme",
+                    onClick = onNavigateToAppSettings
+                )
             }
+
+            // About Section
+            ProfileSection(title = "About") {
+                ProfileMenuItem(
+                    icon = Icons.Default.Info,
+                    title = "About Splitify",
+                    subtitle = "Version, privacy, and terms",
+                    onClick = onNavigateToAbout
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = NeutralColors.Neutral200
+                )
+
+                ProfileMenuItem(
+                    icon = Icons.Default.Code,
+                    title = "About Developer",
+                    subtitle = "Meet the creator",
+                    onClick = onNavigateToDeveloper
+                )
+            }
+
+            // Logout Button
+            ProfileSection(title = "") {
+                ProfileMenuItem(
+                    icon = Icons.Default.Logout,
+                    title = "Logout",
+                    subtitle = "Sign out of your account",
+                    onClick = { showLogoutDialog = true },
+                    iconTint = SemanticColors.Warning,
+                    showChevron = false
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Logout,
+                    contentDescription = null,
+                    tint = SemanticColors.Warning,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    "Logout",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Are you sure you want to logout?",
+                    color = NeutralColors.Neutral600
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        viewModel.logout(onLogOut)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SemanticColors.Warning
+                    ),
+                    shape = CustomShapes.ButtonShape
+                ) {
+                    Text("Logout", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancel", color = NeutralColors.Neutral600)
+                }
+            },
+            shape = CustomShapes.DialogShape
+        )
     }
 }
 

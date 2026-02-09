@@ -21,9 +21,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.example.splitify.data.local.SessionManager
 import com.example.splitify.domain.repository.AuthRepository
+import com.example.splitify.presentation.profile.AboutScreen
+import com.example.splitify.presentation.profile.AccountSettingsScreen
+import com.example.splitify.presentation.profile.AppSettingsScreen
+import com.example.splitify.presentation.profile.DeveloperScreen
 import com.example.splitify.presentation.profile.ProfileScreen
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
@@ -40,17 +45,28 @@ fun MainScreen(
     authRepository: AuthRepository
 ) {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+
+    // Hide bottom bar when in profile sub-screens
+    val currentRoute = navBackStackEntry?.destination?.route
+    val showBottomBar = currentRoute in listOf(
+        BottomNavItem.Trips.route,
+        Screen.Profile.route
+    )
 
     Scaffold(
         bottomBar = {
-            BottomNavigationBar(navController = navController)
+            if (showBottomBar) {
+                BottomNavigationBar(navController = navController)
+            }
         }
     ) { paddingValues ->
         NavHost(
             navController = navController,
             startDestination = BottomNavItem.Trips.route,
-            modifier = Modifier.padding(paddingValues)
+            route = "main_graph"
         ) {
+            // Trips Tab
             composable(BottomNavItem.Trips.route) {
                 TripsScreen(
                     onCreateTripClick = onNavigateToCreateTrip,
@@ -60,12 +76,54 @@ fun MainScreen(
                 )
             }
 
-            composable(BottomNavItem.Profile.route) {
-                ProfileScreen(
-                    onLogOut = onLogOut,
-                    sessionManager = sessionManager,
-                    authRepository = authRepository
-                )
+            // Profile Navigation Graph
+            navigation(
+                startDestination = Screen.Profile.route,
+                route = BottomNavItem.Profile.route
+            ) {
+                composable(Screen.Profile.route) {
+                    ProfileScreen(
+                        onNavigateToAccountSettings = {
+                            navController.navigate(Screen.AccountSettings.route)
+                        },
+                        onNavigateToAppSettings = {
+                            navController.navigate(Screen.AppSettings.route)
+                        },
+                        onNavigateToAbout = {
+                            navController.navigate(Screen.About.route)
+                        },
+                        onNavigateToDeveloper = {
+                            navController.navigate(Screen.Developer.route)
+                        },
+                        onLogOut = onLogOut,
+                        sessionManager = sessionManager
+                    )
+                }
+
+                composable(Screen.AccountSettings.route) {
+                    AccountSettingsScreen(
+                        onBack = { navController.navigateUp() },
+                        onLogOut = onLogOut
+                    )
+                }
+
+                composable(Screen.AppSettings.route) {
+                    AppSettingsScreen(
+                        onBack = { navController.navigateUp() }
+                    )
+                }
+
+                composable(Screen.About.route) {
+                    AboutScreen(
+                        onBack = { navController.navigateUp() }
+                    )
+                }
+
+                composable(Screen.Developer.route) {
+                    DeveloperScreen(
+                        onBack = { navController.navigateUp() }
+                    )
+                }
             }
         }
     }

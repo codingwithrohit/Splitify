@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -36,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -77,11 +80,7 @@ fun TripsScreen(
     viewModel: TripsViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var showLogoutDialog by remember { mutableStateOf(false) }
-
-
     val currentUserId by viewModel.userId.collectAsStateWithLifecycle()
-
 
     LaunchedEffect(Unit) {
         viewModel.logoutEvent.collect {
@@ -99,6 +98,7 @@ fun TripsScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .statusBarsPadding()
                         .background(
                             brush = Brush.horizontalGradient(
                                 colors = listOf(
@@ -107,7 +107,6 @@ fun TripsScreen(
                                 )
                             )
                         )
-                        .statusBarsPadding()
                         .padding(horizontal = 20.dp, vertical = 16.dp)
                 ) {
                     Row(
@@ -197,51 +196,7 @@ fun TripsScreen(
             }
         }
     }
-    if (showLogoutDialog) {
-        AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Logout,
-                    contentDescription = null,
-                    tint = SemanticColors.Warning,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
-            title = {
-                Text(
-                    "Logout",
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    "Are you sure you want to logout?",
-                    color = NeutralColors.Neutral600
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showLogoutDialog = false
-                        viewModel.logout()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SemanticColors.Warning
-                    ),
-                    shape = CustomShapes.ButtonShape
-                ) {
-                    Text("Logout", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Cancel", color = NeutralColors.Neutral600)
-                }
-            },
-            shape = CustomShapes.DialogShape
-        )
-    }
+
 }
 
 @Composable

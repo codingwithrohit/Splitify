@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.splitify.presentation.components.SplitifyAppBar
 import com.example.splitify.presentation.theme.NeutralColors
@@ -41,7 +42,7 @@ import com.example.splitify.presentation.theme.PrimaryColors
 @Composable
 fun AppSettingsScreen(
     onBack: () -> Unit,
-    viewModel: ProfileViewModel
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val appSettings by viewModel.appSettings.collectAsStateWithLifecycle()
 

@@ -113,7 +113,7 @@ fun AboutScreen(onBack: () -> Unit) {
                     FeatureItem("📱", "Easy expense tracking")
                     FeatureItem("👥", "Group expense splitting")
                     FeatureItem("💰", "Real-time balance calculation")
-                    FeatureItem("🔄", "Multi-currency support")
+                    //FeatureItem("🔄", "Multi-currency support")
                     FeatureItem("📊", "Detailed insights and analytics")
                     FeatureItem("🔒", "Secure and private")
                 }
@@ -145,7 +145,7 @@ fun AboutScreen(onBack: () -> Unit) {
 
             // Copyright
             Text(
-                text = "© 2024 Splitify. All rights reserved.",
+                text = "© 2026 Splitify. All rights reserved.",
                 style = MaterialTheme.typography.bodySmall,
                 color = NeutralColors.Neutral500,
                 textAlign = TextAlign.Center,

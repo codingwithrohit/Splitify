@@ -9,6 +9,12 @@ sealed class Screen(val route: String) {
     data object SignUp: Screen("signup")
     object Main : Screen("main")
     data object Trips: Screen("trips")
+    // Profile Routes
+    object Profile : Screen("profile")
+    object AccountSettings : Screen("profile/account_settings")
+    object AppSettings : Screen("profile/app_settings")
+    object About : Screen("profile/about")
+    object Developer : Screen("profile/developer")
 
     data object JoinTrip: Screen("join_trip")
     data object CreateTrip: Screen("create_trip")
