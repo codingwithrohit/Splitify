@@ -3,35 +3,16 @@ package com.example.splitify.presentation.profile
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,14 +26,36 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.splitify.R
 import com.example.splitify.presentation.components.SplitifyAppBar
+import com.example.splitify.presentation.profile.components.PDFViewerDialog
 import com.example.splitify.presentation.theme.CustomShapes
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
+import java.io.File
+import java.io.FileOutputStream
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DeveloperScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    var showResumeViewer by remember { mutableStateOf(false) }
+    var resumeFile by remember { mutableStateOf<File?>(null) }
+
+    // Copy PDF from assets to cache on first composition
+    LaunchedEffect(Unit) {
+        try {
+            val assetManager = context.assets
+            val inputStream = assetManager.open("resume.pdf") // Your PDF in assets folder
+
+            val file = File(context.cacheDir, "resume.pdf")
+            FileOutputStream(file).use { output ->
+                inputStream.copyTo(output)
+            }
+
+            resumeFile = file
+        } catch (e: Exception) {
+            // PDF not found in assets
+        }
+    }
 
     // Replace these with your actual information
     val developerInfo = DeveloperInfo(
@@ -83,6 +86,7 @@ fun DeveloperScreen(onBack: () -> Unit) {
     )
 
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         topBar = {
             SplitifyAppBar(
                 title = "About Developer",
@@ -95,6 +99,7 @@ fun DeveloperScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .background(NeutralColors.Neutral50)
                 .padding(paddingValues)
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -152,6 +157,60 @@ fun DeveloperScreen(onBack: () -> Unit) {
                         color = NeutralColors.Neutral700,
                         textAlign = TextAlign.Center
                     )
+                }
+            }
+
+            // Resume Section
+            if (resumeFile != null) {
+                ProfileSection(title = "Resume") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showResumeViewer = true }
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(PrimaryColors.Primary100),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Description,
+                                    contentDescription = "Resume",
+                                    tint = PrimaryColors.Primary600,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    text = "View Resume",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeutralColors.Neutral900
+                                )
+                                Text(
+                                    text = "Tap to view in full screen",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = NeutralColors.Neutral600
+                                )
+                            }
+                        }
+
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Open",
+                            tint = NeutralColors.Neutral400
+                        )
+                    }
                 }
             }
 
@@ -305,6 +364,14 @@ fun DeveloperScreen(onBack: () -> Unit) {
             }
         }
     }
+
+    // PDF Resume Viewer Dialog
+    if (showResumeViewer && resumeFile != null) {
+        PDFViewerDialog(
+            pdfFile = resumeFile!!,
+            onDismiss = { showResumeViewer = false }
+        )
+    }
 }
 
 @Composable
@@ -333,11 +400,13 @@ fun SocialLinkButton(
                     is ImageVector -> Icon(
                         imageVector = icon,
                         contentDescription = label,
+                        modifier = Modifier.size(24.dp),
                         tint = PrimaryColors.Primary600
                     )
                     is Painter -> Icon(
                         painter = icon,
                         contentDescription = label,
+                        modifier = Modifier.size(24.dp),
                         tint = PrimaryColors.Primary600
                     )
                 }
@@ -359,50 +428,6 @@ fun SocialLinkButton(
     }
 }
 
-
-//@Composable
-//fun SocialLinkButton(
-//    icon: Painter,
-//    label: String,
-//    subtitle: String,
-//    onClick: () -> Unit
-//) {
-//    OutlinedButton(
-//        onClick = onClick,
-//        modifier = Modifier.fillMaxWidth(),
-//        shape = CustomShapes.ButtonShape
-//    ) {
-//        Row(
-//            modifier = Modifier.fillMaxWidth(),
-//            horizontalArrangement = Arrangement.SpaceBetween,
-//            verticalAlignment = Alignment.CenterVertically
-//        ) {
-//            Row(
-//                horizontalArrangement = Arrangement.spacedBy(12.dp),
-//                verticalAlignment = Alignment.CenterVertically
-//            ) {
-//                Icon(
-//                    painter = icon,
-//                    contentDescription = label,
-//                    tint = PrimaryColors.Primary600
-//                )
-//
-//                Column {
-//                    Text(
-//                        text = label,
-//                        fontWeight = FontWeight.Bold,
-//                        color = NeutralColors.Neutral900
-//                    )
-//                    Text(
-//                        text = subtitle,
-//                        style = MaterialTheme.typography.bodySmall,
-//                        color = NeutralColors.Neutral600
-//                    )
-//                }
-//            }
-//        }
-//    }
-//}
 
 @Composable
 fun SkillChip(skill: String) {
@@ -489,3 +514,4 @@ data class Project(
     val description: String,
     val tech: String
 )
+

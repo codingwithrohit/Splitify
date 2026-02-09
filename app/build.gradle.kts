@@ -135,6 +135,15 @@ dependencies {
     // Coil
     implementation("io.coil-kt:coil-compose:2.5.0")
 
+    // PDF Viewer
+    implementation("com.github.mhiew:android-pdf-viewer:3.2.0-beta.3")
+
+    // Image Cropper (Optional but recommended)
+    implementation("com.vanniktech:android-image-cropper:4.5.0")
+
+    // Permissions handling (if needed)
+    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+
     //Vico Charts
     implementation("com.patrykandpatrick.vico:compose:1.13.1")
     implementation("com.patrykandpatrick.vico:compose-m3:1.13.1")

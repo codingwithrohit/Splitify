@@ -128,6 +128,17 @@ class SessionManager @Inject constructor(
         return prefs[Keys.REFRESH_TOKEN]
     }
 
+    suspend fun updateAvatarUrl(avatarUrl: String?) {
+        context.sessionDataStore.edit { prefs ->
+            prefs[Keys.AVATAR_URL] = avatarUrl ?: ""
+        }
+    }
+
+    suspend fun getUserId(): String? {
+        val prefs = context.sessionDataStore.data.first()
+        return prefs[Keys.USER_ID]
+    }
+
 
     fun getCurrentUserFlow(): Flow<UserSession?> {
         return context.sessionDataStore.data.map { prefs ->

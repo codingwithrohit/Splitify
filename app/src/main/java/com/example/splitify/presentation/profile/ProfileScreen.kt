@@ -1,60 +1,38 @@
 package com.example.splitify.presentation.profile
 
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.splitify.data.local.SessionManager
-import com.example.splitify.presentation.theme.CustomShapes
-import com.example.splitify.presentation.theme.NeutralColors
-import com.example.splitify.presentation.theme.PrimaryColors
-import com.example.splitify.presentation.theme.SemanticColors
+import com.example.splitify.presentation.theme.*
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun ProfileScreen(
@@ -67,14 +45,47 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val profilePictureState by viewModel.profilePictureState.collectAsStateWithLifecycle()
+
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showImageOptions by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            // Convert URI to File and upload
+            val file = uriToFile(context, it)
+            if (file != null) {
+                viewModel.uploadProfilePicture(file)
+            }
+        }
+    }
+
+    // Show success/error messages
+    LaunchedEffect(profilePictureState) {
+        when (profilePictureState) {
+            is ProfilePictureState.Success -> {
+                // You can show a snackbar here
+                viewModel.resetProfilePictureState()
+            }
+            is ProfilePictureState.Error -> {
+                // Show error snackbar
+                viewModel.resetProfilePictureState()
+            }
+            else -> {}
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(NeutralColors.Neutral50)
     ) {
-        // Header with gradient
+        // Header with gradient and profile picture
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shadowElevation = 4.dp
@@ -97,20 +108,74 @@ fun ProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Profile Avatar
+                    // Profile Avatar with upload option
                     Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
+                        modifier = Modifier.size(100.dp),
+                        contentAlignment = Alignment.BottomEnd
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profile",
-                            modifier = Modifier.size(48.dp),
-                            tint = Color.White
-                        )
+                        // Avatar
+                        if (!userProfile.avatarUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(userProfile.avatarUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape)
+                                    .border(
+                                        width = 3.dp,
+                                        color = Color.White,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { showImageOptions = true },
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.3f))
+                                    .border(
+                                        width = 3.dp,
+                                        color = Color.White,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { showImageOptions = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Profile",
+                                    modifier = Modifier.size(60.dp),
+                                    tint = Color.White
+                                )
+                            }
+                        }
+
+                        // Edit button
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(PrimaryColors.Primary600)
+                                .border(
+                                    width = 2.dp,
+                                    color = Color.White,
+                                    shape = CircleShape
+                                )
+                                .clickable { showImageOptions = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -127,6 +192,16 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.9f)
                     )
+
+                    // Upload progress indicator
+                    if (profilePictureState is ProfilePictureState.Uploading) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    }
                 }
             }
         }
@@ -197,6 +272,62 @@ fun ProfileScreen(
         }
     }
 
+    // Image options bottom sheet
+    if (showImageOptions) {
+        AlertDialog(
+            onDismissRequest = { showImageOptions = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Image,
+                    contentDescription = null,
+                    tint = PrimaryColors.Primary600
+                )
+            },
+            title = {
+                Text("Profile Picture", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = {
+                            showImageOptions = false
+                            imagePickerLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Upload, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Upload new picture")
+                    }
+
+                    if (!userProfile.avatarUrl.isNullOrBlank()) {
+                        TextButton(
+                            onClick = {
+                                showImageOptions = false
+                                viewModel.deleteProfilePicture()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                null,
+                                tint = SemanticColors.Error
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Remove picture", color = SemanticColors.Error)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showImageOptions = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Logout dialog
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -241,6 +372,24 @@ fun ProfileScreen(
             },
             shape = CustomShapes.DialogShape
         )
+    }
+}
+
+// Helper function to convert URI to File
+private fun uriToFile(context: Context, uri: Uri): File? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val file = File(context.cacheDir, "profile_${System.currentTimeMillis()}.jpg")
+
+        inputStream?.use { input ->
+            FileOutputStream(file).use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        file
+    } catch (e: Exception) {
+        null
     }
 }
 

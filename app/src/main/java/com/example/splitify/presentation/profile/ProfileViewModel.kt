@@ -1,20 +1,25 @@
 package com.example.splitify.presentation.profile
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.data.local.SessionManager
 import com.example.splitify.domain.repository.AuthRepository
+import com.example.splitify.domain.repository.UserRepository
+import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class UserProfile(
     val name: String = "",
     val email: String = "",
-    val userId: String = ""
+    val userId: String = "",
+    val avatarUrl: String? = null
 )
 
 data class AppSettings(
@@ -23,10 +28,18 @@ data class AppSettings(
     val theme: String = "System"
 )
 
+sealed class ProfilePictureState {
+    object Idle : ProfilePictureState()
+    object Uploading : ProfilePictureState()
+    object Success : ProfilePictureState()
+    data class Error(val message: String) : ProfilePictureState()
+}
+
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val sessionManager: SessionManager,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _userProfile = MutableStateFlow(UserProfile())
@@ -38,6 +51,9 @@ class ProfileViewModel @Inject constructor(
     private val _deleteAccountState = MutableStateFlow<DeleteAccountState>(DeleteAccountState.Idle)
     val deleteAccountState: StateFlow<DeleteAccountState> = _deleteAccountState.asStateFlow()
 
+    private val _profilePictureState = MutableStateFlow<ProfilePictureState>(ProfilePictureState.Idle)
+    val profilePictureState: StateFlow<ProfilePictureState> = _profilePictureState.asStateFlow()
+
     init {
         loadUserProfile()
         loadAppSettings()
@@ -46,14 +62,18 @@ class ProfileViewModel @Inject constructor(
     private fun loadUserProfile() {
         viewModelScope.launch {
             try {
-                val name = sessionManager.getUserName() ?: "User"
+                val name = sessionManager.getFullName()?.takeIf { it.isNotBlank() }
+                    ?: sessionManager.getUserName()?.takeIf { it.isNotBlank() }
+                    ?: "User"
                 val email = sessionManager.getUserEmail() ?: ""
-                val userId = sessionManager.getCurrentUserId() ?: ""
+                val userId = sessionManager.getUserId() ?: ""
+                val avatarUrl = sessionManager.getAvatarUrl()
 
                 _userProfile.value = UserProfile(
                     name = name,
                     email = email,
-                    userId = userId
+                    userId = userId,
+                    avatarUrl = avatarUrl
                 )
             } catch (e: Exception) {
                 // Handle error
@@ -64,6 +84,68 @@ class ProfileViewModel @Inject constructor(
     private fun loadAppSettings() {
         // Load from SharedPreferences or DataStore
         // For now, using default values
+    }
+
+    fun uploadProfilePicture(imageFile: File) {
+        viewModelScope.launch {
+            _profilePictureState.value = ProfilePictureState.Uploading
+
+            val userId = _userProfile.value.userId
+            if (userId.isBlank()) {
+                _profilePictureState.value = ProfilePictureState.Error("User not found")
+                return@launch
+            }
+
+            when (val result = userRepository.uploadProfilePicture(userId, imageFile)) {
+                is Result.Success -> {
+                    val avatarUrl = result.data
+
+                    // Update user profile in database
+                    when (val updateResult = userRepository.updateUserProfile(userId, avatarUrl)) {
+                        is Result.Success -> {
+                            _userProfile.value = _userProfile.value.copy(avatarUrl = avatarUrl)
+                            _profilePictureState.value = ProfilePictureState.Success
+                        }
+                        is Result.Error -> {
+                            _profilePictureState.value = ProfilePictureState.Error(
+                                updateResult.exception.message ?: "Failed to update profile"
+                            )
+                        }
+                        is Result.Loading -> {}
+                    }
+                }
+                is Result.Error -> {
+                    _profilePictureState.value = ProfilePictureState.Error(
+                        result.exception.message ?: "Upload failed"
+                    )
+                }
+                is Result.Loading -> {}
+            }
+        }
+    }
+
+    fun deleteProfilePicture() {
+        viewModelScope.launch {
+            _profilePictureState.value = ProfilePictureState.Uploading
+
+            val userId = _userProfile.value.userId
+            when (val result = userRepository.deleteProfilePicture(userId)) {
+                is Result.Success -> {
+                    _userProfile.value = _userProfile.value.copy(avatarUrl = null)
+                    _profilePictureState.value = ProfilePictureState.Success
+                }
+                is Result.Error -> {
+                    _profilePictureState.value = ProfilePictureState.Error(
+                        result.exception.message ?: "Delete failed"
+                    )
+                }
+                is Result.Loading -> {}
+            }
+        }
+    }
+
+    fun resetProfilePictureState() {
+        _profilePictureState.value = ProfilePictureState.Idle
     }
 
     fun updateNotifications(enabled: Boolean) {
@@ -85,7 +167,6 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 authRepository.signOut()
-                sessionManager.clearSession()
                 onLogOut()
             } catch (e: Exception) {
                 // Handle error
