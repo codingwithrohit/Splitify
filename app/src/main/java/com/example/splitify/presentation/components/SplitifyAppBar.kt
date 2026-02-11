@@ -2,6 +2,7 @@ package com.example.splitify.presentation.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -40,7 +41,8 @@ fun SplitifyAppBar(
         shadowElevation = 4.dp
     ) {
         TopAppBar(
-            modifier = Modifier.statusBarsPadding(),
+            modifier = Modifier,
+            windowInsets = WindowInsets(0),
             title = {
                 Text(
                     text = title,
@@ -55,7 +57,7 @@ fun SplitifyAppBar(
                     IconButton(
                         onClick = onBackClick,
                         modifier = Modifier
-                            .padding(start = 12.dp) // Adjusted padding to match your 20.dp design
+                            .padding(start = 12.dp)
                             .size(40.dp)
                             .clip(MaterialTheme.shapes.small)
                             .background(NeutralColors.Neutral100)

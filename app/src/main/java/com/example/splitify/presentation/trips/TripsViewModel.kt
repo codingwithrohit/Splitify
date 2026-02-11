@@ -7,8 +7,10 @@ import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.local.dao.TripDao
 import com.example.splitify.data.local.toDomainModels
 import com.example.splitify.data.sync.RealtimeManager
+import com.example.splitify.domain.model.NotificationTemplates
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
+import com.example.splitify.util.NotificationManager
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -27,7 +29,8 @@ class TripsViewModel @Inject constructor(
     private val sessionManager: SessionManager,
     private val tripDao: TripDao,
     private val authRepository: AuthRepository,
-    private val realtimeManager: RealtimeManager
+    private val realtimeManager: RealtimeManager,
+    private val notificationManager: NotificationManager
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow<TripsUiState>(TripsUiState.InitialLoading)
@@ -144,10 +147,14 @@ class TripsViewModel @Inject constructor(
     fun deleteTrip(tripId: String) {
         viewModelScope.launch {
             Log.d("TripsVM", "🗑️ Deleting trip: $tripId")
-
+            val tripToDelete = tripDao.getTripById(tripId)
+            val tripName = tripToDelete?.name ?: "Unknown Trip"
             when (val result = tripRepository.deleteTrip(tripId)) {
                 is Result.Success -> {
+                    val notification = NotificationTemplates.tripDeleted(tripName)
+                    notificationManager.showNotification(notification)
                     Log.d("TripsVM", "✅ Trip deleted")
+
                 }
                 is Result.Error -> {
                     Log.e("TripsVM", "❌ Delete failed: ${result.message}")

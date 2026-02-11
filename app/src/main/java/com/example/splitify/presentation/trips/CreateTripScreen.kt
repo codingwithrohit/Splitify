@@ -137,7 +137,6 @@ fun CreateTripScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
                     .padding(20.dp),
                 color = Color.Transparent
             ) {
@@ -150,12 +149,23 @@ fun CreateTripScreen(
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
                 ) {
                     if (uiState.isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
                     } else {
                         val isCreate = viewModel.mode is CreateTripFormMode.CreateTrip
-                        Icon(if (isCreate) Icons.Default.Add else Icons.Default.Save, null)
+                        Icon(if (isCreate) Icons.Default.Add
+                        else Icons.Default.Save, null)
+
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (isCreate) "Create Trip" else "Save Changes", style = CustomTextStyles.ButtonLarge)
+
+                        Text(
+                        if (isCreate) "Create Trip"
+                                else "Save Changes",
+                            style = CustomTextStyles.ButtonLarge
+                        )
                     }
                 }
             }
@@ -173,12 +183,14 @@ fun CreateTripScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
-                    .padding(top = 24.dp, bottom = 16.dp) // Regular padding
+                    .padding(top = 24.dp, bottom = 16.dp)
             ) {
                 TripPlanHeader()
+
                 Spacer(modifier = Modifier.height(32.dp))
 
                 InputFieldLabel("Trip Name")
+
                 OutlinedTextField(
                     value = uiState.name,
                     onValueChange = viewModel::onNameChange,
@@ -197,6 +209,7 @@ fun CreateTripScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 InputFieldLabel("Description (Optional)")
+
                 OutlinedTextField(
                     value = uiState.description,
                     onValueChange = viewModel::onDescriptionChange,

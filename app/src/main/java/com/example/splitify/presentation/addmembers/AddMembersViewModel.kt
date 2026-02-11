@@ -5,10 +5,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.data.local.SessionManager
+import com.example.splitify.domain.model.NotificationTemplates
 import com.example.splitify.domain.usecase.member.AddTripMemberUseCase
 import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
 import com.example.splitify.domain.usecase.member.RemoveTripMemberUseCase
 import com.example.splitify.domain.usecase.member.SearchUsersUseCase
+import com.example.splitify.util.NotificationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +23,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.time.debounce
 import javax.inject.Inject
@@ -31,6 +34,7 @@ class AddMembersViewModel @Inject constructor(
     private val removeTripMemberUseCase: RemoveTripMemberUseCase,
     private val searchUsersUseCase: SearchUsersUseCase,
     private val sessionManager: SessionManager,
+    private val notificationManager: NotificationManager,
     savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
@@ -39,9 +43,6 @@ class AddMembersViewModel @Inject constructor(
     val uiState: StateFlow<AddMembersUiState> = _uiState.asStateFlow()
     private val _currentUserId = MutableStateFlow<String?>(null)
     val currentUserId: StateFlow<String?> = _currentUserId.asStateFlow()
-
-    private val _toastMessage = MutableStateFlow("")
-    val toastMessage: StateFlow<String> = _toastMessage.asStateFlow()
 
     private val searchQueryFlow = MutableStateFlow("")
 
@@ -72,16 +73,22 @@ class AddMembersViewModel @Inject constructor(
         val trimmedName = name.trim()
 
         if (trimmedName.isBlank()) {
-            viewModelScope.launch {
-                _toastMessage.value = "Name cannot be blank"
-            }
+            notificationManager.showNotification(
+                NotificationTemplates.error(
+                    title = "Invalid Name",
+                    message = "Member name cannot be empty"
+                )
+            )
             return
         }
 
         if (trimmedName.length < 2) {
-            viewModelScope.launch {
-                _toastMessage.value = "Name must be at least 2 characters"
-            }
+            notificationManager.showNotification(
+                NotificationTemplates.error(
+                    title = "Name Too Short",
+                    message = "Please enter at least 2 characters"
+                )
+            )
             return
         }
 
@@ -97,7 +104,12 @@ class AddMembersViewModel @Inject constructor(
                 }
 
                 if (alreadyExists) {
-                    _toastMessage.value = "$trimmedName is already in this trip"
+                    notificationManager.showNotification(
+                        NotificationTemplates.error(
+                            title = "Duplicate Member",
+                            message = "$trimmedName is already in this trip"
+                        )
+                    )
                     return@launch
                 }
             }
@@ -109,7 +121,10 @@ class AddMembersViewModel @Inject constructor(
             )){
                 is Result.Success -> {
                     Log.d("AddMembersVM", "✅ SUCCESS: Member added")
-                    _toastMessage.value = "$trimmedName added to trip"
+                    notificationManager.showNotification(
+                        NotificationTemplates.success("Member Added", "$trimmedName added to trip")
+                    )
+                   // _toastMessage.value = "$trimmedName added to trip"
                 }
                 is Result.Error -> {
                     Log.e("AddMembersVM", "❌ ERROR: ${result.message}")
@@ -121,7 +136,10 @@ class AddMembersViewModel @Inject constructor(
                             "$trimmedName is already in this trip"
                         else -> result.message
                     }
-                    _toastMessage.value = userFriendlyMessage
+                    notificationManager.showNotification(
+                        NotificationTemplates.error("Add Failed", userFriendlyMessage)
+                    )
+                    //_toastMessage.value = userFriendlyMessage
                 }
                 else -> {
                     Log.w("AddMembersVM", "⚠️ Unexpected result: Loading state")
@@ -138,7 +156,10 @@ class AddMembersViewModel @Inject constructor(
             when (val result = removeTripMemberUseCase(tripId, memberId)) {
                 is Result.Success -> {
                     Log.d("AddMembersVM", "✅ Member removed successfully")
-                    _toastMessage.value = "$memberName removed from trip"
+                    notificationManager.showNotification(
+                        NotificationTemplates.success("Member Removed", "$memberName removed from trip")
+                    )
+                    //_toastMessage.value = "$memberName removed from trip"
                 }
                 is Result.Error -> {
                     Log.e("AddMembersVM", "❌ Failed to remove member: ${result.message}")
@@ -153,8 +174,10 @@ class AddMembersViewModel @Inject constructor(
                             "$memberName has pending settlements and cannot be removed"
                         else -> "Failed to remove $memberName: ${result.message}"
                     }
-
-                    _toastMessage.value = message
+                    notificationManager.showNotification(
+                        NotificationTemplates.error("Remove Failed", message)
+                    )
+                    //_toastMessage.value = message
                 }
                 else -> {}
             }
@@ -255,7 +278,7 @@ class AddMembersViewModel @Inject constructor(
                             isSearching = false,
                             hasSearched = true
                         )
-                        _toastMessage.value = "Search failed: ${result.message}"
+                        //_toastMessage.value = "Search failed: ${result.message}"
                     }
                     is Result.Loading -> {
                         // Keep searching state
@@ -266,6 +289,6 @@ class AddMembersViewModel @Inject constructor(
     }
 
     fun clearToastMessage() {
-        _toastMessage.value = ""
+        //_toastMessage.value = ""
     }
 }

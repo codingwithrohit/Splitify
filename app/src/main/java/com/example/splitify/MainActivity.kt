@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.rememberNavController
 import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.sync.SyncManager
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.presentation.navigation.SplitifyNavGraph
 import com.example.splitify.presentation.theme.SplitifyTheme
+import com.example.splitify.util.NotificationManager
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -26,7 +28,8 @@ class MainActivity : ComponentActivity() {
     lateinit var syncManager: SyncManager
     @Inject
     lateinit var authRepository: AuthRepository
-
+    @Inject
+    lateinit var notificationManager: NotificationManager
 
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -39,8 +42,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    SplitifyNavGraph(sessionManager = sessionManager,
-                        authRepository = authRepository)
+                    val navController = rememberNavController()
+                    // ✅ Pass notificationManager to SplitifyNavGraph
+                    SplitifyNavGraph(
+                        sessionManager = sessionManager,
+                        authRepository = authRepository,
+                        navController = navController,
+                        notificationManager = notificationManager  // ✅ PASS HERE
+                    )
                 }
             }
         }

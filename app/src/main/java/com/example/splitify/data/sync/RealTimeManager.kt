@@ -10,6 +10,7 @@ import com.example.splitify.data.remote.dto.ExpenseDto
 import com.example.splitify.data.remote.dto.ExpenseSplitDto
 import com.example.splitify.data.remote.dto.TripMemberDto
 import com.example.splitify.data.remote.toEntity
+import com.example.splitify.util.NotificationManager
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.decodeOldRecord
 import io.github.jan.supabase.realtime.decodeRecord
@@ -43,7 +44,8 @@ class RealtimeManager @Inject constructor(
     private val tripDao: TripDao,
     private val tripMemberDao: TripMemberDao,
     private val expenseDao: ExpenseDao,
-    private val expenseSplitDao: ExpenseSplitDao
+    private val expenseSplitDao: ExpenseSplitDao,
+    private val notificationManager: NotificationManager
 ) {
     companion object {
         private const val TAG = "RealtimeManager"
@@ -54,6 +56,7 @@ class RealtimeManager @Inject constructor(
     private val subscriptionMutex = Mutex()
     private val pendingExpenseUpdates = mutableSetOf<String>()
     private val updateMutex = Mutex()
+    private val notificationHelper = RealtimeNotificationHelper(notificationManager)
 
 
     fun subscribeToGlobalTrips() {
@@ -225,7 +228,7 @@ class RealtimeManager @Inject constructor(
                 // --- MEMBERS FLOW ---
                 channel.postgresChangeFlow<PostgresAction>(schema = "public") {
                     table = "trip_members"
-                    //filter = "trip_id=eq.$tripId"
+                    filter = "trip_id=eq.$tripId"
                 }.onEach { action ->
                     when (action) {
                         is PostgresAction.Insert -> {
@@ -355,6 +358,14 @@ class RealtimeManager @Inject constructor(
 
         val entity = memberDto.toEntity().copy(isSynced = true)
         tripMemberDao.insertMember(entity)
+        val trip = tripDao.getTripById(entity.tripId)
+        trip?.let {
+            notificationHelper.onMemberAdded(
+                memberName = entity.displayName,
+                tripName = it.name,
+                tripId = it.id
+            )
+        }
         Log.d(TAG, "✅ Realtime Sync: Updated member ${entity.displayName}")
     }
 
@@ -370,8 +381,18 @@ class RealtimeManager @Inject constructor(
 
     private suspend fun handleMemberDelete(memberId: String) {
         try {
+            val member = tripMemberDao.getMemberById(memberId)
+            val trip = member?.let { tripDao.getTripById(it.tripId) }
+
             expenseSplitDao.deleteSplitsForMember(memberId)
             tripMemberDao.deleteMember(memberId)
+
+            if (member != null && trip != null) {
+                notificationHelper.onMemberRemoved(
+                    memberName = member.displayName,
+                    tripName = trip.name
+                )
+            }
             Log.d(TAG, "✅ Member deleted from Room")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to delete member", e)
@@ -389,6 +410,18 @@ class RealtimeManager @Inject constructor(
             if (existing == null) {
                 expenseDao.insertAnExpense(entity)
                 Log.d(TAG, "✅ Expense added to Room: ${entity.description}")
+
+                val trip = tripDao.getTripById(entity.tripId)
+                trip?.let {
+                    notificationHelper.onExpenseAdded(
+                        amount = entity.amount,
+                        description = entity.description,
+                        paidByName = entity.paidByName,
+                        tripName = it.name,
+                        tripId = it.id,
+                        expenseId = entity.id
+                    )
+                }
 
                 // Fetch and insert splits
                 fetchAndInsertSplits(entity.id)
@@ -476,6 +509,15 @@ class RealtimeManager @Inject constructor(
             // 5. Atomic Transaction (update expense + insert new splits)
             expenseDao.updateExpenseAndSplits(entity, splitEntities)
 
+            val trip = tripDao.getTripById(entity.tripId)
+            trip?.let {
+                notificationHelper.onExpenseUpdated(
+                    description = entity.description,
+                    tripName = it.name,
+                    tripId = it.id
+                )
+            }
+
             Log.d(TAG, "✅ Atomic update complete for: ${entity.description} (${splitEntities.size} splits)")
 
         } catch (e: Exception) {
@@ -497,8 +539,18 @@ class RealtimeManager @Inject constructor(
 
     private suspend fun handleExpenseDelete(expenseId: String) {
         try {
+            val expense = expenseDao.getExpenseById(expenseId)
+            val trip = expense?.let { tripDao.getTripById(it.tripId) }
+
             expenseSplitDao.deleteSplitsForExpense(expenseId)
             expenseDao.deleteExpenseById(expenseId)
+
+            if (expense != null && trip != null) {
+                notificationHelper.onExpenseDeleted(
+                    description = expense.description,
+                    tripName = trip.name
+                )
+            }
             Log.d(TAG, "✅ Expense deleted from Room")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to delete expense", e)

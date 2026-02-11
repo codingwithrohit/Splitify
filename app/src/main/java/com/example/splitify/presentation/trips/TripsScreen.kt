@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,16 +70,15 @@ import com.example.splitify.util.PullToRefreshBox
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TripsScreen(
+    modifier: Modifier,
     onCreateTripClick: () -> Unit,
     onTripClick: (String) -> Unit,
     onJoinTripClick: () -> Unit,
     onLogOut: () -> Unit,
-
     viewModel: TripsViewModel = hiltViewModel()
-){
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentUserId by viewModel.userId.collectAsStateWithLifecycle()
 
@@ -88,77 +88,13 @@ fun TripsScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 4.dp
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .background(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    PrimaryColors.Primary500,
-                                    PrimaryColors.Primary700
-                                )
-                            )
-                        )
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "My Trips",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-
-                        IconButton(
-                            onClick = onJoinTripClick,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(MaterialTheme.shapes.small)
-                                .background(Color.White.copy(alpha = 0.2f))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.QrCodeScanner,
-                                contentDescription = "Join Trip",
-                                tint = Color.White
-                            )
-                        }
-
-                    }
-                }
-            }
-        },
-        floatingActionButton = {
-            when(uiState){
-                is TripsUiState.Content -> {
-                    ExtendedFloatingActionButton(
-                        onClick = onCreateTripClick,
-                        icon = { Icon(Icons.Default.Add, "Add trip") },
-                        text = { Text("New Trip", fontWeight = FontWeight.Bold) },
-                        containerColor = PrimaryColors.Primary600,
-                        contentColor = Color.White,
-                        shape = CircleShape
-                    )
-                }
-
-                is TripsUiState.Empty -> {}
-                is TripsUiState.Error -> {}
-                TripsUiState.InitialLoading -> {}
-            }
-        }
-    ){paddingValues ->
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         when (uiState) {
+
             TripsUiState.InitialLoading -> {
                 LoadingScreen("Preparing your trips…")
             }
@@ -182,7 +118,6 @@ fun TripsScreen(
                         trips = state.trips,
                         onTripClick = onTripClick,
                         onDeleteTrip = viewModel::deleteTrip,
-                        modifier = Modifier.padding(paddingValues),
                         currentUserId = currentUserId
                     )
                 }
@@ -196,8 +131,8 @@ fun TripsScreen(
             }
         }
     }
-
 }
+
 
 @Composable
 fun TripsList(
@@ -211,7 +146,10 @@ fun TripsList(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(20.dp),
+        contentPadding = PaddingValues(
+            horizontal = 20.dp,
+            vertical = 20.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(

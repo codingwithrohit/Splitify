@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.repository.UserRepositoryImpl
 import com.example.splitify.domain.repository.UserRepository
+import com.example.splitify.util.NotificationManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,5 +32,11 @@ object AppModule {
         sessionManager: SessionManager
     ): UserRepository {
         return UserRepositoryImpl(supabase, sessionManager)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNotificationManager(): NotificationManager {
+        return NotificationManager()
     }
 }

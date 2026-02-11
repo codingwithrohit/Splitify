@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
@@ -31,10 +31,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -45,8 +45,6 @@ import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,7 +54,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -72,17 +69,15 @@ import com.example.splitify.presentation.components.EmptyExpensesState
 import com.example.splitify.presentation.components.ErrorStateWithRetry
 import com.example.splitify.presentation.components.ExpensesLoadingSkeleton
 import com.example.splitify.presentation.components.SplitifyAppBar
-import com.example.splitify.presentation.components.SuccessToast
 import com.example.splitify.presentation.theme.CategoryColors
 import com.example.splitify.presentation.theme.CustomShapes
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
-import com.example.splitify.presentation.theme.SecondaryColors
+import com.example.splitify.presentation.theme.SemanticColors
 import com.example.splitify.util.CurrencyUtils
 import com.example.splitify.util.getCategoryIcon
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
-import kotlin.math.exp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -102,7 +97,7 @@ fun ExpensesScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
 
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
-    var showSuccessToast by remember { mutableStateOf(false) }
+
 
 
     LaunchedEffect(navBackStackEntry) {
@@ -119,13 +114,13 @@ fun ExpensesScreen(
             onConfirm = {
                 viewModel.deleteExpense(expense.id)
                 expenseToDelete = null
-                showSuccessToast = true
             },
             onDismiss = { expenseToDelete = null }
         )
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             SplitifyAppBar(
                 title = "Expenses",
@@ -174,11 +169,12 @@ fun ExpensesScreen(
                                 if(pagerState.currentPage < tabs.size){
                                     SecondaryIndicator(
                                         Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
-                                        height = 2.dp,
-                                        color = PrimaryColors.Primary900
+                                        height = 3.dp,
+                                        color = PrimaryColors.Primary600
                                     )
                                 }
-                            }
+                            },
+                            divider = { Divider(color = NeutralColors.Neutral100) }
                         ) {
                             tabs.forEachIndexed { index, title ->
                                 val selected = pagerState.currentPage == index
@@ -188,14 +184,9 @@ fun ExpensesScreen(
                                     text = { Text(
                                         text = title,
                                         style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = if(selected) FontWeight.Bold else FontWeight.Medium,
                                         color = if(selected) PrimaryColors.Primary600 else NeutralColors.Neutral600
-                                    ) },
-                                    modifier = Modifier.background(
-                                        if(selected)
-                                            PrimaryColors.Primary300.copy(alpha = 0.2f)
-                                        else
-                                            Color.Transparent
-                                    )
+                                    ) }
                                 )
                             }
                         }
@@ -244,11 +235,6 @@ fun ExpensesScreen(
             }
         }
 
-        SuccessToast(
-            message = "Expense deleted successfully",
-            visible = showSuccessToast,
-            onDismiss = { showSuccessToast = false }
-        )
     }
 }
 
@@ -264,13 +250,8 @@ fun ListExpense(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 20.dp,
-            end = 20.dp,
-            top = 16.dp,
-            bottom = 100.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(
             items = expense,
@@ -332,7 +313,9 @@ fun DeleteExpenseDialog(
                     shape = CustomShapes.CardShape,
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
                             text = expense.description,
                             style = MaterialTheme.typography.titleSmall,
@@ -409,17 +392,13 @@ private fun ExpenseCard(
         Category.OTHER -> CategoryColors.Other
     }
 
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize(),
         shape = CustomShapes.CardShape,
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
+        color = Color.White,
+        shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -503,40 +482,51 @@ private fun ExpenseCard(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedButton(
+                    TextButton(
                         onClick = onEdit,
-                        modifier = Modifier.weight(1f),
-                        shape = CustomShapes.ButtonShape
+                        shape = CustomShapes.ButtonShape,
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
+                            tint = PrimaryColors.Primary600
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Edit")
+                        Text(
+                            "Edit",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = PrimaryColors.Primary600,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
 
-                    OutlinedButton(
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    TextButton(
                         onClick = onDelete,
-                        modifier = Modifier.weight(1f),
-                        shape = CustomShapes.ButtonShape,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
+                        shape = CustomShapes.ButtonShape
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
+                            tint = SemanticColors.Error
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Delete")
+                        Text(
+                            "Delete",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = SemanticColors.Error,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
         }
     }
+
 }

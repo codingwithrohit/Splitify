@@ -9,6 +9,7 @@
     import com.example.splitify.domain.model.Category
     import com.example.splitify.domain.model.Expense
     import com.example.splitify.domain.model.ExpenseSplit
+    import com.example.splitify.domain.model.NotificationTemplates
     import com.example.splitify.domain.repository.AuthRepository
     import com.example.splitify.domain.repository.ExpenseRepository
     import com.example.splitify.domain.usecase.expense.AddExpenseUseCase
@@ -17,6 +18,7 @@
     import com.example.splitify.domain.usecase.expense.UpdateExpenseUseCase
     import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
     import com.example.splitify.presentation.navigation.Screen
+    import com.example.splitify.util.NotificationManager
     import dagger.hilt.android.lifecycle.HiltViewModel
     import kotlinx.coroutines.flow.MutableStateFlow
     import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +49,7 @@
         private val addExpenseUseCase: AddExpenseUseCase,
         private val updateExpenseUseCase: UpdateExpenseUseCase,
         private val getExpenseByIdUseCase: GetExpenseByIdUseCase,
+        private val notificationManager: NotificationManager,
         savedStateHandle: SavedStateHandle
     ): ViewModel() {
 
@@ -324,7 +327,12 @@
 
             val descriptionValidation = ValidationUtils.validateDescription(state.description)
             if (!descriptionValidation.isValid) {
-                _uiState.update { it.copy(descriptionError = descriptionValidation.errorMessage) }
+                _uiState.update {
+                    it.copy(
+                        descriptionError = descriptionValidation.errorMessage
+                            ?: "Description is required"
+                    )
+                }
                 return
             }
 
@@ -406,7 +414,7 @@
                         // CRITICAL FIX: Validate participants BEFORE creating splits
                         if (participants.isEmpty()) {
                             Log.e("AddExpenseVM", "❌ ERROR: No participants selected!")
-                            _uiState.update { it.copy(amountError = "Select at least one participant", isLoading = false) }
+                            _uiState.update { it.copy(descriptionError = "Select at least one participant", isLoading = false) }
                             return@launch
                         }
 
@@ -446,58 +454,46 @@
 
                         updateExpenseUseCase(expense, splits)
                     }
-//                    is ExpenseFormMode.Edit -> {
-//
-//                        val amountValue = state.amount.toDouble()
-//
-//                        val existingSplitsResult = getExpenseByIdUseCase(mode.expenseId).first()
-//                        val existingSplits = when (existingSplitsResult) {
-//                            is Result.Success -> existingSplitsResult.data.splits
-//                            else -> emptyList()
-//                        }
-//
-//                        val existingSplitMap = existingSplits.associateBy { it.memberId }
-//                        val splitAmount = amountValue / participants.size
-//
-//                        val expense = Expense(
-//                            id = mode.expenseId,
-//                            tripId = tripId,
-//                            amount = amountValue,
-//                            description = state.description.trim(),
-//                            category = state.category,
-//                            expenseDate = state.expenseDate,
-//                            paidBy = paidByMemberId,
-//                            createdBy = currentUser.id,
-//                            isGroupExpense = _isGroupExpense.value,
-//                            paidByName = state.members.find { it.id == paidByMemberId }?.displayName ?: "",
-//                            createdAt = System.currentTimeMillis(),
-//                            updatedAt = System.currentTimeMillis()
-//                        )
-//
-//                        val splits = participants.map { participantId ->
-//                            ExpenseSplit(
-//                                id = existingSplitMap[participantId]?.id ?: UUID.randomUUID().toString(),
-//                                expenseId = mode.expenseId,
-//                                memberId = participantId,
-//                                amountOwed = splitAmount,
-//                                memberName = state.members.find { it.id == participantId }?.displayName ?: ""
-//                            )
-//                        }
-//                        Log.d("AddExpenseVM", "📝 Updating expense with ${splits.size} splits")
-//                        Log.d("AddExpenseVM", "  Reused ${existingSplits.size} existing split IDs")
-//
-//                        updateExpenseUseCase(expense, splits)
-//                    }
                 }
 
                 // 5. Handle Result
                 when (result) {
                     is Result.Success -> {
                         Log.d("AddExpenseVM", "💾 Saving expense for user: ${currentUser.userName}")
-                        _uiState.update { it.copy(isSaved = true, isLoading = false) }
+                        when (mode) {
+
+                            is ExpenseFormMode.Add -> {
+                                notificationManager.showNotification(
+                                    NotificationTemplates.expenseAdded(
+                                        amount = state.amount.toDouble(),
+                                        description = state.description.trim()
+                                    )
+                                )
+                            }
+
+                            is ExpenseFormMode.Edit -> {
+                                notificationManager.showNotification(
+                                    NotificationTemplates.expenseUpdated(
+                                        description = state.description.trim()
+                                    )
+                                )
+                            }
+                        }
+                        _uiState.update {
+                            it.copy(
+                                isSaved = true,
+                                isLoading = false,
+                                amountError = null,
+                                descriptionError = null,
+                            ) }
 
                     }
                     is Result.Error -> {
+                        notificationManager.showNotification(
+                            NotificationTemplates.genericError(
+                                result.message ?: "Something went wrong"
+                            )
+                        )
                         _uiState.update {
                             it.copy(amountError = result.message, isLoading = false)
                         }

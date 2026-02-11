@@ -2,7 +2,15 @@ package com.example.splitify.presentation.navigation
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -33,6 +41,8 @@ import com.example.splitify.presentation.profile.ProfileScreen
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.trips.TripsScreen
+import com.example.splitify.presentation.trips.TripsTopBar
+
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
@@ -42,33 +52,56 @@ fun MainScreen(
     onNavigateToCreateTrip: () -> Unit,
     onNavigateToJoinTrip: () -> Unit,
     sessionManager: SessionManager,
-    authRepository: AuthRepository
+    authRepository: AuthRepository,
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-
-    // Hide bottom bar when in profile sub-screens
     val currentRoute = navBackStackEntry?.destination?.route
+
     val showBottomBar = currentRoute in listOf(
         BottomNavItem.Trips.route,
         Screen.Profile.route
     )
 
     Scaffold(
+        topBar = {
+            when (currentRoute) {
+                BottomNavItem.Trips.route -> {
+                    TripsTopBar(onJoinTripClick = onNavigateToJoinTrip)
+                }
+                else -> {}
+            }
+        },
         bottomBar = {
             if (showBottomBar) {
                 BottomNavigationBar(navController = navController)
             }
-        }
+        },
+        floatingActionButton = {
+            if (currentRoute == BottomNavItem.Trips.route) {
+                ExtendedFloatingActionButton(
+                    onClick = onNavigateToCreateTrip,
+                    icon = { Icon(Icons.Default.Add, "Add trip") },
+                    text = { Text("New Trip", fontWeight = FontWeight.Bold) },
+                    containerColor = PrimaryColors.Primary600,
+                    contentColor = Color.White
+                )
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End
     ) { paddingValues ->
+
         NavHost(
             navController = navController,
             startDestination = BottomNavItem.Trips.route,
-            route = "main_graph"
+            route = "main_graph",
+            modifier = Modifier
+                .fillMaxSize()
         ) {
-            // Trips Tab
+
             composable(BottomNavItem.Trips.route) {
                 TripsScreen(
+                    modifier = Modifier.padding(paddingValues),
                     onCreateTripClick = onNavigateToCreateTrip,
                     onTripClick = onNavigateToTripDetail,
                     onJoinTripClick = onNavigateToJoinTrip,
@@ -76,7 +109,6 @@ fun MainScreen(
                 )
             }
 
-            // Profile Navigation Graph
             navigation(
                 startDestination = Screen.Profile.route,
                 route = BottomNavItem.Profile.route
@@ -129,14 +161,22 @@ fun MainScreen(
     }
 }
 
+
+
+
 @Composable
-fun BottomNavigationBar(navController: NavHostController) {
+fun BottomNavigationBar(
+    navController: NavHostController,
+    modifier: Modifier = Modifier
+) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
     NavigationBar(
+        windowInsets = WindowInsets(0),
         containerColor = Color.White,
-        tonalElevation = 8.dp
+        tonalElevation = 8.dp,
+        modifier = modifier.fillMaxWidth()
     ) {
         bottomNavItems.forEach { item ->
             val isSelected = currentDestination?.hierarchy?.any {

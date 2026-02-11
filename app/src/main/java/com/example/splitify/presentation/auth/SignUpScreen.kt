@@ -347,6 +347,7 @@ fun SignUpScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .imePadding()
+                .navigationBarsPadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

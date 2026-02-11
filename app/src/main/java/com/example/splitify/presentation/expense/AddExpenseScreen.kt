@@ -1,19 +1,18 @@
 package com.example.splitify.presentation.expense
 
-import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,10 +20,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -38,11 +35,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,15 +46,12 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -72,14 +63,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -95,11 +83,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.splitify.domain.model.Category
 import com.example.splitify.domain.model.TripMember
-import com.example.splitify.presentation.components.FailureToast
 import com.example.splitify.presentation.components.InlineErrorMessage
-import com.example.splitify.presentation.components.LoadingButton
-import com.example.splitify.presentation.components.SuccessToast
-import com.example.splitify.presentation.theme.AccentColors
 import com.example.splitify.presentation.theme.CategoryColors
 import com.example.splitify.presentation.theme.CustomShapes
 import com.example.splitify.presentation.theme.CustomTextStyles
@@ -107,7 +91,6 @@ import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.theme.SecondaryColors
 import com.example.splitify.util.CurrencyUtils
-import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -122,52 +105,51 @@ fun AddExpenseScreen(
     val isGroupExpense by viewModel.isGroupExpense.collectAsStateWithLifecycle()
     val selectedMemberIds by viewModel.selectedMemberIds.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
-
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
-    var showSuccessToast by remember { mutableStateOf(false) }
-    var showFailureToast by remember { mutableStateOf(false) }
-
-    val message = when (viewModel.mode) {
-        is ExpenseFormMode.Add -> "Expense added successfully"
-        is ExpenseFormMode.Edit -> "Expense updated successfully"
-    }
 
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) {
-            showSuccessToast = true
             val targetTab = if (isGroupExpense) 0 else 1
             navController.previousBackStackEntry
                 ?.savedStateHandle
                 ?.set("target_tab", targetTab)
-            delay(1500)
+
             onNavigationBack()
         }
     }
-
-    LaunchedEffect(uiState.amountError) {
-        uiState.amountError?.let { error ->
-            if (error.isNotBlank()) {
-                showFailureToast = true
-            }
-        }
-    }
+//    LaunchedEffect(isGroupExpense) {
+//        if (isGroupExpense) {
+//            scrollState.animateScrollTo(scrollState.maxValue)
+//        }
+//    }
+    // 1. Keep track of whether we just toggled the group mode
+    var shouldScrollToBottom by remember { mutableStateOf(false) }
 
     LaunchedEffect(isGroupExpense) {
         if (isGroupExpense) {
-            delay(100)
-            scrollState.animateScrollTo(scrollState.maxValue)
+            shouldScrollToBottom = true
         }
     }
 
+// 2. This Effect triggers whenever the scroll range increases (maxValue changes)
+// but only if we actually intend to scroll.
+    LaunchedEffect(scrollState.maxValue) {
+        if (shouldScrollToBottom) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+            shouldScrollToBottom = false // Reset after scrolling
+        }
+    }
+
+
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Surface(
                 shadowElevation = 2.dp,
                 color = Color.White
             ) {
                 TopAppBar(
+                    windowInsets = WindowInsets(0),
                     title = {
                         Text(
                             text = when (viewModel.mode) {
@@ -200,7 +182,6 @@ fun AddExpenseScreen(
                 )
             }
         },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
 
@@ -507,17 +488,6 @@ fun AddExpenseScreen(
             }
         }
 
-        SuccessToast(
-            message = message,
-            visible = showSuccessToast,
-            onDismiss = { showSuccessToast = false }
-        )
-
-        FailureToast(
-            message = uiState.amountError ?: "An error occurred",
-            visible = showFailureToast,
-            onDismiss = { showFailureToast = false }
-        )
     }
 }
 
