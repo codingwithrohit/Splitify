@@ -139,8 +139,7 @@ fun ExpensesScreen(
                     Icon(Icons.Default.Add, contentDescription = "Add Expense")
                 }
             }
-        },
-        containerColor = MaterialTheme.colorScheme.background
+        }
     ) { padding ->
         when (val state = uiState) {
             is ExpenseUiState.Loading -> {

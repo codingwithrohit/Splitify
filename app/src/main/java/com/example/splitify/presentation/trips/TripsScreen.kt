@@ -156,7 +156,7 @@ fun TripsList(
             items = trips,
             key = { trip -> trip.id }
         ){ trip ->
-            TripCardWithDeleteConfirmation(
+            TripCard(
                 trip = trip,
                 onClick = { onTripClick(trip.id) },
                 onDelete = { onDeleteTrip(trip.id) },
@@ -182,7 +182,7 @@ private fun formatDateRange(startDate: LocalDate, endDate: LocalDate?): String {
 }
 
 @Composable
-fun TripCardWithDeleteConfirmation(
+fun TripCard(
     trip: Trip,
     onClick: () -> Unit,
     onDelete: () -> Unit,

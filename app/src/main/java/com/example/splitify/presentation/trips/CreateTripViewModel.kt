@@ -227,7 +227,7 @@ class CreateTripViewModel @Inject constructor(
                         is CreateTripFormMode.EditTrip -> tripId!!
                     }
 
-                    // ✅ NOTIFICATION LOGIC
+                    //  NOTIFICATION LOGIC
                     try {
                         Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                         Log.d(TAG, "📢 SENDING NOTIFICATION")

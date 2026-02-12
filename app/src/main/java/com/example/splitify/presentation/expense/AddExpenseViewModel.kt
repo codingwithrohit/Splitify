@@ -56,10 +56,7 @@
         private val tripId: String = checkNotNull(
             savedStateHandle[Screen.AddExpense.ARG_TRIP_ID]
         )
-
-        private val expenseId: String? =
-            savedStateHandle[Screen.EditExpense.ARG_EXPENSE_ID]
-
+        private val expenseId: String? = savedStateHandle[Screen.EditExpense.ARG_EXPENSE_ID]
 
         val mode: ExpenseFormMode = if (expenseId != null) {
             ExpenseFormMode.Edit(expenseId)
@@ -69,15 +66,18 @@
 
         private val _uiState = MutableStateFlow(AddExpenseUiState())
         val uiState: StateFlow<AddExpenseUiState> = _uiState.asStateFlow()
+        private val _scrollToError = MutableStateFlow<ScrollTarget?>(null)
+        val scrollToError: StateFlow<ScrollTarget?> = _scrollToError.asStateFlow()
+        enum class ScrollTarget {
+            AMOUNT, DESCRIPTION
+        }
 
         private val _isGroupExpense = MutableStateFlow(false)
         val isGroupExpense: StateFlow<Boolean> = _isGroupExpense.asStateFlow()
 
         private val _selectedMemberIds = MutableStateFlow<Set<String>>(emptySet())
         val selectedMemberIds: StateFlow<Set<String>> = _selectedMemberIds.asStateFlow()
-
         private var currentUserMemberId: String? = null
-
         private val currentUserFlow = authRepository.getCurrentUser()
             .stateIn(
                 viewModelScope,
@@ -322,6 +322,7 @@
             val amountValidation = ValidationUtils.validAmount(state.amount)
             if (!amountValidation.isValid) {
                 _uiState.update { it.copy(amountError = amountValidation.errorMessage) }
+                _scrollToError.value = ScrollTarget.AMOUNT
                 return
             }
 
@@ -333,6 +334,7 @@
                             ?: "Description is required"
                     )
                 }
+                _scrollToError.value = ScrollTarget.DESCRIPTION
                 return
             }
 
@@ -342,7 +344,7 @@
                 return
             }
 
-            // 2. STRICT Participant Logic
+            // 2.
             // If it's personal, only the payer is in the list.
             // If it's group, we take the selected members from the checkboxes.
             val participants = if (_isGroupExpense.value) {
@@ -502,4 +504,10 @@
                 }
             }
         }
+
+        fun resetScrollTarget() {
+            _scrollToError.value = null
+        }
+
     }
+

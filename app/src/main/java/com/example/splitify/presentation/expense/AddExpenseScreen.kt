@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +17,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,17 +67,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -91,6 +103,7 @@ import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.theme.SecondaryColors
 import com.example.splitify.util.CurrencyUtils
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -104,8 +117,11 @@ fun AddExpenseScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isGroupExpense by viewModel.isGroupExpense.collectAsStateWithLifecycle()
     val selectedMemberIds by viewModel.selectedMemberIds.collectAsStateWithLifecycle()
+    val scrollToError by viewModel.scrollToError.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
+    val descriptionFocusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) {
@@ -117,11 +133,30 @@ fun AddExpenseScreen(
             onNavigationBack()
         }
     }
-//    LaunchedEffect(isGroupExpense) {
-//        if (isGroupExpense) {
-//            scrollState.animateScrollTo(scrollState.maxValue)
-//        }
-//    }
+    LaunchedEffect(viewModel.mode) {
+        if (viewModel.mode is ExpenseFormMode.Edit) {
+            scrollState.scrollTo(0)
+        }
+    }
+
+    LaunchedEffect(scrollToError) {
+        scrollToError?.let { target ->
+            when (target) {
+                AddExpenseViewModel.ScrollTarget.AMOUNT -> {
+                    coroutineScope.launch {
+                        scrollState.animateScrollTo(0)
+                    }
+                }
+                AddExpenseViewModel.ScrollTarget.DESCRIPTION -> {
+                    coroutineScope.launch {
+                        scrollState.animateScrollTo(300)
+                    }
+                }
+            }
+            viewModel.resetScrollTarget()
+        }
+    }
+
     // 1. Keep track of whether we just toggled the group mode
     var shouldScrollToBottom by remember { mutableStateOf(false) }
 
@@ -131,12 +166,11 @@ fun AddExpenseScreen(
         }
     }
 
-// 2. This Effect triggers whenever the scroll range increases (maxValue changes)
-// but only if we actually intend to scroll.
+    // 2. This Effect triggers whenever the scroll range increases (maxValue changes)
     LaunchedEffect(scrollState.maxValue) {
         if (shouldScrollToBottom) {
             scrollState.animateScrollTo(scrollState.maxValue)
-            shouldScrollToBottom = false // Reset after scrolling
+            shouldScrollToBottom = false
         }
     }
 
@@ -207,13 +241,14 @@ fun AddExpenseScreen(
                         .padding(top = 24.dp, bottom = 100.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    // Amount input card with highlighted background
+
                     AmountInputCard(
                         amount = uiState.amount,
                         onAmountChange = viewModel::onAmountChange,
                         hasError = uiState.amountError != null,
                         errorMessage = uiState.amountError,
-                        enabled = !uiState.isLoading
+                        enabled = !uiState.isLoading,
+                        onDone = { descriptionFocusRequester.requestFocus() }
                     )
 
                     // Description field
@@ -229,7 +264,7 @@ fun AddExpenseScreen(
                         OutlinedTextField(
                             value = uiState.description,
                             onValueChange = viewModel::onDescriptionChange,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().focusRequester(descriptionFocusRequester),
                             placeholder = { Text("What was this expense for?") },
                             leadingIcon = {
                                 Icon(
@@ -452,8 +487,7 @@ fun AddExpenseScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(20.dp),
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
                     shape = CustomShapes.ButtonLargeShape,
                     shadowElevation = 8.dp
                 ) {
@@ -622,8 +656,12 @@ private fun AmountInputCard(
     onAmountChange: (String) -> Unit,
     hasError: Boolean,
     errorMessage: String?,
-    enabled: Boolean
+    enabled: Boolean,
+    onDone: () -> Unit = {}
 ) {
+    val focusRequester = remember { FocusRequester() }
+    var isFocused by remember { mutableStateOf(false) }
+
     Column {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -634,7 +672,16 @@ private fun AmountInputCard(
                 PrimaryColors.Primary50
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier
+                    .padding(24.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        if (enabled) {
+                            focusRequester.requestFocus()
+                        }
+                    },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -664,7 +711,10 @@ private fun AmountInputCard(
                             PrimaryColors.Primary700
                     )
 
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // ✅ Always show formatted amount (real-time formatting)
+                    val displayText = if (amount.isEmpty()) "0" else formatIndianCurrency(amount)
 
                     BasicTextField(
                         value = amount,
@@ -677,37 +727,47 @@ private fun AmountInputCard(
                                 PrimaryColors.Primary700,
                             textAlign = TextAlign.Center
                         ),
-                        modifier = Modifier.wrapContentWidth()
-                            .background(PrimaryColors.Primary500.copy(alpha = 0.3f)),
+                        modifier = Modifier
+                            .widthIn(min = 100.dp)
+                            .focusRequester(focusRequester)
+                            .onFocusChanged { focusState ->
+                                isFocused = focusState.isFocused
+                            },
                         singleLine = true,
                         enabled = enabled,
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Decimal
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = ImeAction.Next
                         ),
-                        decorationBox = { innerTextField ->
-                            Box(
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (amount.isEmpty()) {
-                                    Text(
-                                        text = "0",
-                                        style = MaterialTheme.typography.displaySmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = PrimaryColors.Primary300,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                                innerTextField()
+                        keyboardActions = KeyboardActions(
+                            onNext = {
+                                onDone()
                             }
+                        ),
+                        cursorBrush = SolidColor(
+                            if (hasError)
+                                MaterialTheme.colorScheme.error
+                            else
+                                PrimaryColors.Primary700
+                        ),
+                        visualTransformation = { text ->
+
+                            val formatted = if (text.text.isEmpty()) "0" else formatIndianCurrency(text.text)
+                            TransformedText(
+                                text = AnnotatedString(formatted),
+                                offsetMapping = object : OffsetMapping {
+                                    override fun originalToTransformed(offset: Int): Int {
+                                        return formatted.length
+                                    }
+
+                                    override fun transformedToOriginal(offset: Int): Int {
+                                        return amount.length
+                                    }
+                                }
+                            )
                         }
                     )
                 }
-//                CenteredAmountInput(
-//                    amount = amount,
-//                    onAmountChange = onAmountChange,
-//                    hasError = hasError,
-//                    enabled = enabled
-//                )
             }
         }
 
@@ -722,6 +782,28 @@ private fun AmountInputCard(
         }
     }
 }
+
+private fun formatIndianCurrency(amount: String): String {
+    if (amount.isEmpty() || amount == "0") return "0"
+
+    val parts = amount.split(".")
+    val integerPart = parts[0]
+    val decimalPart = if (parts.size > 1) ".${parts[1]}" else ""
+
+    // Indian format: X,XX,XX,XXX
+    val formatted = buildString {
+        val reversed = integerPart.reversed()
+        reversed.forEachIndexed { index, char ->
+            if (index == 3 || (index > 3 && (index - 3) % 2 == 0)) {
+                append(',')
+            }
+            append(char)
+        }
+    }.reversed()
+
+    return formatted + decimalPart
+}
+
 
 @Composable
 private fun CategorySelector(
@@ -985,91 +1067,5 @@ private fun PaidBySelector(
     }
 }
 
-@Composable
-private fun CenteredAmountInput(
-    amount: String,
-    onAmountChange: (String) -> Unit,
-    hasError: Boolean,
-    enabled: Boolean
-) {
-    SubcomposeLayout { constraints ->
-
-        val rupeePlaceable = subcompose("rupee") {
-            Text(
-                text = "₹",
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
-                color = if (hasError)
-                    MaterialTheme.colorScheme.error
-                else
-                    PrimaryColors.Primary700
-            )
-        }[0].measure(constraints)
-
-        val textFieldPlaceable = subcompose("textfield") {
-            BasicTextField(
-                value = amount,
-                onValueChange = onAmountChange,
-                textStyle = MaterialTheme.typography.displaySmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = if (hasError)
-                        MaterialTheme.colorScheme.error
-                    else
-                        PrimaryColors.Primary700,
-                    textAlign = TextAlign.Start
-                ),
-                singleLine = true,
-                enabled = enabled,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal
-                ),
-                decorationBox = { inner ->
-                    if (amount.isEmpty()) {
-                        Text(
-                            text = "0",
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = PrimaryColors.Primary300
-                        )
-                    }
-                    inner()
-                }
-            )
-        }[0].measure(constraints)
-
-        val totalWidth = rupeePlaceable.width + 4.dp.roundToPx() + textFieldPlaceable.width
-        val startX = (constraints.maxWidth - totalWidth) / 2
-
-        layout(
-            width = constraints.maxWidth,
-            height = maxOf(rupeePlaceable.height, textFieldPlaceable.height)
-        ) {
-            var x = startX
-            rupeePlaceable.placeRelative(x, 0)
-            x += rupeePlaceable.width + 4.dp.roundToPx()
-            textFieldPlaceable.placeRelative(x, 0)
-        }
-    }
-}
 
 
-@Preview(showBackground = true)
-@Composable
-fun Card(){
-    AmountInputCard(
-        amount = "",
-        onAmountChange = {},
-        hasError = false,
-        errorMessage = null,
-        enabled = true
-    )
-}
-
-//@Composable
-//private fun AmountInputCard(
-//    amount: String,
-//    onAmountChange: (String) -> Unit,
-//    hasError: Boolean,
-//    errorMessage: String?,
-//    enabled: Boolean
-//)
