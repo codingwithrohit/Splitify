@@ -65,7 +65,7 @@ data/ (Data Sources)
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/splitify.git
+   git clone https://github.com/codingwithrohit/Splitify.git
    cd splitify
    ```
 
