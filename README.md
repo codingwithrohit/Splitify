@@ -66,7 +66,7 @@ data/ (Data Sources)
 1. **Clone the repository**
    ```bash
    git clone https://github.com/codingwithrohit/Splitify.git
-   cd splitify
+   cd Splitify
    ```
 
 2. **Configure Supabase**
@@ -219,7 +219,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👤 Author
 
-**Your Name**
+**Rohit Kumar**
 - LinkedIn: https://www.linkedin.com/in/rohitkumar-sde
 - Email: dev.rohitkumar21@gmail.com
 
