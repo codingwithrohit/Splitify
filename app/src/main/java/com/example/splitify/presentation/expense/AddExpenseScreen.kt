@@ -713,7 +713,7 @@ private fun AmountInputCard(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // ✅ Always show formatted amount (real-time formatting)
+
                     val displayText = if (amount.isEmpty()) "0" else formatIndianCurrency(amount)
 
                     BasicTextField(
@@ -999,7 +999,7 @@ private fun PaidBySelector(
             text = "Who Paid",
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 

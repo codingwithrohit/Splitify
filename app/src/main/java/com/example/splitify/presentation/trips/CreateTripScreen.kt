@@ -371,7 +371,7 @@ private fun PremiumInviteCodeCard(
                             letterSpacing = 2.sp
                         )
                     }
-
+                    Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         shape = MaterialTheme.shapes.small,
                         color = PrimaryColors.Primary100.copy(alpha = shimmerAlpha)
