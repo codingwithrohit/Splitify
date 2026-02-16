@@ -43,12 +43,12 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    // ✅ Pass notificationManager to SplitifyNavGraph
+                    // Pass notificationManager to SplitifyNavGraph
                     SplitifyNavGraph(
                         sessionManager = sessionManager,
                         authRepository = authRepository,
                         navController = navController,
-                        notificationManager = notificationManager  // ✅ PASS HERE
+                        notificationManager = notificationManager
                     )
                 }
             }

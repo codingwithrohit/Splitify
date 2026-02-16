@@ -17,6 +17,9 @@ interface TripMemberDao {
     @Query("Select * from trip_members where id = :memberId")
     suspend fun getMemberById(memberId: String): TripMemberEntity?
 
+    @Query("SELECT * FROM trip_members WHERE user_id = :userId AND trip_id = :tripId LIMIT 1")
+    suspend fun getMemberByUserId(userId: String, tripId: String): TripMemberEntity?
+
     @Query("Select * from trip_members where trip_id = :tripId and user_id = :userId")
     suspend fun getMemberByTripAndUser(tripId: String, userId: String): TripMemberEntity?
 

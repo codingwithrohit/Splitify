@@ -44,6 +44,7 @@ import com.example.splitify.presentation.trips.CreateTripScreen
 import com.example.splitify.presentation.trips.TripsScreen
 import com.example.splitify.presentation.trips.TripsViewModel
 import com.example.splitify.util.NotificationManager
+import com.example.splitify.util.NotificationSnackbarVisuals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
@@ -101,15 +102,14 @@ fun SplitifyNavGraph(
         LaunchedEffect(Unit) {
             notificationManager.notificationEvent.collectLatest { notification ->
                 snackbarHostState.showSnackbar(
-                    message = notification.message,
-                    actionLabel = "Dismiss",
-                    withDismissAction = true,
-                    duration = when (notification.type) {
-                        NotificationType.ERROR -> SnackbarDuration.Long
-                        else -> SnackbarDuration.Short
-                    }
+                    NotificationSnackbarVisuals(
+                        message = notification.message,
+                        actionLabel = notification.actionLabel ?: "Dismiss",
+                        duration = if (notification.type == NotificationType.ERROR)
+                            SnackbarDuration.Long else SnackbarDuration.Short,
+                        notificationType = notification.type
+                    )
                 )
-
             }
         }
 
@@ -121,9 +121,11 @@ fun SplitifyNavGraph(
                         .navigationBarsPadding()
                         .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                 ) { data ->
+                    val visuals = data.visuals as? NotificationSnackbarVisuals
                     CustomNotificationSnackbar(
                         message = data.visuals.message,
                         actionLabel = data.visuals.actionLabel,
+                        notificationType = visuals?.notificationType ?: NotificationType.INFO,
                         onAction = { data.performAction() },
                         onDismiss = { data.dismiss() }
                     )
@@ -247,7 +249,7 @@ fun SplitifyNavGraph(
                         viewModel = viewModel,
                         onNavigateBack = { navController.popBackStack() },
                         navController = navController,
-
+                        notificationManager = notificationManager,
                         // 1: Add Expense
                         onAddExpense = {
                             Log.d("NavGraph", "🧭 Navigating to AddExpense with tripId: $tripId")

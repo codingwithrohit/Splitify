@@ -1,6 +1,7 @@
 package com.example.splitify.data.sync
 
 import android.util.Log
+import com.example.splitify.data.local.SessionManager
 import com.example.splitify.data.local.dao.ExpenseDao
 import com.example.splitify.data.local.dao.ExpenseSplitDao
 import com.example.splitify.data.local.dao.TripDao
@@ -45,18 +46,20 @@ class RealtimeManager @Inject constructor(
     private val tripMemberDao: TripMemberDao,
     private val expenseDao: ExpenseDao,
     private val expenseSplitDao: ExpenseSplitDao,
-    private val notificationManager: NotificationManager
+    private val notificationManager: NotificationManager,
+    private val sessionManager: SessionManager
 ) {
     companion object {
         private const val TAG = "RealtimeManager"
         private var subscriptionCount = 0
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val activeChannels = mutableMapOf<String, io.github.jan.supabase.realtime.RealtimeChannel>()
+    private val activeChannels = mutableMapOf<String, RealtimeChannel>()
     private val subscriptionMutex = Mutex()
     private val pendingExpenseUpdates = mutableSetOf<String>()
     private val updateMutex = Mutex()
     private val notificationHelper = RealtimeNotificationHelper(notificationManager)
+
 
 
     fun subscribeToGlobalTrips() {
@@ -122,17 +125,6 @@ class RealtimeManager @Inject constructor(
         }
 
         scope.launch {
-
-//            val currentCount = subscriptionMutex.withLock {
-//                activeChannels.size
-//            }
-//
-//            if (currentCount >= 2) {  // Allow max 2: global + 1 active trip
-//                Log.e(TAG, "❌ SUBSCRIPTION LIMIT REACHED ($currentCount active)")
-//                Log.e(TAG, "  Active channels: ${activeChannels.keys}")
-//                Log.e(TAG, "  Rejecting subscription to: $tripId")
-//                return@launch
-//            }
 
             val alreadySubscribed = subscriptionMutex.withLock {
                 activeChannels.containsKey(tripId)
@@ -355,18 +347,35 @@ class RealtimeManager @Inject constructor(
     // =====================================================
 
     private suspend fun handleMemberInsert(memberDto: TripMemberDto) {
-
         val entity = memberDto.toEntity().copy(isSynced = true)
+        // FIX: Check if member already exists locally
+        val existingMember = tripMemberDao.getMemberById(entity.id)
+
+        if (existingMember != null) {
+            // Member already exists = WE just added them locally
+            // Realtime event is just echoing our own action
+            // Skip notification to avoid duplicate
+            Log.d(TAG, "⏭️ Skipping realtime notification - member already exists locally")
+            return
+        }
         tripMemberDao.insertMember(entity)
-        val trip = tripDao.getTripById(entity.tripId)
-        trip?.let {
+
+        // Get trip info
+        val trip = tripDao.getTripById(memberDto.tripId)
+
+        if (trip != null) {
+            // Show notification with actor name
+            val addedByName = "Someone"  // Can be enhanced later
+
             notificationHelper.onMemberAdded(
                 memberName = entity.displayName,
-                tripName = it.name,
-                tripId = it.id
+                tripName = trip.name,
+                tripId = trip.id,
+                addedByName = addedByName
             )
         }
-        Log.d(TAG, "✅ Realtime Sync: Updated member ${entity.displayName}")
+
+        Log.d(TAG, "✅ Realtime Sync: Added member ${entity.displayName}")
     }
 
     private suspend fun handleMemberUpdate(memberDto: TripMemberDto) {
@@ -382,17 +391,31 @@ class RealtimeManager @Inject constructor(
     private suspend fun handleMemberDelete(memberId: String) {
         try {
             val member = tripMemberDao.getMemberById(memberId)
-            val trip = member?.let { tripDao.getTripById(it.tripId) }
+
+            if (member == null) {
+                // Member doesn't exist locally = WE just deleted it
+                // Skip notification to avoid duplicate
+                Log.d(TAG, "⏭️ Skipping realtime notification - member already deleted locally")
+                return
+            }
+
+            val trip = tripDao.getTripById(member.tripId)
 
             expenseSplitDao.deleteSplitsForMember(memberId)
             tripMemberDao.deleteMember(memberId)
 
-            if (member != null && trip != null) {
+            // Show notification (someone else removed the member)
+            if (trip != null) {
+                val removedByName = "Someone"
+
                 notificationHelper.onMemberRemoved(
                     memberName = member.displayName,
-                    tripName = trip.name
+                    tripName = trip.name,
+                    tripId = trip.id,
+                    removedByName = removedByName
                 )
             }
+
             Log.d(TAG, "✅ Member deleted from Room")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to delete member", e)
@@ -401,74 +424,102 @@ class RealtimeManager @Inject constructor(
 
     private suspend fun handleExpenseInsert(expenseDto: ExpenseDto) {
         try {
-            val entity = expenseDto.toEntity().copy(
-                isLocal = false,
-                isSynced = true
-            )
+            val entity = expenseDto.toEntity().copy(isLocal = false, isSynced = true)
+            val currentUserId = sessionManager.getUserId()
 
+            // 1. Check if it already exists (prevents duplicate DB entries)
             val existing = expenseDao.getExpenseById(entity.id)
-            if (existing == null) {
-                expenseDao.insertAnExpense(entity)
-                Log.d(TAG, "✅ Expense added to Room: ${entity.description}")
+            if (existing != null) return
 
+            // 2. Identify the source
+            val isMyOwnAction = entity.createdBy == currentUserId
+
+            // 3. Insert into DB (to ensure Room is updated with remote ID)
+            expenseDao.insertAnExpense(entity)
+            fetchAndInsertSplits(entity.id)
+
+            // 4. TRIGGER NOTIFICATION ONLY IF NOT MINE
+            if (!isMyOwnAction) {
                 val trip = tripDao.getTripById(entity.tripId)
-                trip?.let {
-                    notificationHelper.onExpenseAdded(
-                        amount = entity.amount,
-                        description = entity.description,
-                        paidByName = entity.paidByName,
-                        tripName = it.name,
-                        tripId = it.id,
-                        expenseId = entity.id
-                    )
-                }
+                val creatorMember = tripMemberDao.getMemberByUserId(entity.createdBy, entity.tripId)
+                val addedByName = creatorMember?.displayName ?: "Someone"
 
-                // Fetch and insert splits
-                fetchAndInsertSplits(entity.id)
-            } else {
-                Log.d(TAG, "ℹ️ Expense already exists")
+                notificationHelper.onExpenseAdded(
+                    amount = entity.amount,
+                    description = entity.description,
+                    paidByName = entity.paidByName,
+                    tripName = trip?.name ?: "Trip",
+                    tripId = entity.tripId,
+                    expenseId = entity.id,
+                    addedByName = addedByName
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "❌ Failed to insert expense", e)
         }
     }
-
-//    private suspend fun handleExpenseUpdate(expenseDto: ExpenseDto) {
+//    private suspend fun handleExpenseInsert(expenseDto: ExpenseDto) {
 //        try {
-//            val entity = expenseDto.toEntity().copy(isLocal = false, isSynced = true)
+//            val entity = expenseDto.toEntity().copy(
+//                isLocal = false,
+//                isSynced = true
+//            )
 //
-//            // 1. Fetch splits
-//            val splitDtos = supabase.from("expense_splits")
-//                .select { filter { eq("expense_id", entity.id) } }
-//                .decodeList<ExpenseSplitDto>()
+//            // ✅ FIX 1: Check if expense already exists
+//            val existing = expenseDao.getExpenseById(entity.id)
 //
-//            // 2. Ensure ALL members exist BEFORE transaction
-//            val missingMembers = splitDtos.mapNotNull { split ->
-//                val memberExists = tripMemberDao.getMemberById(split.memberId) != null
-//                if (!memberExists) split.memberId else null
+//            if (existing != null) {
+//                Log.d(TAG, "⏭️ Skipping realtime notification - expense already exists locally")
+//                return
 //            }
 //
-//            // Fetch ALL missing members synchronously
-//            if (missingMembers.isNotEmpty()) {
-//                Log.d(TAG, "⚠️ Missing ${missingMembers.size} members, fetching...")
-//                missingMembers.forEach { memberId ->
-//                    fetchAndSyncSingleMember(memberId)
+//            // ✅ FIX 2: Check if WE created this expense (same as member logic!)
+//            val currentUserId = sessionManager.getUserId()
+//
+//            if (entity.createdBy == currentUserId) {
+//                // We created this expense locally → Skip notification
+//                Log.d(TAG, "⏭️ Skipping realtime notification - we created this expense")
+//
+//                // Still need to insert and fetch splits if not exists
+//                if (existing == null) {
+//                    expenseDao.insertAnExpense(entity)
+//                    fetchAndInsertSplits(entity.id)
+//                    Log.d(TAG, "✅ Expense added to Room (no notification)")
 //                }
-//                Log.d(TAG, "✅ All missing members fetched")
+//                return
 //            }
 //
-//            val splitEntities = splitDtos.map { it.toEntity() }
+//            // ✅ Only reach here if SOMEONE ELSE created the expense
+//            expenseDao.insertAnExpense(entity)
+//            Log.d(TAG, "✅ Expense added to Room: ${entity.description}")
 //
-//            // 3. Atomic Transaction (now safe)
-//            expenseDao.updateExpenseAndSplits(entity, splitEntities)
-//            delay(50)
+//            val trip = tripDao.getTripById(entity.tripId)
 //
-//            Log.d(TAG, "✅ Atomic update complete for: ${entity.description}")
+//            if (trip != null) {
+//                val creatorMember = tripMemberDao.getMemberByUserId(
+//                    userId = entity.createdBy,
+//                    tripId = entity.tripId
+//                )
+//                val addedByName = creatorMember?.displayName ?: "Someone"
+//
+//                // Show notification (this is from SOMEONE ELSE)
+//                notificationHelper.onExpenseAdded(
+//                    amount = entity.amount,
+//                    description = entity.description,
+//                    paidByName = entity.paidByName,
+//                    tripName = trip.name,
+//                    tripId = trip.id,
+//                    expenseId = entity.id,
+//                    addedByName = addedByName
+//                )
+//            }
+//
+//            fetchAndInsertSplits(entity.id)
+//
 //        } catch (e: Exception) {
-//            Log.e(TAG, "❌ Sync failed", e)
+//            Log.e(TAG, "❌ Failed to insert expense", e)
 //        }
 //    }
-
     private suspend fun handleExpenseUpdate(expenseDto: ExpenseDto) {
         try {
             Log.d(TAG, "🔄 Processing expense UPDATE: ${expenseDto.description}")
@@ -510,11 +561,20 @@ class RealtimeManager @Inject constructor(
             expenseDao.updateExpenseAndSplits(entity, splitEntities)
 
             val trip = tripDao.getTripById(entity.tripId)
-            trip?.let {
+            val currentUserId = sessionManager.getUserId()
+
+            if (trip != null && entity.createdBy != currentUserId) {
+                val updaterMember = tripMemberDao.getMemberByUserId(
+                    userId = entity.createdBy,
+                    tripId = entity.tripId
+                )
+                val updatedByName = updaterMember?.displayName ?: "Someone"
+
                 notificationHelper.onExpenseUpdated(
                     description = entity.description,
-                    tripName = it.name,
-                    tripId = it.id
+                    tripName = trip.name,
+                    tripId = trip.id,
+                    updatedByName = updatedByName
                 )
             }
 
@@ -541,14 +601,20 @@ class RealtimeManager @Inject constructor(
         try {
             val expense = expenseDao.getExpenseById(expenseId)
             val trip = expense?.let { tripDao.getTripById(it.tripId) }
+            val currentUserId = sessionManager.getUserId()
 
             expenseSplitDao.deleteSplitsForExpense(expenseId)
             expenseDao.deleteExpenseById(expenseId)
 
-            if (expense != null && trip != null) {
+            if (expense != null && trip != null && expense.createdBy != currentUserId) {
+                // Try to get who deleted it (might need action metadata)
+                val deletedByName = "Someone"  // TODO: Enhance with action tracking
+
                 notificationHelper.onExpenseDeleted(
                     description = expense.description,
-                    tripName = trip.name
+                    tripName = trip.name,
+                    tripId = trip.id,
+                    deletedByName = deletedByName
                 )
             }
             Log.d(TAG, "✅ Expense deleted from Room")

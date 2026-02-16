@@ -34,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -58,6 +59,7 @@ import com.example.splitify.presentation.tripdetail.cards.QuickBalanceCard
 import com.example.splitify.presentation.tripdetail.cards.RecentExpensesCard
 import com.example.splitify.presentation.tripdetail.cards.SettlementsCard
 import com.example.splitify.presentation.tripdetail.cards.TripInfoCard
+import com.example.splitify.util.NotificationManager
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,10 +76,19 @@ fun TripDetailScreen(
     onAddMembers: () -> Unit,
     onNavigateToEditTrip: (String) -> Unit,
     navController: NavController,
-    viewModel: TripDetailViewModel = hiltViewModel()
+    viewModel: TripDetailViewModel = hiltViewModel(),
+    notificationManager: NotificationManager
 ){
 
     val dashboardState by viewModel.dashboardState.collectAsStateWithLifecycle()
+
+    DisposableEffect(tripId) {
+        notificationManager.setActiveTripId(tripId)
+
+        onDispose {
+            notificationManager.setActiveTripId(null)
+        }
+    }
 
     LaunchedEffect(dashboardState) {
         Log.d("TripDetailScreen", "📊 State Changed: ${dashboardState::class.simpleName}")

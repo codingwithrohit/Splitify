@@ -33,50 +33,36 @@ import com.example.splitify.presentation.theme.SemanticColors
 @Composable
 fun CustomNotificationSnackbar(
     message: String,
+    notificationType: NotificationType,
     actionLabel: String? = null,
     onAction: () -> Unit = {},
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // 1. Identify type based on message keywords
-    val notificationType = when {
-        message.contains("Success", ignoreCase = true) ||
-                message.contains("Created", ignoreCase = true) ||
-                message.contains("Updated", ignoreCase = true) ||
-                message.contains("Added", ignoreCase = true) -> NotificationType.SUCCESS
-
-        message.contains("Error", ignoreCase = true) ||
-                message.contains("Failed", ignoreCase = true) -> NotificationType.ERROR
-
-        message.contains("Warning", ignoreCase = true) ||
-                message.contains("Deleted", ignoreCase = true) -> NotificationType.WARNING
-
-        else -> NotificationType.INFO
-    }
-
-    // 2. Map colors directly to your SemanticColors from Color.kt
     val (icon, backgroundColor, contentColor) = when (notificationType) {
         NotificationType.SUCCESS -> Triple(
             Icons.Default.CheckCircle,
-            SemanticColors.Success, // Using 0xFF10B981
+            SemanticColors.Success,
             Color.White
         )
         NotificationType.ERROR -> Triple(
             Icons.Default.Error,
-            SemanticColors.Error,   // Using 0xFFEF4444
+            SemanticColors.Error,
             Color.White
         )
         NotificationType.WARNING -> Triple(
             Icons.Default.Warning,
-            SemanticColors.Warning, // Using 0xFFF59E0B
+            SemanticColors.Warning,
             Color.White
         )
         NotificationType.INFO -> Triple(
             Icons.Default.Info,
-            PrimaryColors.Primary600, // Matching your FAB/Main brand
+            PrimaryColors.Primary600,
             Color.White
         )
     }
+
 
     Surface(
         modifier = modifier

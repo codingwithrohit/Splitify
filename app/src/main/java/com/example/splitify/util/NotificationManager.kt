@@ -18,12 +18,16 @@ import javax.inject.Singleton
  * ADDED: Detailed logging to trace notification flow
  */
 @Singleton
-class NotificationManager @Inject constructor() {
+class NotificationManager @Inject constructor(
+    private val systemNotificationManager: SystemNotificationManager,
+    private val appForegroundObserver: AppForegroundObserver
+) {
 
     companion object {
         private const val TAG = "NotificationManager"
         private const val MAX_HISTORY_SIZE = 50
     }
+    private var currentActiveTripId: String? = null
 
     // SharedFlow for one-time events (SnackBars)
     // replay = 0 means only new subscribers get new notifications
@@ -40,29 +44,105 @@ class NotificationManager @Inject constructor() {
     /**
      * Show a notification immediately
      */
+
+    fun setActiveTripId(tripId: String?) {
+        currentActiveTripId = tripId
+        Log.d(TAG, "🎯 Active trip: $tripId")
+    }
+
     fun showNotification(notification: AppNotification) {
         Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        Log.d(TAG, "📢 showNotification() CALLED")
-        Log.d(TAG, "  Title: ${notification.title}")
-        Log.d(TAG, "  Message: ${notification.message}")
-        Log.d(TAG, "  Type: ${notification.type}")
-        Log.d(TAG, "  Source: ${notification.source}")
-        Log.d(TAG, "  ID: ${notification.id}")
+        Log.d(TAG, "📢 showNotification()")
+        Log.d(TAG, "Type: ${notification.type}")
+        Log.d(TAG, "   Title: ${notification.title}")
+        Log.d(TAG, "   Source: ${notification.source}")
+        Log.d(TAG, "   Trip: ${notification.tripId}")
+        Log.d(TAG, "   Active trip: $currentActiveTripId")
+        Log.d(TAG, "   Foreground: ${appForegroundObserver.isAppInForeground()}")
 
-        // Emit for immediate display
-        val emitted = _notificationEvent.tryEmit(notification)
+        val showInApp = shouldShowInApp(notification)
+        val showSystem = shouldShowSystem(notification)
 
-        if (emitted) {
-            Log.d(TAG, "  ✅ Notification EMITTED to flow successfully")
-            Log.d(TAG, "  📊 Subscription count: ${_notificationEvent.subscriptionCount.value}")
-        } else {
-            Log.e(TAG, "  ❌ FAILED to emit notification!")
-            Log.e(TAG, "  Buffer might be full or no collectors")
+        Log.d(TAG, "   → InApp=$showInApp, System=$showSystem")
+
+        // In-app notification
+        if (showInApp) {
+            _notificationEvent.tryEmit(notification)
+            Log.d(TAG, "   ✅ In-app shown")
         }
 
-        // Add to history
+        // System notification
+        if (showSystem) {
+            systemNotificationManager.showSystemNotification(notification)
+            Log.d(TAG, "   📲 System shown")
+        }
+
         addToHistory(notification)
         Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    }
+
+    /**
+     * Show in-app if:
+     * - Local operation (always)
+     * - Viewing the exact trip (user is looking at it)
+     * - App in foreground (even different trip - user will see)
+     */
+    private fun shouldShowInApp(notification: AppNotification): Boolean {
+        return when {
+            // Local = always in-app
+            notification.source in listOf(
+                NotificationSource.LOCAL_CREATE,
+                NotificationSource.LOCAL_UPDATE,
+                NotificationSource.LOCAL_DELETE
+            ) -> true
+
+            // Viewing this exact trip = in-app only
+            notification.tripId == currentActiveTripId -> true
+
+            // Sync = in-app only
+            notification.source in listOf(
+                NotificationSource.SYNC_SUCCESS,
+                NotificationSource.SYNC_FAILURE
+            ) -> true
+
+            // Foreground = show in-app too
+            appForegroundObserver.isAppInForeground() -> true
+
+            else -> false
+        }
+    }
+
+    /**
+     * Show system if:
+     * - Realtime event AND (background OR different trip)
+     */
+    private fun shouldShowSystem(notification: AppNotification): Boolean {
+        return when {
+            // Never system for local/sync
+            notification.source in listOf(
+                NotificationSource.LOCAL_CREATE,
+                NotificationSource.LOCAL_UPDATE,
+                NotificationSource.LOCAL_DELETE,
+                NotificationSource.SYNC_SUCCESS,
+                NotificationSource.SYNC_FAILURE
+            ) -> false
+
+            // Realtime events:
+            notification.source.name.startsWith("REALTIME_") -> {
+                when {
+                    // Background = always system
+                    !appForegroundObserver.isAppInForeground() -> true
+
+                    // Foreground but different trip = system (user needs to know)
+                    notification.tripId != currentActiveTripId -> true
+
+                    // Same trip = no system (in-app is enough)
+                    else -> false
+                }
+            }
+
+            else -> false
+        }
     }
 
     /**

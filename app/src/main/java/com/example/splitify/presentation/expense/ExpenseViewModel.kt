@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.splitify.domain.model.NotificationTemplates
 import com.example.splitify.domain.usecase.expense.DeleteExpenseUseCase
 import com.example.splitify.domain.usecase.expense.GetExpensesUseCase
 import com.example.splitify.domain.usecase.member.GetTripMemberUseCase
@@ -62,9 +63,11 @@ class ExpenseViewModel @Inject constructor(
 
             when (val result = deleteExpenseUseCase(expenseId)) {
                 is Result.Success -> {
-                    notificationManager.showSuccess(
-                        title = "Deleted",
-                        message = "Expense deleted successfully"
+
+                    notificationManager.showNotification(
+                        NotificationTemplates.expenseDeleted(
+                            description = "Expense"
+                        )
                     )
                     Log.d("ExpensesVM", "✅ Expense deleted successfully")
                 }

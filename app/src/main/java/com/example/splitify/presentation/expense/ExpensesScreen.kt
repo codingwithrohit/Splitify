@@ -405,10 +405,15 @@ private fun ExpenseCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
+                // ============================================
+                // LEFT SIDE: Icon + Details (FIXED)
+                // ============================================
                 Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.Top
+                    modifier = Modifier.weight(1f),  // ✅ Prevents overflow
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)  // ✅ Consistent spacing
                 ) {
+                    // Category Icon
                     Surface(
                         modifier = Modifier.size(48.dp),
                         shape = CircleShape,
@@ -422,60 +427,73 @@ private fun ExpenseCard(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
+                    // Description, Paid By, Date (FIXED - separate lines)
+                    Column(
+                        modifier = Modifier.weight(1f),  // ✅ Flexible width
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Description
                         Text(
                             text = expense.description,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = NeutralColors.Neutral900
+                            color = NeutralColors.Neutral900,
+                            maxLines = 1,  // ✅ FIX: Single line only
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis  // ✅ FIX: Show "..."
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = "Paid by ${paidByMember?.displayName ?: "Unknown"}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = NeutralColors.Neutral600
-                            )
-                            Text(
-                                text = "•",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = NeutralColors.Neutral400
-                            )
-                            Text(
-                                text = expense.expenseDate.format(DateTimeFormatter.ofPattern("MMM dd")),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = NeutralColors.Neutral600
-                            )
-                        }
+
+                        // Paid by (FIXED - handles long names)
+                        Text(
+                            text = "Paid by ${paidByMember?.displayName ?: "Unknown"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NeutralColors.Neutral600,
+                            maxLines = 1,  // ✅ FIX: Prevents overflow
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis  // ✅ FIX: Truncates long names
+                        )
+
+                        // Date (FIXED - separate line, always visible)
+                        Text(
+                            text = expense.expenseDate.format(DateTimeFormatter.ofPattern("MMM dd, yyyy")),  // ✅ FIX: Full date
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NeutralColors.Neutral600
+                        )
                     }
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
+                // ============================================
+                // RIGHT SIDE: Amount + Category (FIXED SPACING)
+                // ============================================
+                Column(
+                    modifier = Modifier.padding(start = 16.dp),  // ✅ FIX: More space from left
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)  // ✅ FIX: Better spacing
+                ) {
+                    // Amount
                     Text(
                         text = CurrencyUtils.format(expense.amount),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = PrimaryColors.Primary600
                     )
+
+                    // Category Badge (FIXED - better spacing)
                     Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = categoryColor.copy(alpha = 0.1f)
+                        shape = RoundedCornerShape(6.dp),  // ✅ FIX: Slightly rounded
+                        color = categoryColor.copy(alpha = 0.1f),
+                        modifier = Modifier.padding(top = 4.dp)  // ✅ FIX: Extra space from amount
                     ) {
                         Text(
                             text = expense.category.displayName,
                             style = MaterialTheme.typography.labelSmall,
                             color = categoryColor,
+                            fontWeight = FontWeight.Medium,  // ✅ FIX: Slightly bolder
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
                 }
             }
 
+            // Edit/Delete buttons (unchanged)
             if (canModify) {
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -527,5 +545,168 @@ private fun ExpenseCard(
             }
         }
     }
-
 }
+
+//@Composable
+//private fun ExpenseCard(
+//    expense: Expense,
+//    paidByMember: TripMember?,
+//    currentUserMember: TripMember?,
+//    currentUserId: String?,
+//    onEdit: () -> Unit,
+//    onDelete: () -> Unit,
+//    canModifyExpenseUseCase: CanModifyExpenseUseCase = remember { CanModifyExpenseUseCase() }
+//) {
+//    val canModify = canModifyExpenseUseCase(
+//        expense = expense,
+//        currentUserMember = currentUserMember,
+//        currentUserId = currentUserId
+//    )
+//
+//    val categoryColor = when (expense.category) {
+//        Category.FOOD -> CategoryColors.Food
+//        Category.TRANSPORT -> CategoryColors.Transport
+//        Category.ACCOMMODATION -> CategoryColors.Accommodation
+//        Category.ENTERTAINMENT -> CategoryColors.Entertainment
+//        Category.SHOPPING -> CategoryColors.Shopping
+//        Category.OTHER -> CategoryColors.Other
+//    }
+//
+//    Surface(
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .animateContentSize(),
+//        shape = CustomShapes.CardShape,
+//        color = Color.White,
+//        shadowElevation = 2.dp
+//    ) {
+//        Column(modifier = Modifier.padding(16.dp)) {
+//            Row(
+//                modifier = Modifier.fillMaxWidth(),
+//                horizontalArrangement = Arrangement.SpaceBetween,
+//                verticalAlignment = Alignment.Top
+//            ) {
+//                Row(
+//                    modifier = Modifier.weight(1f),
+//                    verticalAlignment = Alignment.Top
+//                ) {
+//                    Surface(
+//                        modifier = Modifier.size(48.dp),
+//                        shape = CircleShape,
+//                        color = categoryColor.copy(alpha = 0.15f)
+//                    ) {
+//                        Icon(
+//                            imageVector = getCategoryIcon(expense.category),
+//                            contentDescription = null,
+//                            tint = categoryColor,
+//                            modifier = Modifier.padding(12.dp)
+//                        )
+//                    }
+//
+//                    Spacer(modifier = Modifier.width(12.dp))
+//
+//                    Column {
+//                        Text(
+//                            text = expense.description,
+//                            style = MaterialTheme.typography.titleMedium,
+//                            fontWeight = FontWeight.SemiBold,
+//                            color = NeutralColors.Neutral900
+//                        )
+//                        Spacer(modifier = Modifier.height(4.dp))
+//                        Row(
+//                            verticalAlignment = Alignment.CenterVertically,
+//                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+//                        ) {
+//                            Text(
+//                                text = "Paid by ${paidByMember?.displayName ?: "Unknown"}",
+//                                style = MaterialTheme.typography.bodySmall,
+//                                color = NeutralColors.Neutral600
+//                            )
+//                            Text(
+//                                text = "•",
+//                                style = MaterialTheme.typography.bodySmall,
+//                                color = NeutralColors.Neutral400
+//                            )
+//                            Text(
+//                                text = expense.expenseDate.format(DateTimeFormatter.ofPattern("MMM dd")),
+//                                style = MaterialTheme.typography.bodySmall,
+//                                color = NeutralColors.Neutral600
+//                            )
+//                        }
+//                    }
+//                }
+//
+//                Column(horizontalAlignment = Alignment.End) {
+//                    Text(
+//                        text = CurrencyUtils.format(expense.amount),
+//                        style = MaterialTheme.typography.titleLarge,
+//                        fontWeight = FontWeight.Bold,
+//                        color = PrimaryColors.Primary600
+//                    )
+//                    Surface(
+//                        shape = RoundedCornerShape(4.dp),
+//                        color = categoryColor.copy(alpha = 0.1f)
+//                    ) {
+//                        Text(
+//                            text = expense.category.displayName,
+//                            style = MaterialTheme.typography.labelSmall,
+//                            color = categoryColor,
+//                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+//                        )
+//                    }
+//                }
+//            }
+//
+//            if (canModify) {
+//                Spacer(modifier = Modifier.height(16.dp))
+//
+//                Row(
+//                    modifier = Modifier.fillMaxWidth(),
+//                    horizontalArrangement = Arrangement.SpaceBetween,
+//                    verticalAlignment = Alignment.CenterVertically
+//                ) {
+//                    TextButton(
+//                        onClick = onEdit,
+//                        shape = CustomShapes.ButtonShape,
+//                    ) {
+//                        Icon(
+//                            imageVector = Icons.Default.Edit,
+//                            contentDescription = null,
+//                            modifier = Modifier.size(16.dp),
+//                            tint = PrimaryColors.Primary600
+//                        )
+//                        Spacer(modifier = Modifier.width(6.dp))
+//                        Text(
+//                            "Edit",
+//                            style = MaterialTheme.typography.labelLarge,
+//                            color = PrimaryColors.Primary600,
+//                            fontWeight = FontWeight.SemiBold
+//                        )
+//                    }
+//
+//                    Spacer(modifier = Modifier.width(8.dp))
+//
+//                    TextButton(
+//                        onClick = onDelete,
+//                        shape = CustomShapes.ButtonShape
+//                    ) {
+//                        Icon(
+//                            imageVector = Icons.Default.Delete,
+//                            contentDescription = null,
+//                            modifier = Modifier.size(16.dp),
+//                            tint = SemanticColors.Error
+//                        )
+//                        Spacer(modifier = Modifier.width(6.dp))
+//                        Text(
+//                            "Delete",
+//                            style = MaterialTheme.typography.labelLarge,
+//                            color = SemanticColors.Error,
+//                            fontWeight = FontWeight.SemiBold
+//                        )
+//                    }
+//                }
+//            }
+//        }
+//    }
+//
+//}

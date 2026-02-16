@@ -45,11 +45,6 @@ fun EmptyTripScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Top Bar
-            PremiumTopBar(
-                title = "My Trips",
-                onLogoutClick = onLogoutClick
-            )
 
             // Empty State Content
             Column(
@@ -109,27 +104,7 @@ fun EmptyTripScreen(
 
                 Spacer(modifier = Modifier.height(48.dp))
 
-                // Create Trip Button
-                Button(
-                    onClick = onCreateTripClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = CustomShapes.ButtonLargeShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryColors.Primary600
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Create Your First Trip",
-                        style = CustomTextStyles.ButtonLarge
-                    )
-                }
+
             }
         }
 
