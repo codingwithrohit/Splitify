@@ -168,7 +168,10 @@ fun SignUpScreen(
                         onClick = { viewModel.signUp() },
                         enabled = !uiState.isLoading,
                         modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = CustomShapes.ButtonLargeShape
+                        shape = CustomShapes.ButtonLargeShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryColors.Primary600
+                        )
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
@@ -312,14 +315,14 @@ private fun SignUpHeader() {
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Create Account",
-                style = MaterialTheme.typography.headlineMedium,
+                text = "Splitify",
+                style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
 
             Text(
-                text = "Join thousands splitting expenses",
+                text = "Share expenses, not Friendships",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.8f)
             )

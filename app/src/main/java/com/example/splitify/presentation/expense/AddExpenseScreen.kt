@@ -999,7 +999,7 @@ private fun PaidBySelector(
             text = "Who Paid",
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = Color.White,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
