@@ -26,93 +26,73 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.splitify.R
 import com.example.splitify.presentation.components.SplitifyAppBar
-import com.example.splitify.presentation.profile.components.PDFViewerDialog
+import com.example.splitify.presentation.profile.components.FullScreenPdfViewer
 import com.example.splitify.presentation.theme.CustomShapes
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
 import java.io.File
 import java.io.FileOutputStream
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeveloperScreen(onBack: () -> Unit) {
+
     val context = LocalContext.current
     var showResumeViewer by remember { mutableStateOf(false) }
     var resumeFile by remember { mutableStateOf<File?>(null) }
 
-    // Copy PDF from assets to cache on first composition
+    // Copy resume from assets
     LaunchedEffect(Unit) {
         try {
-            val assetManager = context.assets
-            val inputStream = assetManager.open("resume.pdf") // Your PDF in assets folder
-
+            val inputStream = context.assets.open("resume.pdf")
             val file = File(context.cacheDir, "resume.pdf")
+
             FileOutputStream(file).use { output ->
                 inputStream.copyTo(output)
             }
 
             resumeFile = file
-        } catch (e: Exception) {
-            // PDF not found in assets
-        }
+        } catch (_: Exception) { }
     }
 
-    // Replace these with your actual information
     val developerInfo = DeveloperInfo(
-        name = "Your Name",
+        name = "Rohit Kumar",
         title = "Android Developer",
-        bio = "Passionate Android developer specializing in Jetpack Compose and Kotlin. I love building intuitive, user-friendly applications that solve real-world problems. Splitify is my latest project to help people manage shared expenses effortlessly.",
-        email = "your.email@example.com",
-        github = "https://github.com/yourusername",
-        linkedin = "https://linkedin.com/in/yourusername",
-        portfolio = "https://yourportfolio.com",
-        skills = listOf(
-            "Kotlin", "Jetpack Compose", "Android SDK", "MVVM",
-            "Clean Architecture", "Coroutines", "Flow", "Room",
-            "Hilt/Dagger", "Retrofit", "Git", "RESTful APIs"
-        ),
-        projects = listOf(
-            Project(
-                name = "Splitify",
-                description = "Full-featured expense tracking app with real-time sync",
-                tech = "Kotlin, Compose, Room, Retrofit"
-            ),
-            Project(
-                name = "Your Other Project",
-                description = "Brief description of another project you've built",
-                tech = "Tech stack used"
-            )
-        )
+        bio = "Passionate Android developer specializing in Jetpack Compose and Kotlin. I love building intuitive, user-friendly applications that solve real-world problems.",
+        email = "dev.rohitkumar21@gmail.com",
+        github = "https://github.com/codingwithrohit",
+        linkedin = "https://www.linkedin.com/in/rohit-kumar-11138620a/",
+        portfolio = "https://yourportfolio.com"
     )
 
     Scaffold(
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             SplitifyAppBar(
                 title = "About Developer",
                 onBackClick = onBack
             )
         }
-    ) { paddingValues ->
+    ) { padding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(NeutralColors.Neutral50)
-                .padding(paddingValues)
+                .padding(padding)
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Developer Profile Card
+
+            // ==============================
+            // ORIGINAL PROFILE CARD (KEEP)
+            // ==============================
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White
-                ),
-                elevation = CardDefaults.cardElevation(
-                    defaultElevation = 4.dp
-                )
+                colors = CardDefaults.cardColors(Color.White),
+                elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -121,7 +101,7 @@ fun DeveloperScreen(onBack: () -> Unit) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Profile Avatar
+
                     Box(
                         modifier = Modifier
                             .size(100.dp)
@@ -130,29 +110,29 @@ fun DeveloperScreen(onBack: () -> Unit) {
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Developer",
+                            Icons.Default.Person,
+                            contentDescription = null,
                             modifier = Modifier.size(60.dp),
                             tint = PrimaryColors.Primary600
                         )
                     }
 
                     Text(
-                        text = developerInfo.name,
+                        developerInfo.name,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = NeutralColors.Neutral900
                     )
 
                     Text(
-                        text = developerInfo.title,
+                        developerInfo.title,
                         style = MaterialTheme.typography.titleMedium,
-                        color = PrimaryColors.Primary600,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = PrimaryColors.Primary600
                     )
 
                     Text(
-                        text = developerInfo.bio,
+                        developerInfo.bio,
                         style = MaterialTheme.typography.bodyMedium,
                         color = NeutralColors.Neutral700,
                         textAlign = TextAlign.Center
@@ -160,17 +140,23 @@ fun DeveloperScreen(onBack: () -> Unit) {
                 }
             }
 
-            // Resume Section
+            // ==============================
+            // ORIGINAL RESUME CARD (KEEP)
+            // ==============================
             if (resumeFile != null) {
-                ProfileSection(title = "Resume") {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showResumeViewer = true },
+                    colors = CardDefaults.cardColors(Color.White),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showResumeViewer = true }
-                            .padding(16.dp),
+                        modifier = Modifier.padding(20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -183,22 +169,20 @@ fun DeveloperScreen(onBack: () -> Unit) {
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Description,
-                                    contentDescription = "Resume",
-                                    tint = PrimaryColors.Primary600,
-                                    modifier = Modifier.size(28.dp)
+                                    Icons.Default.PictureAsPdf,
+                                    contentDescription = null,
+                                    tint = PrimaryColors.Primary600
                                 )
                             }
 
                             Column {
                                 Text(
-                                    text = "View Resume",
-                                    style = MaterialTheme.typography.titleMedium,
+                                    "View Resume",
                                     fontWeight = FontWeight.Bold,
-                                    color = NeutralColors.Neutral900
+                                    style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    text = "Tap to view in full screen",
+                                    "Tap to open full screen",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = NeutralColors.Neutral600
                                 )
@@ -206,20 +190,32 @@ fun DeveloperScreen(onBack: () -> Unit) {
                         }
 
                         Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = "Open",
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
                             tint = NeutralColors.Neutral400
                         )
                     }
                 }
             }
 
-            // Social Links
-            ProfileSection(title = "Connect") {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+            // ==============================
+            // CLEAN CONNECT SECTION (UPDATED)
+            // ==============================
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(Color.White),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+
+                    Text(
+                        "Connect With Me",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     SocialLinkButton(
                         icon = painterResource(R.drawable.github),
                         label = "GitHub",
@@ -230,6 +226,8 @@ fun DeveloperScreen(onBack: () -> Unit) {
                             )
                         }
                     )
+
+                    Spacer(Modifier.height(8.dp))
 
                     SocialLinkButton(
                         icon = painterResource(R.drawable.linkedin_50),
@@ -242,63 +240,87 @@ fun DeveloperScreen(onBack: () -> Unit) {
                         }
                     )
 
-                    SocialLinkButton(
-                        icon = Icons.Default.Language,
-                        label = "Portfolio",
-                        subtitle = "View my work",
-                        onClick = {
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(developerInfo.portfolio))
-                            )
-                        }
-                    )
+                    Spacer(Modifier.height(8.dp))
 
                     SocialLinkButton(
                         icon = Icons.Default.Email,
                         label = "Email",
                         subtitle = developerInfo.email,
                         onClick = {
-                            val intent = Intent(Intent.ACTION_SENDTO).apply {
-                                data = Uri.parse("mailto:${developerInfo.email}")
-                            }
-                            context.startActivity(intent)
+                            context.startActivity(
+                                Intent(Intent.ACTION_SENDTO,
+                                    Uri.parse("mailto:${developerInfo.email}")
+                                )
+                            )
                         }
                     )
                 }
             }
 
-            // Skills Section
-            ProfileSection(title = "Skills & Technologies") {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        developerInfo.skills.forEach { skill ->
-                            SkillChip(skill)
-                        }
-                    }
-                }
-            }
+//            Card(
+//                modifier = Modifier.fillMaxWidth(),
+//                colors = CardDefaults.cardColors(containerColor = PrimaryColors.Primary50),
+//                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+//                shape = CustomShapes.CardShape
+//            ) {
+//                Column(
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .padding(24.dp),
+//                    horizontalAlignment = Alignment.CenterHorizontally,
+//                    verticalArrangement = Arrangement.spacedBy(12.dp)
+//                ) {
+//                    Icon(
+//                        imageVector = Icons.Default.Handshake,
+//                        contentDescription = null,
+//                        tint = PrimaryColors.Primary600,
+//                        modifier = Modifier.size(40.dp)
+//                    )
+//
+//                    Text(
+//                        text = "Let's Work Together",
+//                        style = MaterialTheme.typography.titleLarge,
+//                        fontWeight = FontWeight.Bold,
+//                        color = PrimaryColors.Primary700
+//                    )
+//
+//                    Text(
+//                        text = "I'm open to new opportunities and exciting projects. Let's create something amazing!",
+//                        style = MaterialTheme.typography.bodyLarge,
+//                        color = NeutralColors.Neutral700,
+//                        textAlign = TextAlign.Center
+//                    )
+//
+//                    Button(
+//                        onClick = {
+//                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+//                                data = Uri.parse("mailto:${developerInfo.email}")
+//                                putExtra(Intent.EXTRA_SUBJECT, "Let's collaborate!")
+//                            }
+//                            context.startActivity(intent)
+//                        },
+//                        colors = ButtonDefaults.buttonColors(
+//                            containerColor = PrimaryColors.Primary600
+//                        ),
+//                        shape = CustomShapes.ButtonShape,
+//                        modifier = Modifier.fillMaxWidth(0.8f),
+//                        contentPadding = PaddingValues(16.dp)
+//                    ) {
+//                        Icon(
+//                            imageVector = Icons.Default.Email,
+//                            contentDescription = null,
+//                            modifier = Modifier.size(20.dp)
+//                        )
+//                        Spacer(modifier = Modifier.width(8.dp))
+//                        Text(
+//                            "Get in Touch",
+//                            fontWeight = FontWeight.Bold,
+//                            style = MaterialTheme.typography.titleMedium
+//                        )
+//                    }
+//                }
+//            }
 
-            // Projects Section
-            ProfileSection(title = "Featured Projects") {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    developerInfo.projects.forEach { project ->
-                        ProjectCard(project)
-                    }
-                }
-            }
-
-            // Call to Action
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -362,13 +384,19 @@ fun DeveloperScreen(onBack: () -> Unit) {
                     }
                 }
             }
+
+            // Bottom spacing
+            Spacer(modifier = Modifier.height(20.dp))
+
         }
     }
 
-    // PDF Resume Viewer Dialog
+    // ==============================
+    // FULL SCREEN PDF VIEWER
+    // ==============================
     if (showResumeViewer && resumeFile != null) {
-        PDFViewerDialog(
-            pdfFile = resumeFile!!,
+        FullScreenPdfViewer(
+            file = resumeFile!!,
             onDismiss = { showResumeViewer = false }
         )
     }
@@ -381,39 +409,54 @@ fun SocialLinkButton(
     subtitle: String,
     onClick: () -> Unit
 ) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = CustomShapes.ButtonShape
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = NeutralColors.Neutral50
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-
-                when (icon) {
-                    is ImageVector -> Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        modifier = Modifier.size(24.dp),
-                        tint = PrimaryColors.Primary600
-                    )
-                    is Painter -> Icon(
-                        painter = icon,
-                        contentDescription = label,
-                        modifier = Modifier.size(24.dp),
-                        tint = PrimaryColors.Primary600
-                    )
+                // Icon
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when (icon) {
+                        is ImageVector -> Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            modifier = Modifier.size(24.dp),
+                            tint = PrimaryColors.Primary600
+                        )
+                        is Painter -> Icon(
+                            painter = icon,
+                            contentDescription = label,
+                            modifier = Modifier.size(24.dp),
+                            tint = PrimaryColors.Primary600
+                        )
+                    }
                 }
 
-                Column {
+                // Text
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = label,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = NeutralColors.Neutral900
                     )
@@ -424,74 +467,13 @@ fun SocialLinkButton(
                     )
                 }
             }
-        }
-    }
-}
 
-
-@Composable
-fun SkillChip(skill: String) {
-    Surface(
-        shape = CustomShapes.ChipShape,
-        color = PrimaryColors.Primary100
-    ) {
-        Text(
-            text = skill,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = PrimaryColors.Primary700
-        )
-    }
-}
-
-@Composable
-fun ProjectCard(project: Project) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = NeutralColors.Neutral50
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Code,
-                    contentDescription = null,
-                    tint = PrimaryColors.Primary600,
-                    modifier = Modifier.size(20.dp)
-                )
-
-                Text(
-                    text = project.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = NeutralColors.Neutral900
-                )
-            }
-
-            Text(
-                text = project.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NeutralColors.Neutral700
-            )
-
-            Text(
-                text = "Tech: ${project.tech}",
-                style = MaterialTheme.typography.bodySmall,
-                color = NeutralColors.Neutral600,
-                fontWeight = FontWeight.Medium
+            // Arrow
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "Open",
+                tint = NeutralColors.Neutral400,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -504,14 +486,5 @@ data class DeveloperInfo(
     val email: String,
     val github: String,
     val linkedin: String,
-    val portfolio: String,
-    val skills: List<String>,
-    val projects: List<Project>
+    val portfolio: String
 )
-
-data class Project(
-    val name: String,
-    val description: String,
-    val tech: String
-)
-
