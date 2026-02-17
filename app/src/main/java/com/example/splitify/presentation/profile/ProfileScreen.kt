@@ -98,7 +98,7 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        brush = Brush.horizontalGradient(
+                        brush = Brush.verticalGradient(
                             colors = listOf(
                                 PrimaryColors.Primary500,
                                 PrimaryColors.Primary700
@@ -212,9 +212,9 @@ fun ProfileScreen(
         // Profile sections
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Account Section
@@ -259,19 +259,42 @@ fun ProfileScreen(
                 )
             }
 
-            // Logout Button
-            ProfileSection(title = "") {
-                ProfileMenuItem(
-                    icon = Icons.Default.Logout,
-                    title = "Logout",
-                    subtitle = "Sign out of your account",
-                    onClick = { showLogoutDialog = true },
-                    iconTint = SemanticColors.Warning,
-                    showChevron = false
-                )
-            }
+//            // Logout Button
+//            ProfileSection(title = "") {
+//                ProfileMenuItem(
+//                    icon = Icons.Default.Logout,
+//                    title = "Logout",
+//                    subtitle = "Sign out of your account",
+//                    onClick = { showLogoutDialog = true },
+//                    iconTint = SemanticColors.Warning,
+//                    showChevron = false
+//                )
+//            }
+//
+//            Spacer(modifier = Modifier.height(100.dp))
 
-            Spacer(modifier = Modifier.height(100.dp))
+            OutlinedButton(
+                onClick = { showLogoutDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = CustomShapes.ButtonLargeShape,
+                border = ButtonDefaults.outlinedButtonBorder.copy(
+                    width = 1.5.dp,
+                    brush = androidx.compose.ui.graphics.SolidColor(SemanticColors.Warning)
+                ),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = SemanticColors.Warning
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Logout,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Logout", fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 

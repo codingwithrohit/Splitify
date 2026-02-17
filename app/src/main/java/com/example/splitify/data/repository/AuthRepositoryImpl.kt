@@ -349,16 +349,16 @@ class AuthRepositoryImpl @Inject constructor(
                     Log.d(TAG, "New user detected, creating profile")
 
                     val email = session.user?.email ?: ""
-                    val fullName = session.user?.userMetadata?.get("full_name")?.toString()
-                        ?: session.user?.userMetadata?.get("name")?.toString()
+                    val fullName = session.user?.userMetadata?.get("full_name")?.toString()?.trim('"')
+                        ?: session.user?.userMetadata?.get("name")?.toString()?.trim('"')
                         ?: email.split("@")[0]
+
+                    val avatarUrl = session.user?.userMetadata?.get("avatar_url")?.toString()?.trim('"')
+                        ?: session.user?.userMetadata?.get("picture")?.toString()?.trim('"')
 
                     // Generate unique username
                     val baseUsername = email.split("@")[0].lowercase().replace(Regex("[^a-z0-9]"), "")
                     val username = generateUniqueUsername(baseUsername)
-
-                    val avatarUrl = session.user?.userMetadata?.get("avatar_url")?.toString()
-                        ?: session.user?.userMetadata?.get("picture")?.toString()
 
                     userProfile = UserDto(
                         id = userId,

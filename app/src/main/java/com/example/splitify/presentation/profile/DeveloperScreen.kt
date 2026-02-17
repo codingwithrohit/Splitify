@@ -80,7 +80,6 @@ fun DeveloperScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .background(NeutralColors.Neutral50)
                 .padding(padding)
-                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -148,7 +147,7 @@ fun DeveloperScreen(onBack: () -> Unit) {
                     elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(20.dp),
+                        modifier = Modifier.fillMaxWidth().padding(20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
