@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -48,6 +49,8 @@ import com.example.splitify.presentation.theme.CustomShapes
 import com.example.splitify.presentation.theme.NeutralColors
 import com.example.splitify.presentation.theme.PrimaryColors
 import com.example.splitify.presentation.theme.SemanticColors
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 
 @Composable
 fun AccountSettingsScreen(
@@ -57,6 +60,7 @@ fun AccountSettingsScreen(
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val deleteAccountState by viewModel.deleteAccountState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
@@ -200,7 +204,12 @@ fun AccountSettingsScreen(
                 Button(
                     onClick = {
                         showDeleteDialog = false
-                        viewModel.deleteAccount(onLogOut)
+                        GoogleSignIn.getClient(
+                            context,
+                            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                        ).signOut().addOnCompleteListener {
+                            viewModel.deleteAccount(onLogOut)
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SemanticColors.Error
