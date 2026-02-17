@@ -23,6 +23,8 @@ import io.github.jan.supabase.gotrue.providers.Google
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.gotrue.providers.builtin.IDToken
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -422,9 +424,6 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * 🔥 NEW: Update Password (after reset link clicked)
-     */
     override suspend fun updatePassword(newPassword: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
@@ -444,9 +443,6 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * Helper: Generate unique username if collision occurs
-     */
     private suspend fun generateUniqueUsername(baseUsername: String): String {
         var username = baseUsername
         var counter = 1
@@ -484,6 +480,67 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val email = sessionManager.getUserEmail()
+                    ?: return@withContext Exception("User not found").asError()
+
+                // Re-authenticate with current password first
+                supabase.auth.signInWith(Email) {
+                    this.email = email
+                    this.password = currentPassword
+                }
+
+                // If re-auth succeeds, update password
+                supabase.auth.modifyUser {
+                    password = newPassword
+                }
+
+                Unit.asSuccess()
+            } catch (e: Exception) {
+                when {
+                    e.message?.contains("invalid", ignoreCase = true) == true ->
+                        Exception("Current password is incorrect").asError()
+                    else -> e.asError()
+                }
+            }
+        }
+    }
+
+    override suspend fun deleteAccount(): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val userId = sessionManager.getCurrentUserId()
+                    ?: return@withContext Exception("User not found").asError()
+
+                database.withTransaction {
+                    expenseSplitDao.deleteAllSplits()
+                    settlementDao.deleteAllSettlements()
+                    expenseDao.deleteAllExpense()
+                    tripMemberDao.deleteAllMembers()
+                    tripDao.deleteAllTrips()
+                }
+
+                // Delete from Supabase tables
+                supabase.from("expense_splits").delete { filter { eq("expense_id", userId) } }
+                supabase.from("settlements").delete { filter { eq("trip_id", userId) } }
+                supabase.from("expenses").delete { filter { eq("created_by", userId) } }
+                supabase.from("trip_members").delete { filter { eq("user_id", userId) } }
+                supabase.from("trips").delete { filter { eq("created_by", userId) } }
+                supabase.from("users").delete { filter { eq("id", userId) } }
+
+                // Delete auth account
+                //supabase.auth.admin.deleteUser(userId)
+                supabase.postgrest.rpc("delete_user_account")
+
+                sessionManager.clearSession()
+                Unit.asSuccess()
+            } catch (e: Exception) {
+                e.asError()
+            }
+        }
+    }
 
 
 }

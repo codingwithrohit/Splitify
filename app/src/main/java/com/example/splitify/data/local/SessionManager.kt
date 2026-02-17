@@ -33,10 +33,7 @@ class SessionManager @Inject constructor(
         val TOKEN_EXPIRY = longPreferencesKey("token_expiry")
     }
 
-    /**
-     * This only checks whether a local session exists.
-     * It must not depend on token expiry or network availability.
-     */
+
     suspend fun hasValidSession(): Boolean {
         val prefs = context.sessionDataStore.data.first()
         return !prefs[Keys.ACCESS_TOKEN].isNullOrBlank()
@@ -108,7 +105,7 @@ class SessionManager @Inject constructor(
         val expiryTime = prefs[Keys.TOKEN_EXPIRY] ?: return true
 
         val now = System.currentTimeMillis()
-        val refreshWindowMillis = 5 * 60 * 1000 // 5 minutes
+        val refreshWindowMillis = 5 * 60 * 1000
 
         return (expiryTime - now) <= refreshWindowMillis
     }

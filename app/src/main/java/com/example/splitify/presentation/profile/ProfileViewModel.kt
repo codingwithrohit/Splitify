@@ -174,19 +174,38 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun changePassword(currentPassword: String, newPassword: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _deleteAccountState.value = DeleteAccountState.Loading
+            when (val result = authRepository.changePassword(currentPassword, newPassword)) {
+                is Result.Success -> {
+                    _deleteAccountState.value = DeleteAccountState.Idle
+                    onSuccess()
+                }
+                is Result.Error -> {
+                    _deleteAccountState.value = DeleteAccountState.Error(
+                        result.exception.message ?: "Failed to change password"
+                    )
+                }
+                is Result.Loading -> Unit
+            }
+        }
+    }
+
     fun deleteAccount(onSuccess: () -> Unit) {
         viewModelScope.launch {
             _deleteAccountState.value = DeleteAccountState.Loading
-            try {
-                // Call your delete account API
-                // authRepository.deleteAccount()
-                sessionManager.clearSession()
-                _deleteAccountState.value = DeleteAccountState.Success
-                onSuccess()
-            } catch (e: Exception) {
-                _deleteAccountState.value = DeleteAccountState.Error(
-                    e.message ?: "Failed to delete account"
-                )
+            when (val result = authRepository.deleteAccount()) {
+                is Result.Success -> {
+                    _deleteAccountState.value = DeleteAccountState.Success
+                    onSuccess()
+                }
+                is Result.Error -> {
+                    _deleteAccountState.value = DeleteAccountState.Error(
+                        result.exception.message ?: "Failed to delete account"
+                    )
+                }
+                is Result.Loading -> Unit
             }
         }
     }

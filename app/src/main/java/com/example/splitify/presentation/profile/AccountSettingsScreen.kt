@@ -3,7 +3,6 @@ package com.example.splitify.presentation.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Security
@@ -24,6 +22,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,6 +57,13 @@ fun AccountSettingsScreen(
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val deleteAccountState by viewModel.deleteAccountState.collectAsStateWithLifecycle()
+
+    var currentPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var currentPasswordVisible by remember { mutableStateOf(false) }
+    var newPasswordVisible by remember { mutableStateOf(false) }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
@@ -205,10 +219,16 @@ fun AccountSettingsScreen(
         )
     }
 
-    // Change Password Dialog (placeholder)
     if (showChangePasswordDialog) {
         AlertDialog(
-            onDismissRequest = { showChangePasswordDialog = false },
+            onDismissRequest = {
+                showChangePasswordDialog = false
+                currentPassword = ""
+                newPassword = ""
+                confirmPassword = ""
+                passwordError = null
+                viewModel.resetDeleteAccountState()
+            },
             icon = {
                 Icon(
                     imageVector = Icons.Default.Security,
@@ -217,27 +237,116 @@ fun AccountSettingsScreen(
                     modifier = Modifier.size(32.dp)
                 )
             },
-            title = {
-                Text(
-                    "Change Password",
-                    fontWeight = FontWeight.Bold
-                )
-            },
+            title = { Text("Change Password", fontWeight = FontWeight.Bold) },
             text = {
-                Text(
-                    "Password change functionality will be available soon. You can reset your password from the login screen.",
-                    color = NeutralColors.Neutral700
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = currentPassword,
+                        onValueChange = { currentPassword = it; passwordError = null },
+                        label = { Text("Current Password") },
+                        singleLine = true,
+                        visualTransformation = if (currentPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { currentPasswordVisible = !currentPasswordVisible }) {
+                                Icon(
+                                    if (currentPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CustomShapes.TextFieldShape,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryColors.Primary500,
+                            unfocusedBorderColor = NeutralColors.Neutral300
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = newPassword,
+                        onValueChange = { newPassword = it; passwordError = null },
+                        label = { Text("New Password") },
+                        singleLine = true,
+                        visualTransformation = if (newPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { newPasswordVisible = !newPasswordVisible }) {
+                                Icon(
+                                    if (newPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CustomShapes.TextFieldShape,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryColors.Primary500,
+                            unfocusedBorderColor = NeutralColors.Neutral300
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it; passwordError = null },
+                        label = { Text("Confirm New Password") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CustomShapes.TextFieldShape,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryColors.Primary500,
+                            unfocusedBorderColor = NeutralColors.Neutral300
+                        )
+                    )
+
+                    passwordError?.let {
+                        Text(it, color = SemanticColors.Error, style = MaterialTheme.typography.bodySmall)
+                    }
+
+                    if (deleteAccountState is DeleteAccountState.Error) {
+                        Text(
+                            (deleteAccountState as DeleteAccountState.Error).message,
+                            color = SemanticColors.Error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Button(
-                    onClick = { showChangePasswordDialog = false },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryColors.Primary600
-                    ),
+                    onClick = {
+                        when {
+                            currentPassword.isBlank() -> passwordError = "Enter current password"
+                            newPassword.length < 6 -> passwordError = "New password must be at least 6 characters"
+                            newPassword != confirmPassword -> passwordError = "Passwords do not match"
+                            else -> viewModel.changePassword(currentPassword, newPassword) {
+                                showChangePasswordDialog = false
+                                currentPassword = ""
+                                newPassword = ""
+                                confirmPassword = ""
+                            }
+                        }
+                    },
+                    enabled = deleteAccountState !is DeleteAccountState.Loading,
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryColors.Primary600),
                     shape = CustomShapes.ButtonShape
                 ) {
-                    Text("Got it", fontWeight = FontWeight.Bold)
+                    if (deleteAccountState is DeleteAccountState.Loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Update Password", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showChangePasswordDialog = false
+                    currentPassword = ""
+                    newPassword = ""
+                    confirmPassword = ""
+                    passwordError = null
+                    viewModel.resetDeleteAccountState()
+                }) {
+                    Text("Cancel", color = NeutralColors.Neutral600)
                 }
             },
             shape = CustomShapes.DialogShape
