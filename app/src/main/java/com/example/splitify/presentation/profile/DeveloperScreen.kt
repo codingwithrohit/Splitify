@@ -86,9 +86,7 @@ fun DeveloperScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // ==============================
-            // ORIGINAL PROFILE CARD (KEEP)
-            // ==============================
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(Color.White),
@@ -140,9 +138,7 @@ fun DeveloperScreen(onBack: () -> Unit) {
                 }
             }
 
-            // ==============================
-            // ORIGINAL RESUME CARD (KEEP)
-            // ==============================
+
             if (resumeFile != null) {
                 Card(
                     modifier = Modifier
@@ -198,9 +194,7 @@ fun DeveloperScreen(onBack: () -> Unit) {
                 }
             }
 
-            // ==============================
-            // CLEAN CONNECT SECTION (UPDATED)
-            // ==============================
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(Color.White),
@@ -257,69 +251,7 @@ fun DeveloperScreen(onBack: () -> Unit) {
                 }
             }
 
-//            Card(
-//                modifier = Modifier.fillMaxWidth(),
-//                colors = CardDefaults.cardColors(containerColor = PrimaryColors.Primary50),
-//                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-//                shape = CustomShapes.CardShape
-//            ) {
-//                Column(
-//                    modifier = Modifier
-//                        .fillMaxWidth()
-//                        .padding(24.dp),
-//                    horizontalAlignment = Alignment.CenterHorizontally,
-//                    verticalArrangement = Arrangement.spacedBy(12.dp)
-//                ) {
-//                    Icon(
-//                        imageVector = Icons.Default.Handshake,
-//                        contentDescription = null,
-//                        tint = PrimaryColors.Primary600,
-//                        modifier = Modifier.size(40.dp)
-//                    )
-//
-//                    Text(
-//                        text = "Let's Work Together",
-//                        style = MaterialTheme.typography.titleLarge,
-//                        fontWeight = FontWeight.Bold,
-//                        color = PrimaryColors.Primary700
-//                    )
-//
-//                    Text(
-//                        text = "I'm open to new opportunities and exciting projects. Let's create something amazing!",
-//                        style = MaterialTheme.typography.bodyLarge,
-//                        color = NeutralColors.Neutral700,
-//                        textAlign = TextAlign.Center
-//                    )
-//
-//                    Button(
-//                        onClick = {
-//                            val intent = Intent(Intent.ACTION_SENDTO).apply {
-//                                data = Uri.parse("mailto:${developerInfo.email}")
-//                                putExtra(Intent.EXTRA_SUBJECT, "Let's collaborate!")
-//                            }
-//                            context.startActivity(intent)
-//                        },
-//                        colors = ButtonDefaults.buttonColors(
-//                            containerColor = PrimaryColors.Primary600
-//                        ),
-//                        shape = CustomShapes.ButtonShape,
-//                        modifier = Modifier.fillMaxWidth(0.8f),
-//                        contentPadding = PaddingValues(16.dp)
-//                    ) {
-//                        Icon(
-//                            imageVector = Icons.Default.Email,
-//                            contentDescription = null,
-//                            modifier = Modifier.size(20.dp)
-//                        )
-//                        Spacer(modifier = Modifier.width(8.dp))
-//                        Text(
-//                            "Get in Touch",
-//                            fontWeight = FontWeight.Bold,
-//                            style = MaterialTheme.typography.titleMedium
-//                        )
-//                    }
-//                }
-//            }
+            Spacer(Modifier.height(16.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -385,15 +317,12 @@ fun DeveloperScreen(onBack: () -> Unit) {
                 }
             }
 
-            // Bottom spacing
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
         }
     }
 
-    // ==============================
-    // FULL SCREEN PDF VIEWER
-    // ==============================
+
     if (showResumeViewer && resumeFile != null) {
         FullScreenPdfViewer(
             file = resumeFile!!,

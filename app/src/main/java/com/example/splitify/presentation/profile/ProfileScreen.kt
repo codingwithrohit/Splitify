@@ -33,6 +33,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.splitify.data.local.SessionManager
 import com.example.splitify.presentation.theme.*
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import java.io.File
 import java.io.FileOutputStream
 
@@ -356,7 +358,12 @@ fun ProfileScreen(
                 Button(
                     onClick = {
                         showLogoutDialog = false
-                        viewModel.logout(onLogOut)
+                        GoogleSignIn.getClient(
+                            context,
+                            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                        ).signOut().addOnCompleteListener {
+                            viewModel.logout(onLogOut)
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = SemanticColors.Warning

@@ -9,9 +9,6 @@ plugins {
 }
 
 val localProps = gradleLocalProperties(rootProject.projectDir)
-//println("SUPABASE_URL from local.properties = ${localProps.getProperty("SUPABASE_URL")}")
-//println("SUPABASE_KEY from local.properties = ${localProps.getProperty("SUPABASE_KEY")}")
-
 
 val supabaseUrl = localProps.getProperty("SUPABASE_URL")
 val supabaseKey  = localProps.getProperty("SUPABASE_KEY")
@@ -110,6 +107,8 @@ dependencies {
 
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+
+    implementation("com.google.android.gms:play-services-auth:21.5.0")
 
     // Supabase
     val supabaseVersion = "2.1.4"

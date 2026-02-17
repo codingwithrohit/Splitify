@@ -14,23 +14,20 @@ import com.example.splitify.data.remote.dto.UserDto
 import com.example.splitify.data.remote.toDomainModel
 import com.example.splitify.domain.model.User
 import com.example.splitify.domain.repository.AuthRepository
+import com.example.splitify.util.Result
 import com.example.splitify.util.asError
 import com.example.splitify.util.asSuccess
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.providers.Google
 import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.gotrue.providers.builtin.IDToken
 import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.Serializable
-import javax.inject.Inject
-import com.example.splitify.util.Result
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.DurationUnit
+import javax.inject.Inject
 
 @SuppressLint("UnsafeOptInUsageError")
 class AuthRepositoryImpl @Inject constructor(
@@ -43,6 +40,10 @@ class AuthRepositoryImpl @Inject constructor(
     private val expenseSplitDao: ExpenseSplitDao,
     private val settlementDao: SettlementDao
 ): AuthRepository {
+
+    companion object {
+        private const val TAG = "AuthRepositoryImpl"
+    }
 
     override suspend fun initializeSession(): Boolean {
         val hasLocalSession = sessionManager.hasValidSession()
@@ -302,5 +303,187 @@ class AuthRepositoryImpl @Inject constructor(
             e.asError()
         }
     }
+
+
+
+    override suspend fun signInWithGoogle(idToken: String): Result<User> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Starting Google Sign-In with ID Token")
+
+                // 1. Sign in to Supabase using the Google ID Token
+                supabase.auth.signInWith(IDToken) {
+                    this.idToken = idToken
+                    provider = Google
+                }
+
+                val session = supabase.auth.currentSessionOrNull()
+                if (session == null) {
+                    Log.e(TAG, "Failed to get session from Supabase")
+                    return@withContext Exception("Failed to authenticate with Google").asError()
+                }
+
+                val userId = session.user?.id
+                if (userId == null) {
+                    Log.e(TAG, "Failed to get user ID from session")
+                    return@withContext Exception("Failed to get user information").asError()
+                }
+
+                Log.d(TAG, "Google Sign-In successful, User ID: $userId")
+
+                // 2. Fetch or create user profile in 'users' table
+                var userProfile = try {
+                    supabase.from("users")
+                        .select()
+                        .decodeList<UserDto>()
+                        .firstOrNull { it.id == userId }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error fetching user profile: ${e.message}")
+                    null
+                }
+
+                // 3. Create profile if new user
+                if (userProfile == null) {
+                    Log.d(TAG, "New user detected, creating profile")
+
+                    val email = session.user?.email ?: ""
+                    val fullName = session.user?.userMetadata?.get("full_name")?.toString()
+                        ?: session.user?.userMetadata?.get("name")?.toString()
+                        ?: email.split("@")[0]
+
+                    // Generate unique username
+                    val baseUsername = email.split("@")[0].lowercase().replace(Regex("[^a-z0-9]"), "")
+                    val username = generateUniqueUsername(baseUsername)
+
+                    val avatarUrl = session.user?.userMetadata?.get("avatar_url")?.toString()
+                        ?: session.user?.userMetadata?.get("picture")?.toString()
+
+                    userProfile = UserDto(
+                        id = userId,
+                        email = email,
+                        username = username,
+                        full_name = fullName,
+                        avatar_url = avatarUrl
+                    )
+
+                    try {
+                        supabase.from("users").insert(userProfile)
+                        Log.d(TAG, "User profile created successfully")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error creating user profile: ${e.message}")
+                        return@withContext Exception("Failed to create user profile").asError()
+                    }
+                }
+
+                // 4. Save session to SessionManager
+                sessionManager.saveSession(
+                    accessToken = session.accessToken,
+                    refreshToken = session.refreshToken ?: "",
+                    userId = userId,
+                    userEmail = userProfile.email,
+                    userName = userProfile.username,
+                    fullName = userProfile.full_name,
+                    avatarUrl = userProfile.avatar_url,
+                    expiresIn = session.expiresIn
+                )
+
+                Log.d(TAG, "Session saved successfully")
+
+                // 5. Clear local database for fresh sync
+                clearLocalDatabase()
+
+                userProfile.toDomainModel().asSuccess()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Google Sign-In failed: ${e.message}", e)
+                e.asError()
+            }
+        }
+    }
+
+
+    override suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Sending password reset email to: $email")
+
+                supabase.auth.resetPasswordForEmail(
+                    email = email,
+                    redirectUrl = "splitify://reset-password"
+                )
+
+                Log.d(TAG, "Password reset email sent successfully")
+                Unit.asSuccess()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send password reset email: ${e.message}", e)
+                e.asError()
+            }
+        }
+    }
+
+    /**
+     * 🔥 NEW: Update Password (after reset link clicked)
+     */
+    override suspend fun updatePassword(newPassword: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Updating password")
+
+                supabase.auth.modifyUser {
+                    password = newPassword
+                }
+
+                Log.d(TAG, "Password updated successfully")
+                Unit.asSuccess()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update password: ${e.message}", e)
+                e.asError()
+            }
+        }
+    }
+
+    /**
+     * Helper: Generate unique username if collision occurs
+     */
+    private suspend fun generateUniqueUsername(baseUsername: String): String {
+        var username = baseUsername
+        var counter = 1
+
+        while (isUsernameTaken(username)) {
+            username = "${baseUsername}${counter}"
+            counter++
+        }
+
+        return username
+    }
+
+    private suspend fun isUsernameTaken(username: String): Boolean {
+        return try {
+            val existing = supabase.from("users")
+                .select()
+                .decodeList<UserDto>()
+                .any { it.username == username }
+            existing
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private suspend fun clearLocalDatabase() {
+        try {
+            expenseSplitDao.deleteAllSplits()
+            settlementDao.deleteAllSettlements()
+            expenseDao.deleteAllExpense()
+            tripMemberDao.deleteAllMembers()
+            tripDao.deleteAllTrips()
+            Log.d(TAG, "Local database cleared")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing local database: ${e.message}")
+        }
+    }
+
+
 
 }

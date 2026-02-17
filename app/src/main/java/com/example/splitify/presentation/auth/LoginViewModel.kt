@@ -1,9 +1,6 @@
 package com.example.splitify.presentation.auth
 
 import android.util.Log
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.data.local.SessionManager
@@ -12,6 +9,8 @@ import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.domain.repository.TripRepository
 import com.example.splitify.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +24,8 @@ class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val tripRepository: TripRepository,
     private val sessionManager: SessionManager,
-    private val tripDao: TripDao
+    private val tripDao: TripDao,
+    private val supabase: SupabaseClient
 ): ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -170,6 +170,146 @@ class LoginViewModel @Inject constructor(
             // Don't block login
         }
     }
+
+    fun signInWithGoogle(idToken: String) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            when (val result = authRepository.signInWithGoogle(idToken)) {
+                is Result.Success -> {
+                    // Sync trips from Supabase after successful login
+                    handlePostLoginDataSync()
+                    _uiState.update { it.copy(isLoading = false, isLoggedIn = true) }
+                }
+                is Result.Error -> {
+                    val message = result.message.lowercase()
+
+                    val errorMsg = when {
+                        message.contains("network") ->
+                            "No internet connection. Please check your network."
+                        message.contains("invalid") ->
+                            "Google sign-in failed. Please try again."
+                        else -> result.message
+                    }
+
+                    _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
+                }
+                Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun sendPasswordResetEmail(email: String) {
+        if (email.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Please enter your email address") }
+            return
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            _uiState.update { it.copy(errorMessage = "Please enter a valid email address") }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            when (val result = authRepository.sendPasswordResetEmail(email)) {
+                is Result.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            passwordResetEmailSent = true,
+                            successMessage = "Password reset link sent! Check your email."
+                        )
+                    }
+                }
+                is Result.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.message ?: "Failed to send reset email"
+                        )
+                    }
+                }
+                Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun resetPasswordResetState() {
+        _uiState.update { it.copy(passwordResetEmailSent = false) }
+    }
+
+    fun initializeResetSession(uri: android.net.Uri) {
+        viewModelScope.launch {
+            try {
+                val fragment = uri.fragment ?: return@launch
+                val params = fragment.split("&").associate {
+                    val (k, v) = it.split("=", limit = 2)
+                    k to v
+                }
+                val accessToken = params["access_token"] ?: return@launch
+                val refreshToken = params["refresh_token"] ?: return@launch
+
+                // Set the session in Supabase so updatePassword works
+                supabase.auth.importSession(
+                    io.github.jan.supabase.gotrue.user.UserSession(
+                        accessToken = accessToken,
+                        refreshToken = refreshToken,
+                        expiresIn = params["expires_in"]?.toLongOrNull() ?: 3600,
+                        tokenType = "bearer",
+                        user = null
+                    )
+                )
+                Log.d("LoginVM", "✅ Reset session initialized")
+            } catch (e: Exception) {
+                Log.e("LoginVM", "Failed to init reset session: ${e.message}")
+            }
+        }
+    }
+
+    fun updatePassword(newPassword: String) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        viewModelScope.launch {
+            when (val result = authRepository.updatePassword(newPassword)) {
+                is Result.Success -> {
+                    Log.d("LoginVM", "✅ Password updated successfully")
+                    _uiState.update { it.copy(isLoading = false, passwordUpdateSuccess = true) }
+                }
+                is Result.Error -> {
+                    Log.e("LoginVM", "❌ Password update failed: ${result.message}")
+                    val friendlyMessage = when {
+                        result.message?.contains("missing sub claim", ignoreCase = true) == true ->
+                            "This reset link is invalid or already used. Please request a new password reset email."
+
+                        else -> result.message ?: "Failed to update password"
+                    }
+
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = friendlyMessage
+                        )
+                    }
+                }
+                Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun showError(message: String) {
+        _uiState.update { it.copy(errorMessage = message, isLoading = false) }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun clearSuccessMessage() {
+        _uiState.update { it.copy(successMessage = null) }
+    }
+
+
 
     private fun isValidEmail(email: String): Boolean{
         return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()

@@ -1,59 +1,161 @@
 package com.example.splitify.presentation.auth
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.splitify.presentation.theme.*
+import com.example.splitify.R
+import com.example.splitify.presentation.theme.CustomShapes
+import com.example.splitify.presentation.theme.CustomTextStyles
+import com.example.splitify.presentation.theme.GradientColors
+import com.example.splitify.presentation.theme.NeutralColors
+import com.example.splitify.presentation.theme.PrimaryColors
+import com.example.splitify.presentation.theme.SemanticColors
+import com.example.splitify.presentation.theme.SplitifyTheme
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToSignUp: () -> Unit = {},
+    onNavigateToForgotPassword: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var passwordVisible by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
 
+    val context = LocalContext.current
+    val webClientId = stringResource(id = R.string.google_web_client_id)
+
+    val googleSignInOptions = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(webClientId)
+            .requestEmail()
+            .requestProfile()
+            .build()
+    }
+
+    val googleSignInClient = remember {
+        GoogleSignIn.getClient(context, googleSignInOptions)
+    }
+
+    // 🔥 FIXED: Google Sign-In Launcher with Error Handling
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                account.idToken?.let { token ->
+                    viewModel.signInWithGoogle(token)
+                } ?: run {
+                    viewModel.showError("Failed to get ID token from Google")
+                }
+            } catch (e: ApiException) {
+                val errorMsg = when (e.statusCode) {
+                    12501 -> "Sign-in cancelled"
+                    12500 -> "Sign-in failed. Please try again."
+                    else -> "Google sign-in error: ${e.statusCode}"
+                }
+                viewModel.showError(errorMsg)
+            }
+        } else if (result.resultCode != Activity.RESULT_CANCELED) {
+            viewModel.showError("Sign-in failed. Please try again.")
+        }
+    }
+
+
     LaunchedEffect(uiState.isLoggedIn) {
         if(uiState.isLoggedIn){
             onLoginSuccess()
+        }
+    }
+
+    uiState.successMessage?.let { message ->
+        LaunchedEffect(message) {
+            // Show snackbar or toast
+            // Auto-clear after 3 seconds
+            kotlinx.coroutines.delay(3000)
+            viewModel.clearSuccessMessage()
         }
     }
 
@@ -107,6 +209,7 @@ fun LoginScreen(
                 onEmailChange = viewModel::onEmailChange,
                 onPasswordChange = viewModel::onPasswordChange,
                 onPasswordVisibilityToggle = { passwordVisible = !passwordVisible },
+                onNavigateToForgotPassword = onNavigateToForgotPassword,
                 onLoginClick = {
                     focusManager.clearFocus()
                     viewModel.login()
@@ -141,7 +244,7 @@ fun LoginScreen(
 
             // Social login buttons
             SocialLoginButtons(
-                onGoogleClick = {},
+                onGoogleClick = {googleSignInLauncher.launch(googleSignInClient.signInIntent)},
                 enabled = !uiState.isLoading
             )
 
@@ -239,6 +342,7 @@ private fun LoginCard(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onPasswordVisibilityToggle: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit,
     onLoginClick: () -> Unit,
     focusManager: FocusManager
 ) {
@@ -381,7 +485,7 @@ private fun LoginCard(
                 text = "Forgot Password?",
                 modifier = Modifier
                     .align(Alignment.End)
-                    .clickable(enabled = !uiState.isLoading) { { /* Handle forgot password */ } }
+                    .clickable(enabled = !uiState.isLoading) { onNavigateToForgotPassword() }
                     .padding(8.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = PrimaryColors.Primary600,
