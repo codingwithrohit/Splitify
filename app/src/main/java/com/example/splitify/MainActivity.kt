@@ -1,5 +1,6 @@
 package com.example.splitify
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -9,6 +10,7 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.example.splitify.data.local.SessionManager
@@ -31,11 +33,16 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var notificationManager: NotificationManager
 
+    private val deepLinkUri = mutableStateOf<android.net.Uri?>(null)
+
 
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        intent?.data?.let { deepLinkUri.value = it }
+
         setContent {
             SplitifyTheme {
                 Surface(
@@ -43,19 +50,26 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
-                    // Pass notificationManager to SplitifyNavGraph
                     SplitifyNavGraph(
                         sessionManager = sessionManager,
                         authRepository = authRepository,
                         navController = navController,
-                        notificationManager = notificationManager
+                        notificationManager = notificationManager,
+                        deepLinkUri = deepLinkUri.value
                     )
                 }
             }
         }
     }
 
-
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.data?.let {
+            android.util.Log.d("MainActivity", "onNewIntent URI: $it")
+            deepLinkUri.value = it
+        }
+    }
 
 }
 

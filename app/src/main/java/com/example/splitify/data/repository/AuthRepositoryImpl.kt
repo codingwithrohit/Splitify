@@ -304,59 +304,6 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-//    override suspend fun signInWithGoogle(idToken: String): Result<User> {
-//        return try {
-//            // 1. Sign in to Supabase using the Google ID Token
-//            supabase.auth.signInWith(IDToken) {
-//                this.idToken = idToken
-//                provider = Google
-//            }
-//
-//            val session = supabase.auth.currentSessionOrNull()
-//                ?: return Exception("Failed to get session from Supabase").asError()
-//
-//            val userId = session.user?.id
-//                ?: return Exception("Failed to get user ID").asError()
-//
-//            // 2. Sync profile: Check if user exists in your 'users' table
-//            var userProfile = supabase.from("users")
-//                .select()
-//                .decodeList<UserDto>()
-//                .firstOrNull { it.id == userId }
-//
-//            // 3. If new user (Social Login), create their profile automatically
-//            if (userProfile == null) {
-//                val email = session.user?.email ?: ""
-//                // Generate a username from email if not provided by Google metadata
-//                val baseUsername = email.split("@")[0]
-//
-//                userProfile = UserDto(
-//                    id = userId,
-//                    email = email,
-//                    username = baseUsername,
-//                    full_name = session.user?.userMetadata?.get("full_name")?.toString() ?: baseUsername
-//                )
-//                supabase.from("users").insert(userProfile)
-//            }
-//
-//            // 4. Save to SessionManager (Consistent with your Email login)
-//            sessionManager.saveSession(
-//                accessToken = session.accessToken,
-//                refreshToken = session.refreshToken ?: "",
-//                userId = userId,
-//                userEmail = userProfile.email,
-//                userName = userProfile.username,
-//                fullName = userProfile.full_name,
-//                avatarUrl = userProfile.avatar_url,
-//                expiresIn = session.expiresIn
-//            )
-//
-//            userProfile.toDomainModel().asSuccess()
-//
-//        } catch (e: Exception) {
-//            e.asError()
-//        }
-//    }
 
 
     override suspend fun signInWithGoogle(idToken: String): Result<User> {
@@ -454,15 +401,16 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    /**
-     * 🔥 NEW: Password Reset Implementation
-     */
+
     override suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
                 Log.d(TAG, "Sending password reset email to: $email")
 
-                supabase.auth.resetPasswordForEmail(email)
+                supabase.auth.resetPasswordForEmail(
+                    email = email,
+                    redirectUrl = "splitify://reset-password"
+                )
 
                 Log.d(TAG, "Password reset email sent successfully")
                 Unit.asSuccess()

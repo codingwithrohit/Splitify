@@ -7,6 +7,8 @@ sealed class Screen(val route: String) {
     //Auth Screens
     data object Login: Screen("login")
     data object SignUp: Screen("signup")
+    data object ForgotPassword : Screen("forgot_password")
+    data object ResetPassword : Screen("reset_password")
     object Main : Screen("main")
     data object Trips: Screen("trips")
     // Profile Routes

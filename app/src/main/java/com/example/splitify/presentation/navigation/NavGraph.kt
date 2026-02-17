@@ -29,7 +29,9 @@ import com.example.splitify.domain.model.NotificationType
 import com.example.splitify.domain.repository.AuthRepository
 import com.example.splitify.presentation.addmembers.AddMemberScreen
 import com.example.splitify.presentation.addmembers.MembersScreen
+import com.example.splitify.presentation.auth.ForgotPasswordScreen
 import com.example.splitify.presentation.auth.LoginScreen
+import com.example.splitify.presentation.auth.ResetPasswordScreen
 import com.example.splitify.presentation.auth.SignUpScreen
 import com.example.splitify.presentation.balances.BalancesScreen
 import com.example.splitify.presentation.components.CustomNotificationSnackbar
@@ -55,7 +57,8 @@ fun SplitifyNavGraph(
     navController: NavHostController = rememberNavController(),
     authRepository: AuthRepository,
     sessionManager: SessionManager,
-    notificationManager: NotificationManager
+    notificationManager: NotificationManager,
+    deepLinkUri: android.net.Uri? = null
 ) {
     var isCheckingSession by remember { mutableStateOf(true) }
     var startDestination by remember { mutableStateOf(Screen.Login.route) }
@@ -95,6 +98,20 @@ fun SplitifyNavGraph(
         }
     }
 
+    // ADD THIS before the if (!isCheckingSession) block
+    LaunchedEffect(deepLinkUri) {
+        deepLinkUri?.let { uri ->
+            if (uri.scheme == "splitify" && uri.host == "reset-password") {
+                Log.d("NavGraph", "✅ Reset password deep link received")
+                // Wait briefly for NavHost to be ready
+                kotlinx.coroutines.delay(300)
+                navController.navigate(Screen.ResetPassword.route) {
+                    popUpTo(Screen.Login.route) { inclusive = false }
+                }
+            }
+        }
+    }
+
     if (!isCheckingSession) {
 
         val snackbarHostState = remember { SnackbarHostState() }
@@ -112,6 +129,17 @@ fun SplitifyNavGraph(
                 )
             }
         }
+
+//        // Handle password reset deep link
+//        LaunchedEffect(deepLinkUri) {
+//            deepLinkUri?.let { uri ->
+//                if (uri.scheme == "splitify" && uri.host == "reset-password") {
+//                    navController.navigate(Screen.ResetPassword.route) {
+//                        popUpTo(Screen.Login.route) { inclusive = false }
+//                    }
+//                }
+//            }
+//        }
 
         Scaffold(
             snackbarHost = {
@@ -146,7 +174,8 @@ fun SplitifyNavGraph(
                             navController.navigate(Screen.Main.route) {
                                 popUpTo(Screen.Login.route) { inclusive = true }
                             }
-                        }
+                        },
+                        onNavigateToForgotPassword = { navController.navigate(Screen.ForgotPassword.route) }
                     )
                 }
 
@@ -157,6 +186,23 @@ fun SplitifyNavGraph(
                         onSignUpSuccess = {
                             navController.navigate(Screen.Main.route) {
                                 popUpTo(Screen.Login.route) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+
+                composable(route = Screen.ForgotPassword.route) {
+                    ForgotPasswordScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable(route = Screen.ResetPassword.route) {
+                    ResetPasswordScreen(
+                        deepLinkUri = deepLinkUri,
+                        onResetSuccess = {
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(0) { inclusive = true }
                             }
                         }
                     )

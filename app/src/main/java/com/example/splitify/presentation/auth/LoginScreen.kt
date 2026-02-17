@@ -95,6 +95,7 @@ import com.google.android.gms.common.api.ApiException
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToSignUp: () -> Unit = {},
+    onNavigateToForgotPassword: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -208,6 +209,7 @@ fun LoginScreen(
                 onEmailChange = viewModel::onEmailChange,
                 onPasswordChange = viewModel::onPasswordChange,
                 onPasswordVisibilityToggle = { passwordVisible = !passwordVisible },
+                onNavigateToForgotPassword = onNavigateToForgotPassword,
                 onLoginClick = {
                     focusManager.clearFocus()
                     viewModel.login()
@@ -340,6 +342,7 @@ private fun LoginCard(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onPasswordVisibilityToggle: () -> Unit,
+    onNavigateToForgotPassword: () -> Unit,
     onLoginClick: () -> Unit,
     focusManager: FocusManager
 ) {
@@ -482,7 +485,7 @@ private fun LoginCard(
                 text = "Forgot Password?",
                 modifier = Modifier
                     .align(Alignment.End)
-                    .clickable(enabled = !uiState.isLoading) {  /* Handle forgot password */  }
+                    .clickable(enabled = !uiState.isLoading) { onNavigateToForgotPassword() }
                     .padding(8.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = PrimaryColors.Primary600,

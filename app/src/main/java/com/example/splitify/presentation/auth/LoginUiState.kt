@@ -11,5 +11,6 @@ data class LoginUiState(
     val errorMessage: String? = null,
     val isLoggedIn: Boolean = false,
     val successMessage: String? = null,
-    val passwordResetEmailSent: Boolean = false
+    val passwordResetEmailSent: Boolean = false,
+    val passwordUpdateSuccess: Boolean = false
 )
