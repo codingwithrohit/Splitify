@@ -209,51 +209,10 @@ fun SignUpScreen(
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            SocialSignUpButtons(
-                enabled = !uiState.isLoading,
-                onGoogleClick = onGoogleSignUp,
-            )
-
             Spacer(Modifier.height(24.dp))
 
             LoginLink(onNavigateBack)
         }
-    }
-}
-
-@Composable
-private fun SocialSignUpButtons(
-    onGoogleClick: () -> Unit,
-    enabled: Boolean
-) {
-    OutlinedButton(
-        onClick = onGoogleClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        shape = CustomShapes.ButtonLargeShape,
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Color.White
-        ),
-        border = ButtonDefaults.outlinedButtonBorder.copy(
-            width = 1.dp,
-            brush = SolidColor(Color.White.copy(alpha = 0.5f))
-        ),
-        enabled = enabled
-    ) {
-        Icon(
-            imageVector = Icons.Default.Login,
-            contentDescription = null,
-            tint = NeutralColors.Neutral700
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = "Sign Up with Google",
-            style = CustomTextStyles.ButtonMedium,
-            color = NeutralColors.Neutral900
-        )
     }
 }
 

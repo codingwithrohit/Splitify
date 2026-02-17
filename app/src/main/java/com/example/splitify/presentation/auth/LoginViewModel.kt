@@ -1,9 +1,6 @@
 package com.example.splitify.presentation.auth
 
 import android.util.Log
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.splitify.data.local.SessionManager
@@ -170,6 +167,84 @@ class LoginViewModel @Inject constructor(
             // Don't block login
         }
     }
+
+    fun signInWithGoogle(idToken: String) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            when (val result = authRepository.signInWithGoogle(idToken)) {
+                is Result.Success -> {
+                    // Sync trips from Supabase after successful login
+                    handlePostLoginDataSync()
+                    _uiState.update { it.copy(isLoading = false, isLoggedIn = true) }
+                }
+                is Result.Error -> {
+                    val message = result.message.lowercase()
+
+                    val errorMsg = when {
+                        message.contains("network") ->
+                            "No internet connection. Please check your network."
+                        message.contains("invalid") ->
+                            "Google sign-in failed. Please try again."
+                        else -> result.message
+                    }
+
+                    _uiState.update { it.copy(isLoading = false, errorMessage = errorMsg) }
+                }
+                Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun sendPasswordResetEmail(email: String) {
+        if (email.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Please enter your email address") }
+            return
+        }
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            _uiState.update { it.copy(errorMessage = "Please enter a valid email address") }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            when (val result = authRepository.sendPasswordResetEmail(email)) {
+                is Result.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            passwordResetEmailSent = true,
+                            successMessage = "Password reset link sent! Check your email."
+                        )
+                    }
+                }
+                is Result.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = result.message ?: "Failed to send reset email"
+                        )
+                    }
+                }
+                Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun showError(message: String) {
+        _uiState.update { it.copy(errorMessage = message, isLoading = false) }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun clearSuccessMessage() {
+        _uiState.update { it.copy(successMessage = null) }
+    }
+
 
     private fun isValidEmail(email: String): Boolean{
         return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()

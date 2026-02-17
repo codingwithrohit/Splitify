@@ -31,4 +31,9 @@ interface AuthRepository {
 
     suspend fun checkUsernameAvailable(username: String): Result<Boolean>
 
+    suspend fun signInWithGoogle(idToken: String): Result<User>
+
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit>
+    suspend fun updatePassword(newPassword: String): Result<Unit>
+
 }

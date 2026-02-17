@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">Splitify</string>
+
+    <!-- Google Sign-In -->
+    <string name="google_web_client_id" translatable="false">@string/default_web_client_id</string>
+    <string name="default_web_client_id" translatable="false">814966808309-sg1faub6i3t7rpfatl9pprsp0ov3clau.apps.googleusercontent.com</string>
+
+    <!-- Password Reset -->
+    <string name="password_reset_email_sent">Password reset link sent to your email</string>
+    <string name="password_reset_error">Failed to send reset email</string>
 </resources>
