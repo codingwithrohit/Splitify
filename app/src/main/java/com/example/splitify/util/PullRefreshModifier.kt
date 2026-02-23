@@ -21,16 +21,14 @@ fun PullToRefreshBox(
     val pullToRefreshState = rememberPullToRefreshState()
 
     LaunchedEffect(isRefreshing) {
-        if(isRefreshing){
-            pullToRefreshState.startRefresh()
-        }else{
+        if (!isRefreshing) {
             pullToRefreshState.endRefresh()
         }
     }
 
     LaunchedEffect(pullToRefreshState.isRefreshing) {
-        if(pullToRefreshState.isRefreshing){
-            onRefresh
+        if (pullToRefreshState.isRefreshing) {
+            onRefresh()
         }
     }
 

@@ -146,7 +146,7 @@ fun CreateTripScreen(
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     shape = CustomShapes.ButtonLargeShape,
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryColors.Primary600),
-                    enabled = !uiState.isLoading && uiState.name.isNotBlank(),
+                    enabled = uiState.name.isNotBlank(),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
                 ) {
                     if (uiState.isLoading) {
@@ -204,7 +204,6 @@ fun CreateTripScreen(
                     keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     shape = CustomShapes.TextFieldShape,
                     colors = premiumTextFieldColors(),
-                    enabled = !uiState.isLoading
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -217,7 +216,6 @@ fun CreateTripScreen(
                     modifier = Modifier.fillMaxWidth().height(120.dp),
                     shape = CustomShapes.TextFieldShape,
                     colors = premiumTextFieldColors(),
-                    enabled = !uiState.isLoading
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))

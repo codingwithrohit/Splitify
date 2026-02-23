@@ -17,6 +17,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
@@ -41,7 +42,7 @@ class TripsViewModel @Inject constructor(
 
     private val currentUserId = MutableStateFlow<String?>(null)
     val userId: StateFlow<String?> = currentUserId.asStateFlow()
-
+    private val _isSyncing = MutableStateFlow(false)
 
     init {
 
@@ -88,18 +89,21 @@ class TripsViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = currentUserId.value ?: return@launch
 
-            tripDao.getTripsByUser(userId).collect { trips ->
-                _uiState.update { current ->
-                    if (trips.isEmpty()) {
-                        TripsUiState.Empty(isSyncing = current.isSyncing())
-                    } else {
-                        Log.d("TripsVM", " UI Update: ${trips.size} trips (Syncing: ${current.isSyncing()})")
-                        TripsUiState.Content(
-                            trips = trips.toDomainModels(),
-                            isSyncing = current.isSyncing()
-                        )
-                    }
+            combine(
+                tripDao.getTripsByUser(userId),
+                _isSyncing
+            ) { trips, syncing ->
+                if (trips.isEmpty()) {
+                    TripsUiState.Empty(isSyncing = syncing)
+                } else {
+                    Log.d("TripsVM", "UI Update: ${trips.size} trips (Syncing: $syncing)")
+                    TripsUiState.Content(
+                        trips = trips.toDomainModels(),
+                        isSyncing = syncing
+                    )
                 }
+            }.collect { state ->
+                _uiState.value = state
             }
         }
     }
@@ -114,7 +118,7 @@ class TripsViewModel @Inject constructor(
             }
 
             Log.d("TripsVM", "🔄 Starting background sync...")
-            _uiState.update { it.withSyncing(true) }
+            _isSyncing.value = true
 
             when (val result = tripRepository.syncTrips()) {
                 is Result.Success -> {
@@ -135,6 +139,7 @@ class TripsViewModel @Inject constructor(
                 }
                 Result.Loading -> Unit
             }
+            _isSyncing.value = false
         }
     }
 
